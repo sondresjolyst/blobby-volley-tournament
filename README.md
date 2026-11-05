@@ -32,7 +32,7 @@ Players sign up at `/join` with the event code, a nickname and a 4 digit PIN, an
 Sign-in has these limits:
 
 - After 5 wrong PINs in a row the player is locked for 15 minutes. The next locks last 30 and then 60 minutes, until the player signs in with the right PIN.
-- One event can have 300 wrong PINs on its players per hour, across all players.
+- Wrong PINs are counted per event. Above 300 in an hour the site logs a warning, but it does not block sign-in. A right PIN always works unless the player is locked.
 - One client address can have 100 unknown nicknames and wrong event codes per hour. Wrong PINs on real players do not count here, so players who share one address at a LAN cannot block each other. An IPv6 address counts by its /64 prefix.
 
 `TRUSTED_PROXY_IP_HEADER` names the header in which the proxy in front of the site puts the client address, such as `x-forwarded-for` or `x-real-ip`. Set it only behind a proxy that overwrites that header with the real client address. Otherwise a client can send any address and get a fresh limit each time. For a list, the last address is used. Without the variable, all clients share one limit, and the site logs a warning at startup in production.

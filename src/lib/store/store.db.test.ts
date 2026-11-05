@@ -383,11 +383,38 @@ describe('sign-in limits', () => {
         expect((await signIn('ola', '1234')).ok).toBe(true);
     });
 
-    it('refuses wrong PINs on real players once the event has too many in the hour', async () => {
+    it('lets a right PIN succeed while the event is over its limit, without touching the event count', async () => {
+        const { eventId } = await activeEventWithPlayer('Ola', '1234');
+        await setAttempts(eventBucket(eventId), EVENT_FAILURES_PER_HOUR + 50);
+        expect((await signIn('ola', '1234')).ok).toBe(true);
+        expect(await readAttempts(pool, eventBucket(eventId), now)).toBe(EVENT_FAILURES_PER_HOUR + 50);
+    });
+
+    it('keeps counting and checking wrong PINs over the event limit, logs a warning and does not block', async () => {
         const { eventId } = await activeEventWithPlayer('Ola', '1234');
         await setAttempts(eventBucket(eventId), EVENT_FAILURES_PER_HOUR);
-        expect(await signIn('ola', '1234', now, 'ip:192.0.2.99')).toEqual({ ok: false, error: 'busy' });
-        expect((await signIn('ola', '1234', new Date(now.getTime() + 60 * MINUTE), 'ip:192.0.2.99')).ok).toBe(true);
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        try {
+            expect(await signIn('ola', '0000')).toEqual({ ok: false, error: 'wrong' });
+            expect(await signIn('ola', '0000')).toEqual({ ok: false, error: 'wrong' });
+            expect(await readAttempts(pool, eventBucket(eventId), now)).toBe(EVENT_FAILURES_PER_HOUR + 2);
+            expect(warn).toHaveBeenCalledTimes(2);
+            expect(warn.mock.calls[1][0]).toMatch(new RegExp(`Event ${eventId} has ${EVENT_FAILURES_PER_HOUR + 2} wrong PINs`));
+        } finally {
+            warn.mockRestore();
+        }
+        expect((await signIn('ola', '1234')).ok).toBe(true);
+    });
+
+    it('does not warn below the event limit', async () => {
+        await activeEventWithPlayer('Ola', '1234');
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        try {
+            await signIn('ola', '0000');
+            expect(warn).not.toHaveBeenCalled();
+        } finally {
+            warn.mockRestore();
+        }
     });
 
     it('counts unknown nicknames only against the client, wrong PINs only against the event, and right PINs nowhere', async () => {

@@ -3,7 +3,7 @@ import type { Pool, PoolClient } from 'pg';
 import { isLocked, lockDurationMs, MAX_WRONG_PINS } from '@/lib/players/lockout';
 import { DUMMY_PIN_HASH, hashPin, verifyPin, type PinHash } from '@/lib/players/pin';
 import { hashSessionToken, isSessionExpired, newSessionToken, sessionExpiresAt } from '@/lib/players/session';
-import { claimAttempts, releaseAttempt } from './attempts';
+import { bumpAttempts, claimAttempts, releaseAttempt } from './attempts';
 
 const UNIQUE_VIOLATION = '23505';
 
@@ -12,7 +12,10 @@ const UNIQUE_VIOLATION = '23505';
  * because everyone at a LAN can share one address. Wrong PINs on real players do not count here.
  */
 export const CLIENT_FAILURES_PER_HOUR = 100;
-/** Wrong PINs on real players allowed per event in an hour, across all players. */
+/**
+ * Wrong PINs on real players per event in an hour, across all players, above which a warning is
+ * logged. Sign-in is never blocked by it. The per-player lock is the guard.
+ */
 export const EVENT_FAILURES_PER_HOUR = 300;
 
 export const eventBucket = (eventId: number) => `event:${eventId}`;
@@ -120,10 +123,12 @@ export async function claimPinAttempt(pool: Pool, eventId: number, nicknameKey: 
 /**
  * Checks a nickname and PIN for the active event.
  *
- * Wrong PINs on a real player are limited by the player's own lock, and across all players by
- * the event bucket. Unknown nicknames count only against the client address, so players who
- * share one address at a LAN cannot use up each other's tries with their own wrong PINs. The
- * slow scrypt check runs with no database connection held.
+ * Wrong PINs on a real player are limited by the player's own escalating lock. They are also
+ * counted per event, and a warning is logged when the event goes over its hourly limit, but that
+ * count never blocks anyone, so one person cannot lock a whole event out. A right PIN always
+ * succeeds. Unknown nicknames count only against the client address, so players who share one
+ * address at a LAN cannot use up each other's tries. The slow scrypt check runs with no database
+ * connection held.
  */
 export async function signInPlayer(pool: Pool, nicknameKey: string, pin: string, client: string, now: Date): Promise<SignInResult> {
     const active = await pool.query<{ id: number }>('SELECT id FROM events WHERE is_active');
@@ -138,12 +143,9 @@ export async function signInPlayer(pool: Pool, nicknameKey: string, pin: string,
         return { ok: false, error: 'wrong' };
     }
 
-    const event = eventBucket(eventId);
-    if (!(await claimAttempts(pool, [{ bucket: event, limit: EVENT_FAILURES_PER_HOUR }], now))) return { ok: false, error: 'busy' };
     const claim = await claimPinAttempt(pool, eventId, nicknameKey, now);
     if (!claim) {
         // The player is locked. This was not a guess, so it does not count.
-        await releaseAttempt(pool, event, now);
         const current = await pool.query<{ locked_until: Date | null }>('SELECT locked_until FROM players WHERE event_id = $1 AND nickname_key = $2', [eventId, nicknameKey]);
         const until = current.rows[0]?.locked_until ?? null;
         return { ok: false, error: 'locked', until: isLocked(until, now) ? until : null };
@@ -151,8 +153,11 @@ export async function signInPlayer(pool: Pool, nicknameKey: string, pin: string,
 
     if (await verifyPin(pin, claim.pinHash)) {
         await pool.query('UPDATE players SET failed_pin_attempts = 0, lock_level = 0, locked_until = NULL WHERE id = $1', [claim.id]);
-        await releaseAttempt(pool, event, now);
         return { ok: true, playerId: claim.id };
+    }
+    const wrongPins = await bumpAttempts(pool, eventBucket(eventId), now);
+    if (wrongPins > EVENT_FAILURES_PER_HOUR) {
+        console.warn(`Event ${eventId} has ${wrongPins} wrong PINs this hour, over the limit of ${EVENT_FAILURES_PER_HOUR}. Sign-in is not blocked.`);
     }
     if (claim.lockedUntil) return { ok: false, error: 'locked', until: claim.lockedUntil };
     return { ok: false, error: 'wrong' };
