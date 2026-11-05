@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Pool } from 'pg';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { migrate, readMigrations } from '../../../scripts/migrate.mjs';
 import type { EventInput } from '@/lib/events/input';
 import { hashPin } from '@/lib/players/pin';
@@ -22,6 +22,19 @@ import {
     signUpPlayer,
     type SignUpInput,
 } from './players';
+
+// Runs inside each PIN check, so a test can see how many connections are checked out at that moment.
+const verifyHook = vi.hoisted(() => ({ run: null as null | (() => void) }));
+vi.mock('@/lib/players/pin', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@/lib/players/pin')>();
+    return {
+        ...actual,
+        verifyPin: (...args: Parameters<typeof actual.verifyPin>) => {
+            verifyHook.run?.();
+            return actual.verifyPin(...args);
+        },
+    };
+});
 
 if (!process.env.TEST_DATABASE_URL) {
     throw new Error('TEST_DATABASE_URL is not set. Run these tests with npm run test:db.');
@@ -411,19 +424,17 @@ describe('sign-in limits', () => {
         expect(await signIn('ola', '1234')).toMatchObject({ ok: false, error: 'locked' });
     });
 
-    it('does not hold a database connection while the PIN is checked', async () => {
+    it('does not hold a database connection while scrypt runs, for a real or an unknown nickname', async () => {
         await activeEventWithPlayer('Ola', '1234');
-        const single = new Pool({ connectionString: process.env.TEST_DATABASE_URL, max: 1 });
+        const busy: number[] = [];
+        verifyHook.run = () => busy.push(pool.totalCount - pool.idleCount);
         try {
-            const order: string[] = [];
-            const signing = signInPlayer(single, 'ola', '1234', client, now).then(() => order.push('sign-in'));
-            await new Promise((resolve) => setImmediate(resolve));
-            const other = single.query('SELECT 1').then(() => order.push('other query'));
-            await Promise.all([signing, other]);
-            expect(order).toEqual(['other query', 'sign-in']);
+            expect((await signIn('ola', '1234')).ok).toBe(true);
+            expect(await signIn('kari', '1234')).toEqual({ ok: false, error: 'wrong' });
         } finally {
-            await single.end();
+            verifyHook.run = null;
         }
+        expect(busy).toEqual([0, 0]);
     });
 });
 
