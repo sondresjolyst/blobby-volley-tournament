@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { authMisconfigured, isAuthPath, isProtectedPath, safeCallback, signInUrl } from './gate';
 
 describe('isProtectedPath', () => {
-    it.each(['/admin', '/admin/', '/admin/players', '/api/admin', '/api/admin/foza', '/Admin', '/ADMIN/x', '/%61dmin', '/%2561dmin', '/admin%2Fx', '/x/../admin', '/a\\b', '/%E0%A4%A'])(
+    it.each(['/admin', '/admin/', '/admin/players', '/api/admin', '/api/admin/foza', '/Admin', '/ADMIN/x', '/%61dmin', '/%2561dmin', '/admin%2Fx', '/x/../admin', '/a\\b', '/%E0%A4%A', '//admin', '/api//admin/x', '/%2F%2Fadmin'])(
         'keeps %s behind the admin check',
         (path) => {
             expect(isProtectedPath(path)).toBe(true);
@@ -38,10 +38,18 @@ describe('signInUrl', () => {
 
     it('keeps the callback on the same origin for odd paths', () => {
         for (const path of ['//evil.test/x', '/\\evil.test', '/%2F%2Fevil.test']) {
-            const url = new URL(signInUrl(new URL(path, origin)), origin);
+            // Built from the origin and the path, so `//evil.test/x` stays a path and is not read as a host.
+            const request = new URL(origin + path);
+            expect(request.origin).toBe(origin);
+            const url = new URL(signInUrl(request), origin);
             const callback = url.searchParams.get('callbackUrl')!;
             expect(new URL(callback, origin).origin).toBe(origin);
         }
+    });
+
+    it('sends a path that starts with two slashes to the start page', () => {
+        const url = new URL(signInUrl(new URL(origin + '//evil.test/x')), origin);
+        expect(url.searchParams.get('callbackUrl')).toBe('/');
     });
 });
 
