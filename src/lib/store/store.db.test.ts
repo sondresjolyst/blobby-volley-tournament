@@ -10,6 +10,7 @@ import { hashSessionToken, SESSION_MS } from '@/lib/players/session';
 import { clearActiveEvent, createEvent, getActiveEvent, getEvent, listEvents, setActiveEvent, updateEvent } from './events';
 import { bumpAttempts, claimAttempts, readAttempts, windowStart } from './attempts';
 import {
+    claimPinAttempt,
     CLIENT_FAILURES_PER_HOUR,
     createSession,
     deleteSession,
@@ -361,42 +362,72 @@ describe('auth_attempts', () => {
 });
 
 describe('sign-in limits', () => {
-    it('refuses a client over its limit without checking the PIN or counting against the player', async () => {
+    it('refuses unknown nicknames from a client over its limit, without a PIN check', async () => {
         await activeEventWithPlayer('Ola', '1234');
         await setAttempts(client, CLIENT_FAILURES_PER_HOUR);
-        expect(await signIn('ola', '1234')).toEqual({ ok: false, error: 'busy' });
-        expect((await pool.query("SELECT failed_pin_attempts FROM players WHERE nickname_key = 'ola'")).rows[0].failed_pin_attempts).toBe(0);
-        expect((await signIn('ola', '1234', now, 'ip:192.0.2.99')).ok).toBe(true);
+        const busy: number[] = [];
+        verifyHook.run = () => busy.push(1);
+        try {
+            expect(await signIn('kari', '1234')).toEqual({ ok: false, error: 'busy' });
+        } finally {
+            verifyHook.run = null;
+        }
+        expect(busy).toEqual([]);
+        expect(await signIn('kari', '1234', now, 'ip:192.0.2.99')).toEqual({ ok: false, error: 'wrong' });
     });
 
-    it('refuses everyone once the event has too many failed sign-ins in the hour', async () => {
+    it('lets real players on a client that is over its limit still sign in, so a shared address cannot block them', async () => {
+        await activeEventWithPlayer('Ola', '1234');
+        await setAttempts(client, CLIENT_FAILURES_PER_HOUR);
+        expect(await signIn('ola', '0000')).toEqual({ ok: false, error: 'wrong' });
+        expect((await signIn('ola', '1234')).ok).toBe(true);
+    });
+
+    it('refuses wrong PINs on real players once the event has too many in the hour', async () => {
         const { eventId } = await activeEventWithPlayer('Ola', '1234');
         await setAttempts(eventBucket(eventId), EVENT_FAILURES_PER_HOUR);
         expect(await signIn('ola', '1234', now, 'ip:192.0.2.99')).toEqual({ ok: false, error: 'busy' });
         expect((await signIn('ola', '1234', new Date(now.getTime() + 60 * MINUTE), 'ip:192.0.2.99')).ok).toBe(true);
     });
 
-    it('counts wrong PINs and unknown nicknames against the client and the event, and not right PINs', async () => {
+    it('counts unknown nicknames only against the client, wrong PINs only against the event, and right PINs nowhere', async () => {
         const { eventId } = await activeEventWithPlayer('Ola', '1234');
-        await signIn('ola', '0000');
         await signIn('kari', '1234');
+        expect(await readAttempts(pool, client, now)).toBe(1);
+        expect(await readAttempts(pool, eventBucket(eventId), now)).toBe(0);
+        await signIn('ola', '0000');
+        expect(await readAttempts(pool, client, now)).toBe(1);
+        expect(await readAttempts(pool, eventBucket(eventId), now)).toBe(1);
         await signIn('ola', '1234');
-        expect(await readAttempts(pool, client, now)).toBe(2);
-        expect(await readAttempts(pool, eventBucket(eventId), now)).toBe(2);
+        expect(await readAttempts(pool, client, now)).toBe(1);
+        expect(await readAttempts(pool, eventBucket(eventId), now)).toBe(1);
     });
 
     it('does not count tries against a locked player', async () => {
-        await activeEventWithPlayer('Ola', '1234');
+        const { eventId } = await activeEventWithPlayer('Ola', '1234');
         for (let i = 0; i < 5; i++) await signIn('ola', '0000');
         expect(await signIn('ola', '1234')).toMatchObject({ ok: false, error: 'locked' });
-        expect(await readAttempts(pool, client, now)).toBe(5);
+        expect(await readAttempts(pool, eventBucket(eventId), now)).toBe(5);
     });
 
-    it('stops one client from locking out a player once it reaches its limit', async () => {
+    it('locks with an end time when the fifth try is claimed, even if the check never finishes', async () => {
+        const { eventId } = await activeEventWithPlayer('Ola', '1234');
+        for (let i = 0; i < 4; i++) expect((await claimPinAttempt(pool, eventId, 'ola', now))?.lockedUntil).toBeNull();
+        const fifth = await claimPinAttempt(pool, eventId, 'ola', now);
+        expect(fifth?.lockedUntil).toEqual(new Date(now.getTime() + 15 * MINUTE));
+        // The process stops here, before the PIN is checked.
+        const { rows } = await pool.query("SELECT failed_pin_attempts, locked_until, lock_level FROM players WHERE nickname_key = 'ola'");
+        expect(rows[0]).toEqual({ failed_pin_attempts: 0, locked_until: new Date(now.getTime() + 15 * MINUTE), lock_level: 1 });
+        expect(await signIn('ola', '1234')).toEqual({ ok: false, error: 'locked', until: new Date(now.getTime() + 15 * MINUTE) });
+        expect((await signIn('ola', '1234', new Date(now.getTime() + 15 * MINUTE))).ok).toBe(true);
+    });
+
+    it('clears the lock when the fifth try is the right PIN', async () => {
         await activeEventWithPlayer('Ola', '1234');
-        await setAttempts(client, CLIENT_FAILURES_PER_HOUR - 2);
-        for (let i = 0; i < 5; i++) await signIn('ola', '0000');
-        expect((await signIn('ola', '1234', now, 'ip:192.0.2.99')).ok).toBe(true);
+        for (let i = 0; i < 4; i++) await signIn('ola', '0000');
+        expect((await signIn('ola', '1234')).ok).toBe(true);
+        const { rows } = await pool.query("SELECT failed_pin_attempts, locked_until, lock_level FROM players WHERE nickname_key = 'ola'");
+        expect(rows[0]).toEqual({ failed_pin_attempts: 0, locked_until: null, lock_level: 0 });
     });
 
     it('escalates the lock to 15, 30 and 60 minutes, and starts again after a right PIN', async () => {
