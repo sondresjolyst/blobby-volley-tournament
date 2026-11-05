@@ -23,7 +23,7 @@ export async function proxy(req: NextRequest) {
         return new NextResponse('Service unavailable', { status: 503 });
     }
 
-    // Every other page is public for now. Players get their own login later.
+    // Every other page is public. Player pages check the player session themselves.
     if (!protectedPath) return NextResponse.next();
 
     const token = await readToken(req);
