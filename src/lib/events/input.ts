@@ -10,7 +10,8 @@ export interface EventInput {
 export const MAX_FOZA = 1_000_000;
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
-const CODE = /^[A-Z0-9-]{4,32}$/;
+// At least 8 characters, so the code cannot be guessed in the attempts the limits allow.
+const CODE = /^[A-Z0-9-]{8,32}$/;
 const WHOLE = /^\d+$/;
 
 /** Event codes are compared in upper case, so a player can type them either way. */

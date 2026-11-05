@@ -18,7 +18,7 @@ const secret = 'e2e-placeholder-secret';
 const adminId = '1';
 
 // The event the tests sign up to. The code is invented.
-const E2E_EVENT_CODE = 'E2E-LAN';
+const E2E_EVENT_CODE = 'E2E-LAN-2026';
 
 const docker = (...args) => spawnSync('docker', args, { encoding: 'utf8' });
 const cleanupDb = () => docker('rm', '--force', '--volumes', name);

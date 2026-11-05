@@ -1,9 +1,7 @@
-import { redirect } from 'next/navigation';
-import { getCurrentPlayer } from '@/lib/players/current';
+import { requireActivePlayer } from '@/lib/players/current';
 
 export default async function Me() {
-    const player = await getCurrentPlayer();
-    if (!player) redirect('/login');
+    const player = await requireActivePlayer();
     return (
         <main>
             <h1>{player.nickname}</h1>

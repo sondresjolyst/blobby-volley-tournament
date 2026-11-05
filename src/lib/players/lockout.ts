@@ -1,25 +1,19 @@
 export const MAX_WRONG_PINS = 5;
-export const LOCK_MS = 15 * 60 * 1000;
+const MINUTE_MS = 60 * 1000;
 
-export interface LockState {
-    failedAttempts: number;
-    lockedUntil: Date | null;
+/** Lock lengths in a row: 15 minutes, then 30, then 60 for every lock after that. */
+export const LOCK_STEPS_MS = [15 * MINUTE_MS, 30 * MINUTE_MS, 60 * MINUTE_MS] as const;
+
+/**
+ * How long the next lock lasts. The level is the number of locks the player has had in a row
+ * without a right PIN in between.
+ */
+export function lockDurationMs(level: number): number {
+    const step = Math.min(Math.max(Math.trunc(level), 0), LOCK_STEPS_MS.length - 1);
+    return LOCK_STEPS_MS[step];
 }
 
 /** True while the lock is in force. */
-export function isLocked(state: LockState, now: Date): boolean {
-    return state.lockedUntil !== null && state.lockedUntil.getTime() > now.getTime();
-}
-
-/**
- * The state after one PIN check. A right PIN clears the count. The fifth wrong PIN in a row locks
- * the player for 15 minutes and starts the count again.
- */
-export function afterPinCheck(state: LockState, correct: boolean, now: Date): LockState {
-    if (correct) return { failedAttempts: 0, lockedUntil: null };
-    const failedAttempts = state.failedAttempts + 1;
-    if (failedAttempts >= MAX_WRONG_PINS) {
-        return { failedAttempts: 0, lockedUntil: new Date(now.getTime() + LOCK_MS) };
-    }
-    return { failedAttempts, lockedUntil: state.lockedUntil };
+export function isLocked(lockedUntil: Date | null, now: Date): boolean {
+    return lockedUntil !== null && lockedUntil.getTime() > now.getTime();
 }

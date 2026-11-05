@@ -3,7 +3,7 @@ import type { EventInput } from '@/lib/events/input';
 const EVENT_ERRORS: Record<string, string> = {
     name: 'The name must be 1 to 100 characters.',
     dates: 'Give a valid start and end date. The end cannot be before the start.',
-    code: 'The event code must be 4 to 32 letters A to Z, digits or hyphens.',
+    code: 'The event code must be 8 to 32 letters A to Z, digits or hyphens.',
     foza: 'Foza amounts must be whole numbers from 0 to 1000000.',
     pin: 'The PIN must be 4 digits.',
 };
@@ -34,7 +34,7 @@ export function EventForm({ action, event, submitLabel }: { action: string; even
             </p>
             <p>
                 <label>
-                    Event code <input name="code" required minLength={4} maxLength={32} defaultValue={event?.code} />
+                    Event code <input name="code" required minLength={8} maxLength={32} defaultValue={event?.code} />
                 </label>
             </p>
             <p>

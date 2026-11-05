@@ -22,6 +22,7 @@ describe('parseEventInput', () => {
         ['dates', { startsOn: '2026-02-30' }],
         ['dates', { startsOn: '20.11.2026' }],
         ['code', { code: 'abc' }],
+        ['code', { code: 'lan-202' }],
         ['code', { code: 'lan 2026' }],
         ['foza', { startingFoza: '-1' }],
         ['foza', { dailyFoza: '1.5' }],

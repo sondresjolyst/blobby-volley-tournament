@@ -27,8 +27,19 @@ To change the schema, add a new file with the next number. Do not edit a file th
 
 An admin creates an event for each LAN under `/admin/events`, with a name, dates, an event code, a starting Foza amount and a daily Foza amount. One event at a time is active. Past events stay stored.
 
-Players sign up at `/join` with the event code, a nickname and a 4 digit PIN, and sign in at `/login`. `/me` shows the nickname and the Foza balance. A nickname is at most 15 bytes in UTF-8, so æ, ø and å count as 2. Nicknames are unique per event, ignoring case. After 5 wrong PINs in a row the player is locked for 15 minutes. An admin can reset a player's PIN on the event page.
+Players sign up at `/join` with the event code, a nickname and a 4 digit PIN, and sign in at `/login`. `/me` shows the nickname and the Foza balance. A nickname is at most 15 bytes in UTF-8, so Ã¦, Ã¸ and Ã¥ count as 2. Nicknames are unique per event, ignoring case. An event code is 8 to 32 characters. An admin can reset a player's PIN on the event page.
 
+Sign-in has these limits:
+
+- After 5 wrong PINs in a row the player is locked for 15 minutes. The next locks last 30 and then 60 minutes, until the player signs in with the right PIN.
+- One client address can have 100 failed sign-ins and wrong event codes per hour. The limit is high, because everyone at a LAN may share one address.
+- One event can have 300 failed sign-ins per hour across all players.
+
+`TRUSTED_PROXY_IP_HEADER` names the header in which the proxy in front of the site puts the client address, such as `x-forwarded-for` or `x-real-ip`. Set it only when such a proxy sets or overwrites that header, because a client can send any header. For a list, the last address is used. Without it, all players share one client limit.
+
+Form posts must come from the site itself. The browser must send `Sec-Fetch-Site` as `same-origin` or `none`, or an `Origin` that matches `NEXTAUTH_URL`.
+
+## Admin login
 
 Pages under `/admin` and routes under `/api/admin` need a GitHub login. All other pages are public. Set these in `.env.local`, see `.env.example`.
 

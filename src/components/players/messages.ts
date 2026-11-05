@@ -7,7 +7,8 @@ const MESSAGES: Record<string, string> = {
     'nickname-invalid': 'The nickname has characters that are not allowed.',
     pin: 'The PIN must be 4 digits.',
     wrong: 'Wrong nickname or PIN.',
-    locked: 'Too many wrong PINs. Try again in 15 minutes.',
+    locked: 'Too many wrong PINs. Your account is locked for a while. Try again later or ask an admin to reset your PIN.',
+    busy: 'Too many failed attempts from this network. Try again later.',
     form: 'Something went wrong. Try again.',
 };
 

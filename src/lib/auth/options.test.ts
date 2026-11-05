@@ -181,11 +181,24 @@ describe('requireAdminApi', () => {
         await expect(requireAdminApi()).resolves.toBe(admin);
     });
 
-    it('answers 403 for a post from another site, even for an admin', async () => {
-        vi.mocked(getServerSession).mockResolvedValue({ githubId: '12345', expires: 'x' });
+    it.each<Record<string, string>>([{ 'sec-fetch-site': 'cross-site' }, { 'sec-fetch-site': 'same-site' }, { origin: 'https://evil.test' }, {}])(
+        'answers 403 for a post that does not come from this site, even for an admin (%o)',
+        async (headers) => {
+            vi.mocked(getServerSession).mockResolvedValue({ githubId: '12345', expires: 'x' });
+            vi.stubEnv('ALLOWED_GITHUB_USER_IDS', '12345');
+            vi.stubEnv('NEXTAUTH_URL', 'https://bvt.example.test');
+            const req = new Request('https://bvt.example.test/api/admin/events', { method: 'POST', headers });
+            expect(((await requireAdminApi(req)) as Response).status).toBe(403);
+        },
+    );
+
+    it.each<Record<string, string>>([{ 'sec-fetch-site': 'same-origin' }, { origin: 'https://bvt.example.test' }])('lets an admin post from this site (%o)', async (headers) => {
+        const admin = { githubId: '12345', expires: 'x' };
+        vi.mocked(getServerSession).mockResolvedValue(admin);
         vi.stubEnv('ALLOWED_GITHUB_USER_IDS', '12345');
-        const req = new Request('https://bvt.example.test/api/admin/events', { method: 'POST', headers: { 'sec-fetch-site': 'cross-site' } });
-        expect(((await requireAdminApi(req)) as Response).status).toBe(403);
+        vi.stubEnv('NEXTAUTH_URL', 'https://bvt.example.test');
+        const req = new Request('https://bvt.example.test/api/admin/events', { method: 'POST', headers });
+        await expect(requireAdminApi(req)).resolves.toBe(admin);
     });
 
     it('answers 503 in production without an https NEXTAUTH_URL', async () => {

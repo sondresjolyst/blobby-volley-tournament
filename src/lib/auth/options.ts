@@ -2,6 +2,7 @@ import { getServerSession, type NextAuthOptions, type Session } from 'next-auth'
 import GithubProvider from 'next-auth/providers/github';
 import { redirect } from 'next/navigation';
 import { connection } from 'next/server';
+import { isTrustedPost } from '@/lib/http';
 import { authMisconfigured, logMisconfigured } from './gate';
 
 declare module 'next-auth' {
@@ -90,14 +91,14 @@ export async function requireAdmin(): Promise<Session> {
 /**
  * The check for routes under `/api/admin`. The proxy checks them too, but each route checks again.
  * Returns the session of an admin, or a response to send back: 401 without a session, 403 for
- * another account or a post from another site, and 503 when the sign-in setup is unsafe.
+ * another account or a post that does not come from this site, and 503 when the sign-in setup is unsafe.
  */
 export async function requireAdminApi(req?: Request): Promise<Session | Response> {
     if (authMisconfigured(process.env)) {
         logMisconfigured();
         return Response.json({ error: 'unavailable' }, { status: 503 });
     }
-    if (req?.headers.get('sec-fetch-site') === 'cross-site') return Response.json({ error: 'forbidden' }, { status: 403 });
+    if (req && !isTrustedPost(req, process.env)) return Response.json({ error: 'forbidden' }, { status: 403 });
     const session = await getServerSession(authOptions);
     if (!session) return Response.json({ error: 'unauthorized' }, { status: 401 });
     if (!isAllowedUser(session.githubId, process.env.ALLOWED_GITHUB_USER_IDS)) return Response.json({ error: 'forbidden' }, { status: 403 });

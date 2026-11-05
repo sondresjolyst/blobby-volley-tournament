@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isCrossSite, parseId, readForm, seeOther } from './http';
+import { isTrustedPost, parseId, readForm, seeOther } from './http';
 
 describe('seeOther', () => {
     it('answers 303 with a relative address', () => {
@@ -9,12 +9,29 @@ describe('seeOther', () => {
     });
 });
 
-describe('isCrossSite', () => {
-    it('is true only when the browser says the post came from another site', () => {
-        const req = (value?: string) => new Request('https://bvt.example.test/', { headers: value ? { 'sec-fetch-site': value } : {} });
-        expect(isCrossSite(req('cross-site'))).toBe(true);
-        expect(isCrossSite(req('same-origin'))).toBe(false);
-        expect(isCrossSite(req())).toBe(false);
+describe('isTrustedPost', () => {
+    const env = { NEXTAUTH_URL: 'https://bvt.example.test' };
+    const req = (headers: Record<string, string>) => new Request('https://bvt.example.test/api/player/signin', { method: 'POST', headers });
+
+    it.each(['same-origin', 'none'])('accepts Sec-Fetch-Site %s', (value) => {
+        expect(isTrustedPost(req({ 'sec-fetch-site': value }), env)).toBe(true);
+    });
+
+    it.each(['cross-site', 'same-site', 'other'])('refuses Sec-Fetch-Site %s, even with a matching Origin', (value) => {
+        expect(isTrustedPost(req({ 'sec-fetch-site': value, origin: 'https://bvt.example.test' }), env)).toBe(false);
+    });
+
+    it('without Sec-Fetch-Site accepts only an Origin that matches NEXTAUTH_URL', () => {
+        expect(isTrustedPost(req({ origin: 'https://bvt.example.test' }), env)).toBe(true);
+        expect(isTrustedPost(req({ origin: 'https://evil.test' }), env)).toBe(false);
+        expect(isTrustedPost(req({ origin: 'http://bvt.example.test' }), env)).toBe(false);
+        expect(isTrustedPost(req({ origin: 'null' }), env)).toBe(false);
+    });
+
+    it('refuses a post with neither header, or when NEXTAUTH_URL is not set', () => {
+        expect(isTrustedPost(req({}), env)).toBe(false);
+        expect(isTrustedPost(req({ origin: 'https://bvt.example.test' }), {})).toBe(false);
+        expect(isTrustedPost(req({ origin: 'https://bvt.example.test' }), { NEXTAUTH_URL: 'not a url' })).toBe(false);
     });
 });
 
