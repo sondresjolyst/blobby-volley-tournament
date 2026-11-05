@@ -16,7 +16,16 @@ export default defineConfig({
         ? undefined
         : {
               command: 'npm run build && node scripts/prepare-standalone.mjs && node .next/standalone/server.js',
-              env: { PORT: String(port), HOSTNAME: 'localhost' },
+              // Placeholder auth values. The server runs in production mode, which needs an https address.
+              env: {
+                  PORT: String(port),
+                  HOSTNAME: 'localhost',
+                  NEXTAUTH_URL: 'https://localhost',
+                  NEXTAUTH_SECRET: 'e2e-placeholder-secret',
+                  GITHUB_CLIENT_ID: 'e2e-placeholder',
+                  GITHUB_CLIENT_SECRET: 'e2e-placeholder',
+                  ALLOWED_GITHUB_USER_IDS: '1',
+              },
               url: `http://localhost:${port}/health`,
               timeout: 180_000,
               reuseExistingServer: true,
