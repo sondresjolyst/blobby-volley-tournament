@@ -4,7 +4,7 @@ Tournament and fake-points betting site for Blobby Volley 2. Points are called F
 
 ## Run locally
 
-Requires Node 24.
+Requires Node 26.
 
     npm install
     cp .env.example .env.local
@@ -20,7 +20,7 @@ The site runs on http://localhost:3000. The `/health` route returns a small JSON
     npx playwright install chromium
     npm run test:e2e
 
-The end-to-end test builds the site and starts it on port 3100.
+The end-to-end test builds the site, copies the static files and starts the standalone server on port 3100.
 
 ## Build
 

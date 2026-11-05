@@ -15,7 +15,8 @@ export default defineConfig({
     webServer: process.env.E2E_BASE_URL
         ? undefined
         : {
-              command: `npm run build && npx next start -p ${port}`,
+              command: 'npm run build && node scripts/prepare-standalone.mjs && node .next/standalone/server.js',
+              env: { PORT: String(port), HOSTNAME: 'localhost' },
               url: `http://localhost:${port}/health`,
               timeout: 180_000,
               reuseExistingServer: true,
