@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getServerSession, type Session } from 'next-auth';
-import { authOptions, isAllowedUser, requireAdmin } from './options';
+import { authOptions, isAllowedUser, requireAdmin, requireAdminApi } from './options';
 
 vi.mock('next-auth', async (importOriginal) => ({
     ...(await importOriginal<typeof import('next-auth')>()),
@@ -150,5 +150,63 @@ describe('requireAdmin', () => {
         vi.stubEnv('NEXTAUTH_URL', 'http://bvt.example.test');
         vi.spyOn(console, 'error').mockImplementation(() => {});
         await expect(requireAdmin()).rejects.toThrow('NEXTAUTH_URL');
+    });
+});
+
+describe('requireAdminApi', () => {
+    it('answers 401 without a session', async () => {
+        vi.mocked(getServerSession).mockResolvedValue(null);
+        vi.stubEnv('ALLOWED_GITHUB_USER_IDS', '12345');
+        const result = await requireAdminApi();
+        expect(result).toBeInstanceOf(Response);
+        expect((result as Response).status).toBe(401);
+    });
+
+    it('answers 403 for another account', async () => {
+        vi.mocked(getServerSession).mockResolvedValue({ githubId: '999', expires: 'x' });
+        vi.stubEnv('ALLOWED_GITHUB_USER_IDS', '12345');
+        expect(((await requireAdminApi()) as Response).status).toBe(403);
+    });
+
+    it('answers 403 when the allowlist is unset', async () => {
+        vi.mocked(getServerSession).mockResolvedValue({ githubId: '12345', expires: 'x' });
+        vi.stubEnv('ALLOWED_GITHUB_USER_IDS', '');
+        expect(((await requireAdminApi()) as Response).status).toBe(403);
+    });
+
+    it('returns the session for an admin', async () => {
+        const admin = { githubId: '12345', expires: 'x' };
+        vi.mocked(getServerSession).mockResolvedValue(admin);
+        vi.stubEnv('ALLOWED_GITHUB_USER_IDS', '12345');
+        await expect(requireAdminApi()).resolves.toBe(admin);
+    });
+
+    it.each<Record<string, string>>([{ 'sec-fetch-site': 'cross-site' }, { 'sec-fetch-site': 'same-site' }, { origin: 'https://evil.test' }, {}])(
+        'answers 403 for a post that does not come from this site, even for an admin (%o)',
+        async (headers) => {
+            vi.mocked(getServerSession).mockResolvedValue({ githubId: '12345', expires: 'x' });
+            vi.stubEnv('ALLOWED_GITHUB_USER_IDS', '12345');
+            vi.stubEnv('NEXTAUTH_URL', 'https://bvt.example.test');
+            const req = new Request('https://bvt.example.test/api/admin/events', { method: 'POST', headers });
+            expect(((await requireAdminApi(req)) as Response).status).toBe(403);
+        },
+    );
+
+    it.each<Record<string, string>>([{ 'sec-fetch-site': 'same-origin' }, { origin: 'https://bvt.example.test' }])('lets an admin post from this site (%o)', async (headers) => {
+        const admin = { githubId: '12345', expires: 'x' };
+        vi.mocked(getServerSession).mockResolvedValue(admin);
+        vi.stubEnv('ALLOWED_GITHUB_USER_IDS', '12345');
+        vi.stubEnv('NEXTAUTH_URL', 'https://bvt.example.test');
+        const req = new Request('https://bvt.example.test/api/admin/events', { method: 'POST', headers });
+        await expect(requireAdminApi(req)).resolves.toBe(admin);
+    });
+
+    it('answers 503 in production without an https NEXTAUTH_URL', async () => {
+        vi.mocked(getServerSession).mockResolvedValue({ githubId: '12345', expires: 'x' });
+        vi.stubEnv('ALLOWED_GITHUB_USER_IDS', '12345');
+        vi.stubEnv('NODE_ENV', 'production');
+        vi.stubEnv('NEXTAUTH_URL', 'http://bvt.example.test');
+        vi.spyOn(console, 'error').mockImplementation(() => {});
+        expect(((await requireAdminApi()) as Response).status).toBe(503);
     });
 });

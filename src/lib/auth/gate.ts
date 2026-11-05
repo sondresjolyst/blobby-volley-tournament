@@ -17,7 +17,8 @@ function decodePath(pathname: string): string | null {
 }
 
 function isAdminPath(path: string): boolean {
-    const lower = path.toLowerCase();
+    // Repeated slashes are collapsed first, so `//admin` matches like `/admin`.
+    const lower = path.replace(/\/{2,}/g, '/').toLowerCase();
     return lower === '/admin' || lower.startsWith('/admin/') || lower === '/api/admin' || lower.startsWith('/api/admin/');
 }
 
