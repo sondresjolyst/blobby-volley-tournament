@@ -166,3 +166,30 @@ describe('tournament schema', () => {
         await expect(pool.query('DELETE FROM players WHERE id = $1', [players[0]])).rejects.toThrow(/foreign key/);
     });
 });
+
+describe('third place match', () => {
+    it('saves and loads a single elimination bracket with a third place match', async () => {
+        const { eventId, players } = await activeEvent(6);
+        const bracket = generateBracket({
+            format: 'single_elimination',
+            players,
+            seeding: { method: 'random', seed: 5 },
+            thirdPlaceMatch: true,
+            rounds: { 'third_place-1': { bestOf: 3, ruleFile: 'bronze.lua' } },
+        });
+        const result = await saveTournament(pool, eventId, { name: 'Bronze cup', seeding: 'random', randomSeed: 5, bracket });
+        if (!result.ok) throw new Error(result.error);
+        const saved = await getTournament(pool, result.id);
+        expect(saved).toMatchObject({ thirdPlaceMatch: true });
+        expect(asPlanned(saved!)).toEqual(bracket.matches.map(({ id, section, round, position, bestOf, ruleFile, players, winnerTo, loserTo }) => ({ id, section, round, position, bestOf, ruleFile, players, winnerTo, loserTo })));
+        expect(saved!.matches.at(-1)).toMatchObject({ section: 'third_place', bestOf: 3, ruleFile: 'bronze.lua' });
+    });
+
+    it('is stored as off when not asked for, and only single elimination may have it', async () => {
+        const { eventId, players } = await activeEvent(4);
+        const result = await saveTournament(pool, eventId, { name: 'Cup', seeding: 'random', randomSeed: 1, bracket: plan('double_elimination', players) });
+        if (!result.ok) throw new Error(result.error);
+        expect(await getTournament(pool, result.id)).toMatchObject({ thirdPlaceMatch: false });
+        await expect(pool.query('UPDATE tournaments SET third_place_match = true WHERE id = $1', [result.id])).rejects.toThrow(/check/);
+    });
+});

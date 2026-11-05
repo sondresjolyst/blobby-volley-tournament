@@ -1,9 +1,11 @@
 import { doubleElimination, singleElimination } from './elimination';
+import { placings } from './placings';
 import { seedPlayers, type Seeding } from './seeding';
-import type { Bracket, BracketFormat, BracketMatch, BracketRound, FormatId } from './types';
+import type { Bracket, BracketFormat, BracketMatch, BracketRound, FormatId, Placing, PlacingRule } from './types';
 
 export * from './types';
-export { roundName } from './elimination';
+export { roundName, THIRD_PLACE_MIN_PLAYERS } from './elimination';
+export { playersAfter } from './placings';
 export { seedPlayers, seededRandom, DEFAULT_ELO, MAX_RANDOM_SEED, SEEDING_METHODS, type Seeding, type SeedingMethod } from './seeding';
 
 /** The formats this site can build. A new format only needs an entry here. */
@@ -45,6 +47,7 @@ export interface PlannedBracket {
     format: FormatId;
     /** Player ids in seed order, seed 1 first. */
     seeds: number[];
+    thirdPlaceMatch: boolean;
     rounds: PlannedRound[];
     matches: PlannedMatch[];
 }
@@ -53,6 +56,8 @@ export interface BracketRequest {
     format: FormatId;
     players: readonly number[];
     seeding: Seeding;
+    /** Single elimination only. Off by default. */
+    thirdPlaceMatch?: boolean;
     /** Settings by round key. A round without settings is best of 1 with the default rules. */
     rounds?: Readonly<Record<string, Partial<RoundSettings>>>;
 }
@@ -60,7 +65,8 @@ export interface BracketRequest {
 /** Seeds the players, builds the bracket and puts the best-of and rules of each round on its matches. */
 export function generateBracket(request: BracketRequest): PlannedBracket {
     const seeds = seedPlayers(request.players, request.seeding);
-    const bracket: Bracket = FORMATS[request.format].build(seeds);
+    const thirdPlaceMatch = request.thirdPlaceMatch ?? false;
+    const bracket: Bracket = FORMATS[request.format].build(seeds, { thirdPlaceMatch });
     const rounds = bracket.rounds.map((round): PlannedRound => {
         const settings = request.rounds && Object.hasOwn(request.rounds, round.key) ? request.rounds[round.key] : {};
         const bestOf = settings.bestOf ?? 1;
@@ -74,5 +80,19 @@ export function generateBracket(request: BracketRequest): PlannedBracket {
         const round = byKey.get(`${match.section}-${match.round}`)!;
         return { ...match, bestOf: round.bestOf, ruleFile: round.ruleFile };
     });
-    return { format: bracket.format, seeds, rounds, matches };
+    return { format: bracket.format, seeds, thirdPlaceMatch, rounds, matches };
+}
+
+/** Which match results decide the final places of a bracket. */
+export function placingRules(bracket: Pick<Bracket, 'format' | 'matches'>): PlacingRule[] {
+    return FORMATS[bracket.format].placingRules({ rounds: [], ...bracket });
+}
+
+/**
+ * The final places decided so far, from the winner of each played match by match id. 1st and 2nd
+ * come from the final. In double elimination 3rd is the loser of the losers final. In single
+ * elimination 3rd and 4th come from the third place match, or both semifinal losers share 3rd.
+ */
+export function finalPlacings(bracket: Pick<Bracket, 'format' | 'matches'>, winners: ReadonlyMap<number, number>): Placing[] {
+    return placings({ rounds: [], ...bracket }, placingRules(bracket), winners);
 }

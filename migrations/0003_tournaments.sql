@@ -7,8 +7,11 @@ CREATE TABLE tournaments (
     seeding text NOT NULL CHECK (seeding IN ('random', 'manual', 'elo')),
     -- Set only for random seeding. The same seed and players give the same bracket again.
     random_seed integer CHECK (random_seed >= 0),
+    -- Single elimination only. The two semifinal losers play for third place.
+    third_place_match boolean NOT NULL DEFAULT false,
     created_at timestamptz NOT NULL DEFAULT now(),
     CHECK ((seeding = 'random') = (random_seed IS NOT NULL)),
+    CHECK (NOT third_place_match OR format = 'single_elimination'),
     UNIQUE (id, event_id)
 );
 
@@ -35,7 +38,7 @@ CREATE INDEX tournament_players_player_id_idx ON tournament_players (player_id);
 CREATE TABLE bracket_matches (
     id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     tournament_id integer NOT NULL REFERENCES tournaments (id) ON DELETE CASCADE,
-    section text NOT NULL CHECK (section IN ('winners', 'losers', 'final')),
+    section text NOT NULL CHECK (section IN ('winners', 'losers', 'third_place', 'final')),
     round integer NOT NULL CHECK (round >= 1),
     position integer NOT NULL CHECK (position >= 1),
     best_of integer NOT NULL CHECK (best_of IN (1, 3, 5, 7)),

@@ -9,6 +9,7 @@ import {
     MAX_RANDOM_SEED,
     MIN_PLAYERS,
     SEEDING_METHODS,
+    THIRD_PLACE_MIN_PLAYERS,
     type FormatId,
     type PlannedBracket,
     type RoundSettings,
@@ -44,11 +45,14 @@ export interface TournamentDraft {
     playerIds: number[];
     /** The hand seeding, seed 1 first. Only set for hand seeding. */
     manualOrder: number[] | null;
+    thirdPlaceMatch: boolean;
     /** Best-of and rules by round key, from the fields the form had. */
     rounds: Record<string, RoundSettings>;
+    /** The bracket the round fields were shown for, from the last preview. Empty before a preview. */
+    roundsFor: string;
 }
 
-export type DraftError = 'name' | 'format' | 'seeding' | 'random-seed' | 'players' | 'seeds' | 'best-of' | 'rules';
+export type DraftError = 'name' | 'format' | 'seeding' | 'random-seed' | 'players' | 'seeds' | 'third-place' | 'best-of' | 'rules';
 
 export type DraftResult = { ok: true; value: TournamentDraft } | { ok: false; error: DraftError };
 
@@ -95,8 +99,12 @@ export function parseTournamentDraft(read: FieldReader): DraftResult {
         manualOrder = playerIds.map((_, i) => bySeed.get(i + 1)!);
     }
 
+    // The box only counts for single elimination. Double elimination has no third place match.
+    const thirdPlaceMatch = format === 'single_elimination' && first(read, 'thirdPlace') !== '';
+    if (thirdPlaceMatch && playerIds.length < THIRD_PLACE_MIN_PLAYERS) return { ok: false, error: 'third-place' };
+
     const rounds: Record<string, RoundSettings> = {};
-    for (const section of ['winners', 'losers', 'final'] as const) {
+    for (const section of ['winners', 'losers', 'third_place', 'final'] as const) {
         for (let number = 1; number <= MAX_ROUNDS; number++) {
             const key = `${section}-${number}`;
             const bestOfText = first(read, bestOfField(key));
@@ -110,7 +118,8 @@ export function parseTournamentDraft(read: FieldReader): DraftResult {
         }
     }
 
-    return { ok: true, value: { name, format, seeding: seeding as SeedingMethod, randomSeed, playerIds, manualOrder, rounds } };
+    const roundsFor = first(read, 'roundsFor');
+    return { ok: true, value: { name, format, seeding: seeding as SeedingMethod, randomSeed, playerIds, manualOrder, thirdPlaceMatch, rounds, roundsFor } };
 }
 
 /**
@@ -124,7 +133,24 @@ export function planTournament(draft: TournamentDraft, ratings: ReadonlyMap<numb
             : draft.seeding === 'manual'
               ? { method: 'manual', order: draft.manualOrder ?? [] }
               : { method: 'elo', ratings };
-    return generateBracket({ format: draft.format, players: draft.playerIds, seeding, rounds: draft.rounds });
+    return generateBracket({ format: draft.format, players: draft.playerIds, seeding, thirdPlaceMatch: draft.thirdPlaceMatch, rounds: draft.rounds });
+}
+
+/**
+ * Names the shape of a bracket: format, player count, third place match and round keys. The
+ * preview puts it in the form, so a save can tell that the round fields were shown for this shape.
+ */
+export function roundsSignature(plan: PlannedBracket): string {
+    return [plan.format, plan.seeds.length, plan.thirdPlaceMatch ? 'third' : 'no-third', plan.rounds.map((r) => r.key).join(',')].join(' ');
+}
+
+/**
+ * True when the round settings in the form belong to this bracket. After the players or the
+ * format change, the same round key can name another round, so a save needs a fresh preview.
+ */
+export function roundsMatch(draft: TournamentDraft, plan: PlannedBracket): boolean {
+    const keys = new Set(plan.rounds.map((r) => r.key));
+    return draft.roundsFor === roundsSignature(plan) && Object.keys(draft.rounds).every((key) => keys.has(key));
 }
 
 const DRAFT_ERRORS: Record<string, string> = {
@@ -134,6 +160,8 @@ const DRAFT_ERRORS: Record<string, string> = {
     'random-seed': `The random seed must be a whole number from 0 to ${MAX_RANDOM_SEED}.`,
     players: `Choose ${MIN_PLAYERS} to ${MAX_PLAYERS} players from the event.`,
     seeds: 'For hand seeding, give each chosen player a different seed from 1 to the number of players.',
+    'third-place': `A third place match needs at least ${THIRD_PLACE_MIN_PLAYERS} players.`,
+    rounds: 'The players or the format changed after the preview. Press Preview and check the rounds again before you save.',
     'best-of': 'Best of must be 1, 3, 5 or 7.',
     rules: 'A rule file must be a file name that ends in .lua, such as default.lua.',
     'no-event': 'There is no active event. Set an event active first.',

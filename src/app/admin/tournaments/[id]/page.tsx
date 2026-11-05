@@ -25,6 +25,7 @@ export default async function TournamentPage({ params, searchParams }: { params:
             </p>
             {saved === '1' && <p role="status">Saved.</p>}
             <p>Format: {FORMATS[tournament.format].name}</p>
+            {tournament.format === 'single_elimination' && <p>Third place match: {tournament.thirdPlaceMatch ? 'Yes' : 'No, both semifinal losers share 3rd'}</p>}
             <p>
                 Seeding: {SEEDING_LABELS[tournament.seeding]}
                 {tournament.randomSeed !== null && `, random seed ${tournament.randomSeed}`}

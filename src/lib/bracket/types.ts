@@ -2,8 +2,8 @@
 
 export type FormatId = 'single_elimination' | 'double_elimination';
 
-/** The part of a bracket a match belongs to. Single elimination only uses winners. */
-export type Section = 'winners' | 'losers' | 'final';
+/** The part of a bracket a match belongs to. Single elimination uses winners and the optional third place match. */
+export type Section = 'winners' | 'losers' | 'third_place' | 'final';
 
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 32;
@@ -45,6 +45,23 @@ export interface Bracket {
     matches: BracketMatch[];
 }
 
+export interface BuildOptions {
+    /** Single elimination only. The two semifinal losers play for third place. Off by default. */
+    thirdPlaceMatch?: boolean;
+}
+
+/** A place in the final standings and the match result that decides it. Two rules can share a place. */
+export interface PlacingRule {
+    place: number;
+    matchId: number;
+    result: 'winner' | 'loser';
+}
+
+export interface Placing {
+    place: number;
+    playerId: number;
+}
+
 /**
  * A bracket format. It gets the player ids in seed order, seed 1 first, and returns the bracket.
  * Round robin or other formats can be added later behind the same interface.
@@ -52,5 +69,7 @@ export interface Bracket {
 export interface BracketFormat {
     id: FormatId;
     name: string;
-    build(seeds: readonly number[]): Bracket;
+    build(seeds: readonly number[], options?: BuildOptions): Bracket;
+    /** Which match results decide the final places. */
+    placingRules(bracket: Bracket): PlacingRule[];
 }

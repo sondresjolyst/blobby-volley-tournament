@@ -1,5 +1,5 @@
 import type { Pool, PoolClient } from 'pg';
-import type { BestOf, FormatId, PlannedBracket, Section, SeedingMethod } from '@/lib/bracket';
+import { MAX_PLAYERS, MIN_PLAYERS, type BestOf, type FormatId, type PlannedBracket, type Section, type SeedingMethod } from '@/lib/bracket';
 
 export interface NewTournament {
     name: string;
@@ -34,6 +34,7 @@ export interface SavedTournament {
     format: FormatId;
     seeding: SeedingMethod;
     randomSeed: number | null;
+    thirdPlaceMatch: boolean;
     /** In seed order. */
     players: TournamentPlayer[];
     /** In play order. A match only links to matches later in the list. */
@@ -51,6 +52,7 @@ export type SaveTournamentResult = { ok: true; id: number } | { ok: false; error
 
 async function inTransaction<T>(pool: Pool, work: (client: PoolClient) => Promise<T>): Promise<T> {
     const client = await pool.connect();
+    let released = false;
     try {
         await client.query('BEGIN');
         try {
@@ -58,11 +60,17 @@ async function inTransaction<T>(pool: Pool, work: (client: PoolClient) => Promis
             await client.query('COMMIT');
             return result;
         } catch (error) {
-            await client.query('ROLLBACK');
+            try {
+                await client.query('ROLLBACK');
+            } catch (rollbackError) {
+                // The connection is broken. It is dropped from the pool and the first error is kept.
+                released = true;
+                client.release(rollbackError instanceof Error ? rollbackError : true);
+            }
             throw error;
         }
     } finally {
-        client.release();
+        if (!released) client.release();
     }
 }
 
@@ -72,12 +80,21 @@ class Abort extends Error {
     }
 }
 
+/** True when the seeds are 2 to 32 different players and every player in a match is one of them. */
+function seedsMatchPlayers(bracket: PlannedBracket): boolean {
+    const seeds = new Set(bracket.seeds);
+    if (seeds.size !== bracket.seeds.length || seeds.size < MIN_PLAYERS || seeds.size > MAX_PLAYERS) return false;
+    return bracket.matches.every((m) => m.players.every((p) => p === null || seeds.has(p)));
+}
+
 /**
  * Saves a tournament and its bracket in the given event, which must be the active one. Every
- * player must belong to that event. Nothing is saved when a check fails.
+ * player must belong to that event, and the seeds must fit the player count. Nothing is saved
+ * when a check fails.
  */
 export async function saveTournament(pool: Pool, eventId: number, input: NewTournament): Promise<SaveTournamentResult> {
     const { bracket } = input;
+    if (!seedsMatchPlayers(bracket)) return { ok: false, error: 'players' };
     try {
         const id = await inTransaction(pool, async (client) => {
             // Locks the event row, so it cannot be closed while the tournament is saved.
@@ -87,8 +104,8 @@ export async function saveTournament(pool: Pool, eventId: number, input: NewTour
             if (known.rows[0].n !== bracket.seeds.length) throw new Abort('players');
 
             const { rows } = await client.query<{ id: number }>(
-                'INSERT INTO tournaments (event_id, name, format, seeding, random_seed) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-                [eventId, input.name, bracket.format, input.seeding, input.randomSeed],
+                'INSERT INTO tournaments (event_id, name, format, seeding, random_seed, third_place_match) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+                [eventId, input.name, bracket.format, input.seeding, input.randomSeed, bracket.thirdPlaceMatch],
             );
             const tournamentId = rows[0].id;
             await client.query(
@@ -146,8 +163,8 @@ interface MatchRecord {
 }
 
 export async function getTournament(pool: Pool, id: number): Promise<SavedTournament | null> {
-    const found = await pool.query<{ id: number; event_id: number; name: string; format: FormatId; seeding: SeedingMethod; random_seed: number | null }>(
-        'SELECT id, event_id, name, format, seeding, random_seed FROM tournaments WHERE id = $1',
+    const found = await pool.query<{ id: number; event_id: number; name: string; format: FormatId; seeding: SeedingMethod; random_seed: number | null; third_place_match: boolean }>(
+        'SELECT id, event_id, name, format, seeding, random_seed, third_place_match FROM tournaments WHERE id = $1',
         [id],
     );
     const row = found.rows[0];
@@ -171,6 +188,7 @@ export async function getTournament(pool: Pool, id: number): Promise<SavedTourna
         format: row.format,
         seeding: row.seeding,
         randomSeed: row.random_seed,
+        thirdPlaceMatch: row.third_place_match,
         players: players.rows.map((p) => ({ playerId: p.player_id, nickname: p.nickname, seed: p.seed })),
         matches: matches.rows.map((m) => ({
             id: m.id,

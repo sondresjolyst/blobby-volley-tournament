@@ -13,7 +13,7 @@ describe('parseTournamentDraft', () => {
     it('reads the form', () => {
         expect(parseTournamentDraft(form())).toEqual({
             ok: true,
-            value: { name: 'Cup', format: 'single_elimination', seeding: 'random', randomSeed: 7, playerIds: [1, 2, 3], manualOrder: null, rounds: {} },
+            value: { name: 'Cup', format: 'single_elimination', seeding: 'random', randomSeed: 7, playerIds: [1, 2, 3], manualOrder: null, thirdPlaceMatch: false, rounds: {}, roundsFor: '' },
         });
     });
 
@@ -103,7 +103,7 @@ describe('helpers', () => {
     });
 
     it('has a message for each error and none for unknown codes', () => {
-        for (const code of ['name', 'format', 'seeding', 'random-seed', 'players', 'seeds', 'best-of', 'rules', 'no-event']) expect(tournamentErrorMessage(code)).toBeTruthy();
+        for (const code of ['name', 'format', 'seeding', 'random-seed', 'players', 'seeds', 'third-place', 'rounds', 'best-of', 'rules', 'no-event']) expect(tournamentErrorMessage(code)).toBeTruthy();
         expect(tournamentErrorMessage('toString')).toBeNull();
         expect(tournamentErrorMessage(undefined)).toBeNull();
     });
@@ -119,7 +119,7 @@ describe('describeBracket', () => {
         const rounds = describeBracket(plan.format, plan.matches, (id) => `P${id}`);
         expect(rounds).toEqual([
             { key: 'winners-1', name: 'Winners round 1', bestOf: 1, ruleFile: 'default.lua', matches: [{ number: 1, slots: ['P1', 'P2'], winnerTo: 'Match 2', loserTo: 'Match 2' }] },
-            { key: 'final-1', name: 'Grand final', bestOf: 1, ruleFile: 'default.lua', matches: [{ number: 2, slots: ['Winner of match 1', 'Loser of match 1'], winnerTo: 'Champion', loserTo: 'Out' }] },
+            { key: 'final-1', name: 'Grand final', bestOf: 1, ruleFile: 'default.lua', matches: [{ number: 2, slots: ['Winner of match 1', 'Loser of match 1'], winnerTo: '1st place', loserTo: '2nd place' }] },
         ]);
     });
 });

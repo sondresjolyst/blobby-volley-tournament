@@ -3,7 +3,7 @@ import { getPool } from '@/lib/db';
 import { seeOther } from '@/lib/http';
 import { getActiveEvent } from '@/lib/store/events';
 import { saveTournament } from '@/lib/store/tournaments';
-import { fieldsOf, parseTournamentDraft, planTournament } from '@/lib/tournaments/input';
+import { fieldsOf, parseTournamentDraft, planTournament, roundsMatch } from '@/lib/tournaments/input';
 
 /** Saves the tournament from the form on /admin/tournaments/new in the active event. */
 export async function POST(req: Request) {
@@ -28,6 +28,7 @@ export async function POST(req: Request) {
     const event = await getActiveEvent(pool);
     if (!event) return back('no-event');
     const bracket = planTournament(draft.value);
+    if (!roundsMatch(draft.value, bracket)) return back('rounds');
     const result = await saveTournament(pool, event.id, {
         name: draft.value.name,
         seeding: draft.value.seeding,

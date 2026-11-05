@@ -11,6 +11,7 @@ import {
     newRandomSeed,
     parseTournamentDraft,
     planTournament,
+    roundsSignature,
     rulesField,
     seedField,
     SEEDING_LABELS,
@@ -90,6 +91,12 @@ export default async function NewTournament({ searchParams }: { searchParams: Pr
                 </p>
                 <p>
                     <label>
+                        <input type="checkbox" name="thirdPlace" value="1" defaultChecked={value('thirdPlace') !== ''} /> Third place match (single elimination only)
+                    </label>
+                </p>
+                <p>Without a third place match, both semifinal losers share 3rd place.</p>
+                <p>
+                    <label>
                         Seeding{' '}
                         <select name="seeding" defaultValue={value('seeding') || 'random'}>
                             {Object.entries(SEEDING_LABELS).map(([id, label]) => (
@@ -143,6 +150,7 @@ export default async function NewTournament({ searchParams }: { searchParams: Pr
                 {plan && (
                     <fieldset>
                         <legend>Rounds</legend>
+                        <input type="hidden" name="roundsFor" value={roundsSignature(plan)} />
                         <table>
                             <thead>
                                 <tr>

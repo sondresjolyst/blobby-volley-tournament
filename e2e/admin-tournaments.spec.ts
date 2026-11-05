@@ -80,3 +80,39 @@ test('a save with a bad rule file goes back to the form with the error and the v
     await expect(page.getByText('A rule file must be a file name')).toBeVisible();
     await expect(page.getByLabel('Name')).toHaveValue('Bad');
 });
+
+test('an admin adds a third place match and must preview again after the players change', async ({ page, browser }) => {
+    const tag = randomBytes(2).toString('hex');
+    const nicknames = [`Ua${tag}`, `Ub${tag}`, `Uc${tag}`, `Ud${tag}`, `Ue${tag}`];
+    for (const nickname of nicknames) {
+        const player = await browser.newContext({ baseURL: process.env.E2E_BASE_URL });
+        const playerPage = await player.newPage();
+        await playerPage.goto('/join');
+        await playerPage.getByLabel('Event code').fill(process.env.E2E_EVENT_CODE ?? '');
+        await playerPage.getByLabel('Nickname').fill(nickname);
+        await playerPage.getByLabel('PIN (4 digits)').fill('1234');
+        await playerPage.getByRole('button', { name: 'Sign up' }).click();
+        await expect(playerPage).toHaveURL(/\/me$/);
+        await player.close();
+    }
+
+    await page.goto('/admin/tournaments/new');
+    const name = `Bronze ${tag}`;
+    await page.getByLabel('Name').fill(name);
+    await page.getByLabel('Third place match').check();
+    for (const nickname of nicknames.slice(0, 4)) await page.getByRole('checkbox', { name: nickname }).check();
+    await page.getByRole('button', { name: 'Preview' }).click();
+    const third = page.getByRole('region', { name: 'Third place match' });
+    await expect(third.getByRole('row', { name: /Match 4/ })).toContainText('Loser of match 1Loser of match 23rd place4th place');
+
+    // A fifth player changes the bracket, so the round settings shown are no longer for it.
+    await page.getByRole('checkbox', { name: nicknames[4] }).check();
+    await page.getByRole('button', { name: 'Save tournament' }).click();
+    await expect(page.getByText('The players or the format changed after the preview.')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Preview' }).click();
+    await page.getByRole('button', { name: 'Save tournament' }).click();
+    await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
+    await expect(page.getByText('Third place match: Yes')).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Third place match' })).toBeVisible();
+});
