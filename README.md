@@ -12,6 +12,15 @@ Requires Node 26.
 
 The site runs on http://localhost:3000. The `/health` route returns a small JSON status.
 
+## Admin login
+
+Pages under `/admin` and routes under `/api/admin` need a GitHub login. All other pages are public. Set these in `.env.local`, see `.env.example`.
+
+- `NEXTAUTH_URL`: the public address of the site. In production it must start with `https://`. Otherwise the admin pages and sign-in return 503.
+- `NEXTAUTH_SECRET`: a long random string that signs the session.
+- `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`: from a GitHub OAuth app. Set its callback URL to `<NEXTAUTH_URL>/api/auth/callback/github`.
+- `ALLOWED_GITHUB_USER_IDS`: the numeric GitHub user IDs of the admins, separated by commas. An empty value lets nobody in. Find an ID at `https://api.github.com/users/<login>`.
+
 ## Test
 
     npm run lint
