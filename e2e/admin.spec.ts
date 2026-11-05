@@ -22,6 +22,24 @@ for (const path of ['/api/admin/events', '/api/admin/events/1', '/api/admin/even
     });
 }
 
+for (const [path, heading] of [
+    ['/admin/tournaments', 'Tournaments'],
+    ['/admin/tournaments/new', 'New tournament'],
+]) {
+    test(`${path} needs a login and opens for an admin`, async ({ page, context, baseURL }) => {
+        await page.goto(path);
+        await expect(page).toHaveURL(/\/signin\?/);
+        await expect(page.getByRole('heading', { level: 1, name: heading })).toHaveCount(0);
+
+        await context.addCookies([
+            { name: '__Secure-next-auth.session-token', value: process.env.E2E_ADMIN_TOKEN ?? '', domain: new URL(baseURL!).hostname, path: '/', secure: true, httpOnly: true, sameSite: 'Lax' },
+        ]);
+        await page.goto(path);
+        await expect(page).toHaveURL(new RegExp(`${path}$`));
+        await expect(page.getByRole('heading', { level: 1, name: heading, exact: true })).toBeVisible();
+    });
+}
+
 test('admin API answers 401 without a session', async ({ request }) => {
     const res = await request.get('/api/admin/anything');
     expect(res.status()).toBe(401);
