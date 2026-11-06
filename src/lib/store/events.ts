@@ -15,11 +15,13 @@ interface EventRecord {
     starting_foza: number;
     daily_foza: number;
     is_active: boolean;
+    server_host: string | null;
+    server_port: number | null;
 }
 
 // Dates are read as text, so the time zone of the server cannot move them a day.
 const COLUMNS = `id, name, to_char(starts_on, 'YYYY-MM-DD') AS starts_on, to_char(ends_on, 'YYYY-MM-DD') AS ends_on,
-    code, starting_foza, daily_foza, is_active`;
+    code, starting_foza, daily_foza, is_active, server_host, server_port`;
 
 // Any number works, as long as only setActiveEvent uses it.
 const ACTIVE_LOCK_ID = 7_310_403;
@@ -34,6 +36,8 @@ function toEvent(row: EventRecord): EventRow {
         startingFoza: row.starting_foza,
         dailyFoza: row.daily_foza,
         isActive: row.is_active,
+        serverHost: row.server_host,
+        serverPort: row.server_port,
     };
 }
 
@@ -55,9 +59,9 @@ export async function getActiveEvent(pool: Pool): Promise<EventRow | null> {
 
 export async function createEvent(pool: Pool, input: EventInput): Promise<number> {
     const { rows } = await pool.query<{ id: number }>(
-        `INSERT INTO events (name, starts_on, ends_on, code, starting_foza, daily_foza)
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-        [input.name, input.startsOn, input.endsOn, input.code, input.startingFoza, input.dailyFoza],
+        `INSERT INTO events (name, starts_on, ends_on, code, starting_foza, daily_foza, server_host, server_port)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+        [input.name, input.startsOn, input.endsOn, input.code, input.startingFoza, input.dailyFoza, input.serverHost ?? null, input.serverPort ?? null],
     );
     return rows[0].id;
 }
@@ -65,9 +69,10 @@ export async function createEvent(pool: Pool, input: EventInput): Promise<number
 /** Changes an event. Players keep the balance they got when they signed up. */
 export async function updateEvent(pool: Pool, id: number, input: EventInput): Promise<boolean> {
     const { rowCount } = await pool.query(
-        `UPDATE events SET name = $2, starts_on = $3, ends_on = $4, code = $5, starting_foza = $6, daily_foza = $7
+        `UPDATE events SET name = $2, starts_on = $3, ends_on = $4, code = $5, starting_foza = $6, daily_foza = $7,
+             server_host = $8, server_port = $9
          WHERE id = $1`,
-        [id, input.name, input.startsOn, input.endsOn, input.code, input.startingFoza, input.dailyFoza],
+        [id, input.name, input.startsOn, input.endsOn, input.code, input.startingFoza, input.dailyFoza, input.serverHost ?? null, input.serverPort ?? null],
     );
     return rowCount === 1;
 }

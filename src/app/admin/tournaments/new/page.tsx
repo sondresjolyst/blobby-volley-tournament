@@ -112,6 +112,17 @@ export default async function NewTournament({ searchParams }: { searchParams: Pr
                         Random seed <input name="randomSeed" inputMode="numeric" pattern="[0-9]{1,10}" required defaultValue={randomSeed} />
                     </label>
                 </p>
+                <p>
+                    <label>
+                        Points to win a game <input name="scoreToWin" type="number" min={1} max={99} step={1} required defaultValue={value('scoreToWin') || '15'} />
+                    </label>
+                </p>
+                <p>
+                    <label>
+                        Game speed in frames per second <input name="speed" type="number" min={30} max={120} step={1} required defaultValue={value('speed') || '75'} />
+                    </label>
+                </p>
+                <p>75 frames per second is the normal speed of the game.</p>
                 <p>Elo ratings come later. Until then every player counts as 1000, so Elo seeding follows the order the players signed up in.</p>
 
                 <fieldset>

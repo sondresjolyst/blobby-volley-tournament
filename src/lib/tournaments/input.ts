@@ -17,6 +17,7 @@ import {
     type SeedingMethod,
 } from '@/lib/bracket';
 import { parseId } from '@/lib/http';
+import { DEFAULT_GAME_SPEED, DEFAULT_SCORE_TO_WIN, formNumber, isGameSpeed, isScoreToWin, MAX_GAME_SPEED, MAX_SCORE_TO_WIN, MIN_GAME_SPEED, MIN_SCORE_TO_WIN } from '@/lib/matches/settings';
 
 export const SEEDING_LABELS: Record<SeedingMethod, string> = { random: 'Random', manual: 'By hand', elo: 'By Elo rating' };
 
@@ -46,13 +47,17 @@ export interface TournamentDraft {
     /** The hand seeding, seed 1 first. Only set for hand seeding. */
     manualOrder: number[] | null;
     thirdPlaceMatch: boolean;
+    /** Points that win a game, in every match of the tournament. */
+    scoreToWin: number;
+    /** Game speed in frames per second, in every match of the tournament. */
+    speed: number;
     /** Best-of and rules by round key, from the fields the form had. */
     rounds: Record<string, RoundSettings>;
     /** The bracket the round fields were shown for, from the last preview. Empty before a preview. */
     roundsFor: string;
 }
 
-export type DraftError = 'name' | 'format' | 'seeding' | 'random-seed' | 'players' | 'seeds' | 'third-place' | 'best-of' | 'rules';
+export type DraftError = 'name' | 'format' | 'seeding' | 'random-seed' | 'players' | 'seeds' | 'third-place' | 'best-of' | 'rules' | 'score-to-win' | 'speed';
 
 export type DraftResult = { ok: true; value: TournamentDraft } | { ok: false; error: DraftError };
 
@@ -103,6 +108,11 @@ export function parseTournamentDraft(read: FieldReader): DraftResult {
     const thirdPlaceMatch = format === 'single_elimination' && first(read, 'thirdPlace') !== '';
     if (thirdPlaceMatch && playerIds.length < THIRD_PLACE_MIN_PLAYERS) return { ok: false, error: 'third-place' };
 
+    const scoreToWin = formNumber(first(read, 'scoreToWin'), DEFAULT_SCORE_TO_WIN);
+    if (!isScoreToWin(scoreToWin)) return { ok: false, error: 'score-to-win' };
+    const speed = formNumber(first(read, 'speed'), DEFAULT_GAME_SPEED);
+    if (!isGameSpeed(speed)) return { ok: false, error: 'speed' };
+
     const rounds: Record<string, RoundSettings> = {};
     for (const section of ['winners', 'losers', 'third_place', 'final'] as const) {
         for (let number = 1; number <= MAX_ROUNDS; number++) {
@@ -119,7 +129,7 @@ export function parseTournamentDraft(read: FieldReader): DraftResult {
     }
 
     const roundsFor = first(read, 'roundsFor');
-    return { ok: true, value: { name, format, seeding: seeding as SeedingMethod, randomSeed, playerIds, manualOrder, thirdPlaceMatch, rounds, roundsFor } };
+    return { ok: true, value: { name, format, seeding: seeding as SeedingMethod, randomSeed, playerIds, manualOrder, thirdPlaceMatch, scoreToWin, speed, rounds, roundsFor } };
 }
 
 /**
@@ -164,6 +174,8 @@ const DRAFT_ERRORS: Record<string, string> = {
     rounds: 'The players or the format changed after the preview. Press Preview and check the rounds again before you save.',
     'best-of': 'Best of must be 1, 3, 5 or 7.',
     rules: 'A rule file must be a file name that ends in .lua, such as default.lua.',
+    'score-to-win': `Points to win a game must be a whole number from ${MIN_SCORE_TO_WIN} to ${MAX_SCORE_TO_WIN}.`,
+    speed: `Game speed must be a whole number from ${MIN_GAME_SPEED} to ${MAX_GAME_SPEED} frames per second.`,
     'no-event': 'There is no active event. Set an event active first.',
 };
 

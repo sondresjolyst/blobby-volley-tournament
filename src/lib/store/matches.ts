@@ -3,6 +3,7 @@
 // same transaction.
 import type { Pool, PoolClient } from 'pg';
 import { DEFAULT_RULES, finalPlacings, isBestOf, isRuleFile, roundName, type FormatId, type MatchLink, type Placing, type Section } from '@/lib/bracket';
+import { DEFAULT_GAME_SPEED, DEFAULT_SCORE_TO_WIN, isGameSpeed, isScoreToWin } from '@/lib/matches/settings';
 import { isOpenForBets, isValidSeriesScore, nextState, seriesScore, type GameResult, type MatchAction, type MatchState } from '@/lib/matches/state';
 import { handleMatchEvents, type MatchEvent } from './match-events';
 import { inTransaction } from './transaction';
@@ -34,7 +35,7 @@ export type MatchError =
     | 'no-event'
     /** The two players already have an open 1v1 match. */
     | 'taken'
-    /** The best-of or the rule file is not valid. */
+    /** The best-of, the rule file, the points to win or the game speed is not valid. */
     | 'settings'
     /** A tournament match cannot be cancelled, since the bracket could not move on. Record a no-show instead. */
     | 'tournament-cancel';
@@ -71,6 +72,10 @@ export interface MatchSummary {
     state: MatchState;
     bestOf: number;
     ruleFile: string;
+    /** Points that win a game. */
+    scoreToWin: number;
+    /** Game speed in frames per second. */
+    speed: number;
     players: [MatchPlayer | null, MatchPlayer | null];
     /** 1v1 only. When player 2 accepted. */
     acceptedAt: Date | null;
@@ -103,6 +108,8 @@ interface MatchRow {
     state: MatchState;
     best_of: number;
     rule_file: string;
+    score_to_win: number;
+    game_speed: number;
     player1_id: number | null;
     player2_id: number | null;
     accepted_at: Date | null;
@@ -130,7 +137,7 @@ interface GameRow {
     source: 'server' | 'admin';
 }
 
-const MATCH_COLUMNS = `id, event_id, tournament_id, bracket_match_id, state, best_of, rule_file, player1_id, player2_id, accepted_at,
+const MATCH_COLUMNS = `id, event_id, tournament_id, bracket_match_id, state, best_of, rule_file, score_to_win, game_speed, player1_id, player2_id, accepted_at,
     score1, score2, manual_score1, manual_score2, manual_after_game, game_base, winner_id, result, cancel_reason,
     called_at, started_at, finished_at, cancelled_at`;
 
@@ -369,8 +376,8 @@ async function advanceBracket(tx: MatchTx, tournamentId: number) {
 /** Adds a match row for each bracket match of a tournament. saveTournament calls it in its transaction. */
 export async function createBracketMatches(client: PoolClient, tournamentId: number): Promise<void> {
     await client.query(
-        `INSERT INTO matches (event_id, tournament_id, bracket_match_id, best_of, rule_file, player1_id, player2_id)
-         SELECT t.event_id, bm.tournament_id, bm.id, bm.best_of, bm.rule_file, bm.player1_id, bm.player2_id
+        `INSERT INTO matches (event_id, tournament_id, bracket_match_id, best_of, rule_file, score_to_win, game_speed, player1_id, player2_id)
+         SELECT t.event_id, bm.tournament_id, bm.id, bm.best_of, bm.rule_file, t.score_to_win, t.game_speed, bm.player1_id, bm.player2_id
          FROM bracket_matches bm JOIN tournaments t ON t.id = bm.tournament_id
          WHERE bm.tournament_id = $1 ORDER BY bm.id`,
         [tournamentId],
@@ -541,9 +548,17 @@ export async function resetMatch(pool: Pool, matchId: number): Promise<MatchResu
 
 // The game server
 
-/** The game server reports both players connected. A called match starts and bets close. */
-export async function reportPlayersConnected(pool: Pool, matchId: number): Promise<MatchResult<{ started: boolean }>> {
+/** True when the ids are the two players of the match, in either order. */
+const samePlayers = (match: MatchRow, ids: readonly number[]) =>
+    match.player1_id !== null && match.player2_id !== null && ids.length === 2 && ids.includes(match.player1_id) && ids.includes(match.player2_id);
+
+/**
+ * The game server reports both players connected. A called match starts and bets close. When
+ * the player ids are given, they must be the two players of the match, or it is refused.
+ */
+export async function reportPlayersConnected(pool: Pool, matchId: number, playerIds?: readonly number[]): Promise<MatchResult<{ started: boolean }>> {
     return withMatch(pool, matchId, async (tx) => {
+        if (playerIds !== undefined && !samePlayers(tx.match, playerIds)) throw new Refused('players');
         if (tx.match.state === 'started') return { started: false };
         if (tx.match.state !== 'called') throw new Refused('state');
         await tx.transition('start');
@@ -578,52 +593,107 @@ export type ReportStatus =
     /** A report with this id was stored before. Nothing changed. */
     | { status: 'duplicate' };
 
+const isValidReport = (report: GameReport) =>
+    typeof report.reportId === 'string' &&
+    report.reportId.length >= 1 &&
+    report.reportId.length <= 100 &&
+    Number.isInteger(report.game) &&
+    report.game >= 1 &&
+    isPoints(report.points1) &&
+    isPoints(report.points2) &&
+    [1, 2, null].includes(report.winnerSlot) &&
+    winnerAhead(report.winnerSlot, report.points1, report.points2);
+
+/** Stores one report on the locked match and applies it when it is for the next game. */
+async function storeReport(tx: MatchTx, report: GameReport, times: { startedAt: Date; endedAt: Date } | null): Promise<ReportStatus> {
+    const games = await readGames(tx.client, tx.match.id);
+    const last = lastGame(tx.match, games);
+    let decision: ReportStatus;
+    if (tx.match.state !== 'called' && tx.match.state !== 'started') decision = { status: 'ignored', reason: 'state' };
+    else if (report.game <= last) decision = { status: 'ignored', reason: 'game-closed' };
+    else if (report.game > last + 1) decision = { status: 'ignored', reason: 'game-ahead' };
+    else decision = { status: 'applied' };
+
+    // The match row is locked, so a report with the same id for this match waits here and then finds this one.
+    const stored = await tx.client.query(
+        `INSERT INTO game_reports (report_id, match_id, game_number, winner_slot, points1, points2, outcome, reason, started_at, ended_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) ON CONFLICT (report_id) DO NOTHING RETURNING report_id`,
+        [
+            report.reportId,
+            tx.match.id,
+            report.game,
+            report.winnerSlot,
+            report.points1,
+            report.points2,
+            decision.status,
+            decision.status === 'ignored' ? decision.reason : null,
+            times?.startedAt ?? null,
+            times?.endedAt ?? null,
+        ],
+    );
+    if (stored.rowCount === 0) return { status: 'duplicate' };
+    if (decision.status !== 'applied') return decision;
+
+    await startIfCalled(tx);
+    await tx.client.query(`INSERT INTO match_games (match_id, number, status, winner_slot, points1, points2, source) VALUES ($1, $2, $3, $4, $5, $6, 'server')`, [
+        tx.match.id,
+        report.game,
+        report.winnerSlot === null ? 'abandoned' : 'finished',
+        report.winnerSlot,
+        report.points1,
+        report.points2,
+    ]);
+    await settleSeries(tx);
+    return decision;
+}
+
 /**
  * Stores a game result from the game server. Each report id is stored once. A report for a game
  * that already has a result, from an admin or an earlier report, is kept but changes nothing. A
  * report for a called match starts it first.
  */
 export async function reportGameResult(pool: Pool, report: GameReport): Promise<MatchResult<ReportStatus> | { ok: false; error: 'invalid' }> {
-    const valid =
-        typeof report.reportId === 'string' &&
-        report.reportId.length >= 1 &&
-        report.reportId.length <= 100 &&
-        Number.isInteger(report.game) &&
-        report.game >= 1 &&
-        isPoints(report.points1) &&
-        isPoints(report.points2) &&
-        [1, 2, null].includes(report.winnerSlot) &&
-        winnerAhead(report.winnerSlot, report.points1, report.points2);
-    if (!valid) return { ok: false, error: 'invalid' };
+    if (!isValidReport(report)) return { ok: false, error: 'invalid' };
+    return withMatch<ReportStatus>(pool, report.matchId, (tx) => storeReport(tx, report, null));
+}
+
+export interface ServerGameReport {
+    /** A UUID. See GameReport.reportId. */
+    reportId: string;
+    matchId: number;
+    game: number;
+    /** The player who won, or null for an abandoned game. */
+    winnerId: number | null;
+    /** The points of each of the two players of the match, in any order. */
+    points: readonly { playerId: number; points: number }[];
+    startedAt: Date;
+    endedAt: Date;
+}
+
+/**
+ * Stores a game result from the game server API, which names players by id instead of slot. A
+ * report id that was stored before answers duplicate, even when the match changed since. The
+ * players must be the two players of the match, or it is refused.
+ */
+export async function reportServerGame(pool: Pool, report: ServerGameReport): Promise<MatchResult<ReportStatus>> {
     return withMatch<ReportStatus>(pool, report.matchId, async (tx) => {
-        const games = await readGames(tx.client, tx.match.id);
-        const last = lastGame(tx.match, games);
-        let decision: ReportStatus;
-        if (tx.match.state !== 'called' && tx.match.state !== 'started') decision = { status: 'ignored', reason: 'state' };
-        else if (report.game <= last) decision = { status: 'ignored', reason: 'game-closed' };
-        else if (report.game > last + 1) decision = { status: 'ignored', reason: 'game-ahead' };
-        else decision = { status: 'applied' };
-
-        // The match row is locked, so a report with the same id for this match waits here and then finds this one.
-        const stored = await tx.client.query(
-            `INSERT INTO game_reports (report_id, match_id, game_number, winner_slot, points1, points2, outcome, reason)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (report_id) DO NOTHING RETURNING report_id`,
-            [report.reportId, tx.match.id, report.game, report.winnerSlot, report.points1, report.points2, decision.status, decision.status === 'ignored' ? decision.reason : null],
-        );
-        if (stored.rowCount === 0) return { status: 'duplicate' };
-        if (decision.status !== 'applied') return decision;
-
-        await startIfCalled(tx);
-        await tx.client.query(`INSERT INTO match_games (match_id, number, status, winner_slot, points1, points2, source) VALUES ($1, $2, $3, $4, $5, $6, 'server')`, [
-            tx.match.id,
-            report.game,
-            report.winnerSlot === null ? 'abandoned' : 'finished',
-            report.winnerSlot,
-            report.points1,
-            report.points2,
-        ]);
-        await settleSeries(tx);
-        return decision;
+        const known = await tx.client.query('SELECT 1 FROM game_reports WHERE report_id = $1', [report.reportId]);
+        if (known.rowCount) return { status: 'duplicate' };
+        const ids = report.points.map((p) => p.playerId);
+        if (!samePlayers(tx.match, ids)) throw new Refused('players');
+        const [player1, player2] = bothPlayers(tx.match);
+        if (report.winnerId !== null && !ids.includes(report.winnerId)) throw new Refused('players');
+        const pointsOf = (playerId: number) => report.points.find((p) => p.playerId === playerId)!.points;
+        const slots: GameReport = {
+            reportId: report.reportId,
+            matchId: tx.match.id,
+            game: report.game,
+            winnerSlot: report.winnerId === null ? null : report.winnerId === player1 ? 1 : 2,
+            points1: pointsOf(player1),
+            points2: pointsOf(player2),
+        };
+        if (!isValidReport(slots)) throw new Refused('score');
+        return storeReport(tx, slots, { startedAt: report.startedAt, endedAt: report.endedAt });
     });
 }
 
@@ -632,6 +702,10 @@ export async function reportGameResult(pool: Pool, report: GameReport): Promise<
 export interface ChallengeOptions {
     bestOf?: number;
     ruleFile?: string;
+    /** Points that win a game. 15 when not given. */
+    scoreToWin?: number;
+    /** Game speed in frames per second. 75 when not given. */
+    speed?: number;
 }
 
 /**
@@ -641,7 +715,9 @@ export interface ChallengeOptions {
 export async function createChallenge(pool: Pool, challengerId: number, opponentId: number, options: ChallengeOptions = {}): Promise<{ ok: true; matchId: number } | { ok: false; error: MatchError }> {
     const bestOf = options.bestOf ?? 1;
     const ruleFile = options.ruleFile ?? DEFAULT_RULES;
-    if (!isBestOf(bestOf) || !isRuleFile(ruleFile)) return { ok: false, error: 'settings' };
+    const scoreToWin = options.scoreToWin ?? DEFAULT_SCORE_TO_WIN;
+    const speed = options.speed ?? DEFAULT_GAME_SPEED;
+    if (!isBestOf(bestOf) || !isRuleFile(ruleFile) || !isScoreToWin(scoreToWin) || !isGameSpeed(speed)) return { ok: false, error: 'settings' };
     if (challengerId === opponentId) return { ok: false, error: 'players' };
     try {
         const matchId = await inTransaction(pool, async (client) => {
@@ -653,9 +729,9 @@ export async function createChallenge(pool: Pool, challengerId: number, opponent
             );
             if (rows.length !== 2 || rows[0].event_id !== rows[1].event_id) throw new Refused('no-event');
             const inserted = await client.query<{ id: number }>(
-                `INSERT INTO matches (event_id, best_of, rule_file, player1_id, player2_id) VALUES ($1, $2, $3, $4, $5)
+                `INSERT INTO matches (event_id, best_of, rule_file, score_to_win, game_speed, player1_id, player2_id) VALUES ($1, $2, $3, $4, $5, $6, $7)
                  ON CONFLICT DO NOTHING RETURNING id`,
-                [rows[0].event_id, bestOf, ruleFile, challengerId, opponentId],
+                [rows[0].event_id, bestOf, ruleFile, scoreToWin, speed, challengerId, opponentId],
             );
             if (inserted.rowCount === 0) throw new Refused('taken');
             return inserted.rows[0].id;
@@ -731,6 +807,8 @@ function toSummary(row: SummaryRecord): MatchSummary {
         state: row.state,
         bestOf: row.best_of,
         ruleFile: row.rule_file,
+        scoreToWin: row.score_to_win,
+        speed: row.game_speed,
         players: [player(row.player1_id, row.nickname1), player(row.player2_id, row.nickname2)],
         acceptedAt: row.accepted_at,
         score1: row.score1,

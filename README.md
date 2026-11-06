@@ -29,6 +29,8 @@ An admin creates an event for each LAN under `/admin/events`, with a name, dates
 
 Players sign up at `/join` with the event code, a nickname and a 4 digit PIN, and sign in at `/login`. `/me` shows the nickname and the Foza balance. A nickname is at most 15 bytes in UTF-8, so æ, ø and å count as 2. Nicknames are unique per event, ignoring case. An event code is 8 to 32 characters. An admin can reset a player's PIN on the event page.
 
+An event can also have the host and port of the game server at the LAN. The site builds join links from them. Each player gets a secret join code at sign-up, 10 characters from `ABCDEFGHJKMNPQRSTUVWXYZ23456789`, so 0, O, 1, I and L are never used. Codes are drawn from a cryptographic random source and are unique per event. On the event page an admin can give a player a new code, which stops the old one at the next sync of the game server. The admin page does not show codes. A player sees their own code only in the join link, `blobby://join?server=<host>:<port>&code=<code>`.
+
 Sign-in has these limits:
 
 - After 5 wrong PINs in a row the player is locked for 15 minutes. The next locks last 30 and then 60 minutes, until the player signs in with the right PIN.
@@ -45,7 +47,7 @@ An admin builds tournaments for the active event under `/admin/tournaments`. A t
 
 When the player count is not a power of two, the top seeds get byes and go straight to round two. Seeding is random by default. The admin can seed by hand or by Elo rating instead. Elo ratings come later, so for now every player counts as 1000. The random seed is shown on the form and stored with the tournament, and the same seed and players always give the same bracket.
 
-Each round has a best-of of 1, 3, 5 or 7 and a rule file, `default.lua` unless the admin names another. Press Preview to see the bracket and Save tournament to store it. After a change to the players or the format, press Preview again before you save. Each stored match records the match its winner and its loser move on to.
+Each round has a best-of of 1, 3, 5 or 7 and a rule file, `default.lua` unless the admin names another. The tournament sets the points that win a game, 1 to 99 and 15 by default, and the game speed in frames per second, 30 to 120 and 75 by default. Every match of the tournament gets them. A 1v1 match has its own. Press Preview to see the bracket and Save tournament to store it. After a change to the players or the format, press Preview again before you save. Each stored match records the match its winner and its loser move on to.
 
 Final places: 1st is the winner of the final and 2nd its loser. In double elimination 3rd is the loser of the losers final. There is no reset match. A single elimination tournament can have a third place match between the two semifinal losers, off by default. Without it both semifinal losers share 3rd.
 
@@ -61,7 +63,7 @@ A match is best of 1, 3, 5 or 7. Each game is stored with its own result, and th
 
 On the match page an admin can restart the current game, enter or correct a game result, set the series score by hand, record a no-show, reset the match to upcoming and cancel a 1v1 match. A game result needs more points for the winner. A no-show gives the other player the win. A tournament match cannot be cancelled, since the bracket could not move on. Record a no-show instead. When a series is decided, the winner and the loser move on to their next matches and the tournament places are updated. A correction works out the series and the bracket again. It is refused when it would move a player out of a later match that is already called, started or finished. The page then links to that match. Reset it to upcoming, which clears its games and refunds its bets, and the correction goes through.
 
-The game server sends each game result with a report id that is unique across all matches, such as a UUID. It reads the next game number again before each game. A report that comes again changes nothing. A report for a game that already has a result, such as one an admin entered, is kept but ignored.
+The game server sends each game result with a report id that is unique across all matches, a UUID. It reads the next game number again before each game. A report that comes again changes nothing. A report for a game that already has a result, such as one an admin entered, is kept but ignored. See [Game server API](#game-server-api).
 
 A player can ask another player of the active event for a 1v1 match. It can be called once the other player accepts. The pages for this come later.
 
@@ -84,6 +86,152 @@ The two GET routes answer 401 when nobody is signed in. A signed out bet post is
 
 An admin can add or take Foza from a player with a reason on the event page.
 
+## Game server API
+
+The dedicated game server at the LAN calls these routes. It only calls out to the site. The site never calls it. If the site cannot be reached, the server keeps the last sync on disk and sends its reports later, so a report may arrive late or twice.
+
+Every route under `/api/server` needs the header `Authorization: Bearer <token>`, where the token is the value of `GAME_SERVER_TOKEN`. The site compares it in constant time and never logs it. These routes do not use the admin login or the player session.
+
+- No header, or another token: `401` with `{ "error": "unauthorized" }`.
+- `GAME_SERVER_TOKEN` is not set or empty: `503` with `{ "error": "not-configured" }` for every request.
+- A body that is not valid: `400` with `{ "error": "invalid", "field": "<the first bad field>" }`. The field is `body` when the body is not a JSON object or is larger than 16 KB.
+
+Bodies are JSON. Ids are whole numbers from 1 to 2147483647. Points are whole numbers from 0 to 1000. Times are ISO 8601 with a time zone, such as `2026-11-20T18:04:05Z`. How the server should treat an answer:
+
+- `200`, `400` and `404` are final. Do not send the same request again. A `400` or `404` means the request itself is wrong and will never work.
+- `401` and `503` mean the token is wrong or not set on the site. Sending again does not help. Fix the configuration first, and keep the queued reports until then.
+- Any other `5xx` or a network error: try again later with the same body.
+
+Reports for one match must be sent one at a time and in game order. Wait for the answer to game 1 before sending game 2. A report for a game past `nextGame` is refused with `game-ahead`, and that answer is final.
+
+### Join codes
+
+The game sends a player's join code in its 16 byte player name field. A code is 10 ASCII characters, so it fits. The server looks the code up in the last sync, uses the nickname from the sync instead, and refuses a code it does not know.
+
+### GET /api/server/sync
+
+Everything the server needs: the active event, every player of it with the join code, and every match that is called or started. Matches are sorted by id. In `players` of a match, player 1 comes first.
+
+    curl -H "Authorization: Bearer $GAME_SERVER_TOKEN" https://<site>/api/server/sync
+
+```json
+{
+  "serverTime": "2026-11-20T18:00:00.000Z",
+  "syncVersion": "3f9a1c0d5e7b2a44",
+  "eventId": 1,
+  "players": [
+    { "playerId": 12, "nickname": "Ola", "code": "K7QM2XPR4T" },
+    { "playerId": 17, "nickname": "Kari", "code": "B9HNZ3WD6F" }
+  ],
+  "matches": [
+    {
+      "matchId": 7,
+      "state": "called",
+      "bestOf": 3,
+      "nextGame": 1,
+      "ruleFile": "default.lua",
+      "scoreToWin": 15,
+      "speed": 75,
+      "awaitingDecision": false,
+      "players": [
+        { "playerId": 12, "code": "K7QM2XPR4T" },
+        { "playerId": 17, "code": "B9HNZ3WD6F" }
+      ]
+    }
+  ]
+}
+```
+
+- `syncVersion` changes whenever anything else in the answer changes, apart from `serverTime`. The same content always gives the same version.
+- `eventId` is `null` and both lists are empty when no event is active.
+- `state` is `called` until both players connect, then `started`. A finished, cancelled or reset match leaves the list.
+- `nextGame` is the number the next game must be reported with. An admin restart or reset moves it on, so read it again before each game.
+- `awaitingDecision` is `true` when the last game was abandoned and the admin has not restarted or awarded it yet. The server should wait.
+- `speed` is in frames per second. `scoreToWin` is the points that win one game.
+
+### POST /api/server/matches/{id}/connected
+
+Both players of the match are connected. A called match starts, and bets on it close. A repeat call changes nothing.
+
+```json
+{ "playerIds": [12, 17] }
+```
+
+- `200` `{ "status": "started" }`: the match started now.
+- `200` `{ "status": "already-started" }`: it had started already.
+- `200` `{ "status": "refused", "reason": "players" }`: the ids are not the two players of the match, in any order.
+- `200` `{ "status": "refused", "reason": "state" }`: the match is not called or started.
+- `200` `{ "status": "refused", "reason": "not-found" }`: there is no such match.
+- `400` `{ "error": "invalid", "field": "id" }`: the id in the address is not a match id.
+
+### POST /api/server/games
+
+One game ended. Send it once per game, with a new UUID as `reportId`. Send the same body again only when no final answer came back. Send the reports of one match one at a time, in game order.
+
+```json
+{
+  "reportId": "0b6f2f4e-8a51-4d4c-9a0e-5d2b8c3f1a77",
+  "matchId": 7,
+  "game": 1,
+  "status": "finished",
+  "winnerId": 17,
+  "points": [
+    { "playerId": 12, "points": 11 },
+    { "playerId": 17, "points": 15 }
+  ],
+  "startedAt": "2026-11-20T18:00:00Z",
+  "endedAt": "2026-11-20T18:05:12Z"
+}
+```
+
+- `status` is `finished` or `abandoned`. A finished game needs `winnerId`, and the winner must have more points. An abandoned game, such as on a disconnect, has `winnerId` `null` or leaves it out.
+- `points` holds both players of the match, in any order.
+- `endedAt` may not be before `startedAt`.
+
+Answers:
+
+- `200` `{ "status": "stored" }`: the game is stored. When it decides the series, the match finishes, bets settle and the bracket moves on. A report for a called match starts it first.
+- `200` `{ "status": "duplicate" }`: a report with this id came before, whatever its answer was then. Nothing changed.
+- `200` `{ "status": "game-closed" }`: the game already has a result, from an admin or an earlier report, or a reset cleared it. The report is kept but changes nothing.
+- `200` `{ "status": "refused", "reason": "<reason>" }`: nothing changed. `not-found`: no such match. `players`: the players are not the two of the match. `state`: the match is not called or started. `game-ahead`: the game number is past `nextGame`. `score`: the points do not fit the result.
+
+### POST /api/server/live
+
+The score of the game being played, for the big screen. Send it as often as is useful. It is best effort and never changes a result.
+
+```json
+{
+  "matchId": 7,
+  "game": 2,
+  "points": [
+    { "playerId": 12, "points": 4 },
+    { "playerId": 17, "points": 6 }
+  ]
+}
+```
+
+- `200` `{ "status": "stored" }`
+- `200` `{ "status": "ignored", "reason": "<reason>" }`: `not-found`, `state` when the match is not called or started, `players`, `game-closed` when the game already has a result, or `game-ahead` when the game number is past `nextGame`. Only the next game is stored, so one wrong number does not block later updates.
+
+### GET /api/matches/{id}/live
+
+Public, for the big screen. No token. `live` is `null` when no game is being played or no score has come in for it. Player 1 comes first. `404` when there is no such match.
+
+```json
+{
+  "matchId": 7,
+  "state": "started",
+  "live": {
+    "game": 2,
+    "points": [
+      { "playerId": 12, "points": 4 },
+      { "playerId": 17, "points": 6 }
+    ],
+    "updatedAt": "2026-11-20T18:09:41.000Z"
+  }
+}
+```
+
 ## Admin login
 
 Pages under `/admin` and routes under `/api/admin` need a GitHub login. All other pages are public. Set these in `.env.local`, see `.env.example`.
@@ -92,6 +240,8 @@ Pages under `/admin` and routes under `/api/admin` need a GitHub login. All othe
 - `NEXTAUTH_SECRET`: a long random string that signs the session.
 - `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`: from a GitHub OAuth app. Set its callback URL to `<NEXTAUTH_URL>/api/auth/callback/github`.
 - `ALLOWED_GITHUB_USER_IDS`: the numeric GitHub user IDs of the admins, separated by commas. An empty value lets nobody in. Find an ID at `https://api.github.com/users/<login>`.
+
+`GAME_SERVER_TOKEN` is the token of the game server API. Set it to a long random string, such as the output of `openssl rand -hex 32`, and give the same value to the game server. Without it that API answers 503.
 
 ## Test
 

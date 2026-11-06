@@ -33,6 +33,8 @@ export async function POST(req: Request) {
         name: draft.value.name,
         seeding: draft.value.seeding,
         randomSeed: draft.value.seeding === 'random' ? draft.value.randomSeed : null,
+        scoreToWin: draft.value.scoreToWin,
+        speed: draft.value.speed,
         bracket,
     });
     if (!result.ok) return back(result.error);

@@ -5,6 +5,7 @@ import { Pool } from 'pg';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { migrate, readMigrations } from '../../../scripts/migrate.mjs';
 import type { EventInput } from '@/lib/events/input';
+import { newJoinCode } from '@/lib/players/join-code';
 import { hashPin } from '@/lib/players/pin';
 import { hashSessionToken, SESSION_MS } from '@/lib/players/session';
 import { clearActiveEvent, createEvent, getActiveEvent, getEvent, listEvents, setActiveEvent, updateEvent } from './events';
@@ -142,7 +143,14 @@ describe('schema', () => {
         // The key is short and differs each time, so only the nickname column is checked.
         let n = 0;
         const insert = (nickname: string) =>
-            pool.query('INSERT INTO players (event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance) VALUES ($1, $2, $3, $4, $5, 0)', [eventId, nickname, `k${n++}`, pin.hash, pin.salt]);
+            pool.query('INSERT INTO players (event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance, join_code) VALUES ($1, $2, $3, $4, $5, 0, $6)', [
+                eventId,
+                nickname,
+                `k${n++}`,
+                pin.hash,
+                pin.salt,
+                newJoinCode(),
+            ]);
         await expect(insert('æøåæøåæø')).rejects.toThrow(/players_nickname_check/);
         await expect(insert(' padded')).rejects.toThrow(/players_nickname_check/);
         await insert('æøåæøåæa');
@@ -157,9 +165,11 @@ describe('schema', () => {
 describe('events', () => {
     it('creates, reads and edits an event', async () => {
         const id = await createEvent(pool, lan);
-        expect(await getEvent(pool, id)).toEqual({ id, ...lan, isActive: false });
-        expect(await updateEvent(pool, id, { ...lan, name: 'LAN 2026 B', dailyFoza: 150 })).toBe(true);
-        expect(await getEvent(pool, id)).toMatchObject({ name: 'LAN 2026 B', dailyFoza: 150 });
+        expect(await getEvent(pool, id)).toEqual({ id, ...lan, isActive: false, serverHost: null, serverPort: null });
+        expect(await updateEvent(pool, id, { ...lan, name: 'LAN 2026 B', dailyFoza: 150, serverHost: 'lan-pc.local', serverPort: 1234 })).toBe(true);
+        expect(await getEvent(pool, id)).toMatchObject({ name: 'LAN 2026 B', dailyFoza: 150, serverHost: 'lan-pc.local', serverPort: 1234 });
+        expect(await updateEvent(pool, id, { ...lan, serverHost: null, serverPort: null })).toBe(true);
+        expect(await getEvent(pool, id)).toMatchObject({ serverHost: null, serverPort: null });
         expect(await updateEvent(pool, id + 100, lan)).toBe(false);
         expect(await getEvent(pool, id + 100)).toBeNull();
     });
