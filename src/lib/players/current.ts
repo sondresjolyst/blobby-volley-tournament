@@ -16,7 +16,16 @@ export async function getCurrentPlayer(): Promise<SessionPlayer | null> {
  * and actions that change a player's data use this.
  */
 export async function requireActivePlayer(): Promise<SessionPlayer> {
-    const player = await getCurrentPlayer();
-    if (!player || !player.eventActive) redirect('/login');
+    const player = await getActivePlayer();
+    if (!player) redirect('/login');
     return player;
+}
+
+/**
+ * The signed in player whose event is still active, or null. It never redirects, so API routes
+ * can answer a signed out request themselves.
+ */
+export async function getActivePlayer(): Promise<SessionPlayer | null> {
+    const player = await getCurrentPlayer();
+    return player && player.eventActive ? player : null;
 }

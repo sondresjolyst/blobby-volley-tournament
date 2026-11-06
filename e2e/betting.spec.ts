@@ -58,10 +58,12 @@ test('a signed out visitor cannot place a bet, while a signed in player can', as
         headers: { 'sec-fetch-site': 'same-origin' },
         maxRedirects: 0,
     });
-    expect([303, 307]).toContain(res.status());
-    expect(res.headers()['location']).toMatch(/\/login$/);
+    expect(res.status()).toBe(303);
+    expect(res.headers()['location']).toBe('/login');
     const balance = await visitor.request.get('/api/player/balance', { maxRedirects: 0 });
-    expect(balance.headers()['location']).toMatch(/\/login$/);
+    expect(balance.status()).toBe(401);
+    const bets = await visitor.request.get('/api/player/bets', { maxRedirects: 0 });
+    expect(bets.status()).toBe(401);
     const after = await (await visitor.request.get(`/api/matches/${matchId}/pool`)).json();
     expect(after).toEqual(pool);
     await visitor.close();

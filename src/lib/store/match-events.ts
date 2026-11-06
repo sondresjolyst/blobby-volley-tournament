@@ -32,6 +32,16 @@ export type MatchEvent =
  * hooks settlement and refunds in here. If it throws, the whole change is rolled back.
  */
 export async function handleMatchEvents(client: PoolClient, events: readonly MatchEvent[]): Promise<void> {
+    const matchIds = [...new Set(events.filter((e) => e.type !== 'started').map((e) => e.matchId))];
+    if (matchIds.length === 0) return;
+    // Locks every bettor of these matches in player order before any balance changes. One change
+    // can settle several matches, so locking per match could take players out of order and two
+    // changes with shared bettors could wait on each other.
+    await client.query(
+        `SELECT 1 FROM players WHERE id IN (SELECT player_id FROM bets WHERE match_id = ANY($1::int[]) AND status <> 'refunded')
+         ORDER BY id FOR NO KEY UPDATE`,
+        [matchIds],
+    );
     for (const event of events) {
         switch (event.type) {
             case 'started':

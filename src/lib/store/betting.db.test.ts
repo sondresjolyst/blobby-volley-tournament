@@ -583,6 +583,46 @@ describe('concurrency', () => {
         expect(await balance(s.X)).toBe(1000);
     });
 
+    it('locks every bettor of a change in player order before it changes a balance', async () => {
+        const s = await setup();
+        const [semi1, semi2, final] = await tournament(s.eventId, [s.A, s.B, s.C, s.D]);
+        // Y backs the winner of semi 1 and X bets on the final. X has the lower id.
+        expect(s.X).toBeLessThan(s.Y);
+        await bet(s.Y, semi1, s.A, 100);
+        await start(semi1);
+        await playTo(semi1, 1);
+        await start(semi2);
+        await playTo(semi2, 1);
+        await bet(s.X, final, s.A, 100);
+
+        // The correction reverses the payout of Y first and then refunds X, since the final gets new players.
+        const holder = await pool.connect();
+        const probe = await pool.connect();
+        try {
+            await holder.query('BEGIN');
+            await holder.query('SELECT 1 FROM players WHERE id = $1 FOR UPDATE', [s.Y]);
+            const correcting = enterGameResult(pool, semi1, { game: 1, winnerSlot: 2, points1: 3, points2: 15 });
+            await waitForLockWaiters(1);
+            // While the correction waits for Y, it already holds X, the lower id.
+            await probe.query('BEGIN');
+            const held = await probe.query('SELECT 1 FROM players WHERE id = $1 FOR UPDATE NOWAIT', [s.X]).then(
+                () => false,
+                (error: Error) => /could not obtain lock/.test(error.message),
+            );
+            await probe.query('ROLLBACK');
+            await holder.query('COMMIT');
+            expect(await correcting).toMatchObject({ ok: true });
+            expect(held).toBe(true);
+        } finally {
+            await probe.query('ROLLBACK').catch(() => undefined);
+            await holder.query('ROLLBACK').catch(() => undefined);
+            holder.release();
+            probe.release();
+        }
+        // Nobody backed D, the new winner of semi 1, so Y gets the stake back.
+        expect(await balances({ X: s.X, Y: s.Y })).toEqual({ X: 1000, Y: 1000 });
+    });
+
     it('never lets two bets from the same player at once spend the same Foza', async () => {
         const s = await setup();
         const first = await oneVsOne(s.A, s.B);

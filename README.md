@@ -71,13 +71,15 @@ Every match change is in `src/lib/store/matches.ts`. Each change runs in one tra
 
 Foza has no real value. Every change to a balance is a row in the `foza_ledger` table: the starting Foza, the daily Foza, bets, payouts, refunds, reversals and admin adjustments. A trigger adds each row to the balance on the player, and a check at commit refuses a balance that does not equal the sum of its ledger. Ledger rows are never changed or removed.
 
-Each player gets the daily Foza of the event once per calendar day in Europe/Oslo time while the event is active, from the day after sign-up. It is paid when the player next reads the balance or bets.
+Each player gets the daily Foza of the event once per calendar day in Europe/Oslo time while the event is active, from the day after sign-up. It is paid when the player next reads the balance or bets. It is paid only for days the player uses the site. Missed days are not paid later.
 
 Signed in players bet on `/me`. Odds are parimutuel. All bets on a match form a pool, and when the match is decided, bettors on the winner share the whole pool in proportion to their stake. Payouts round down to whole Foza, and leftovers are discarded. If nobody bet on the winner, every stake comes back. A player has one bet per match, can raise it but not move it to the other side, and can bet on their own match. A no-show, a cancel and a reset refund the bets. A correction that changes the winner takes back the payouts and pays out again, even when that takes a balance below 0.
 
 - `POST /api/player/bets` places or raises a bet from the form on `/me`.
 - `GET /api/player/bets` lists the bets of the signed in player.
 - `GET /api/player/balance` returns the balance of the signed in player, with the daily Foza paid.
+
+The two GET routes answer 401 when nobody is signed in. A signed out bet post is sent to `/login`.
 - `GET /api/matches/<id>/pool` is public and returns the pool of a match and the payout multiplier for each player.
 
 An admin can add or take Foza from a player with a reason on the event page.
