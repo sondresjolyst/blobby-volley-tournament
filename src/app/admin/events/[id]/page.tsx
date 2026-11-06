@@ -1,14 +1,24 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { EventForm, eventErrorMessage } from '@/components/events/EventForm';
+import { SponsorSection, sponsorErrorMessage } from '@/components/sponsors/SponsorSection';
 import { adjustErrorMessage } from '@/lib/betting/input';
 import { requireAdmin } from '@/lib/auth/options';
 import { getPool } from '@/lib/db';
 import { parseId } from '@/lib/http';
 import { getEvent } from '@/lib/store/events';
 import { listPlayers } from '@/lib/store/players';
+import { listSponsors } from '@/lib/store/sponsors';
 
-type Search = { error?: string | string[]; saved?: string | string[]; reset?: string | string[]; adjusted?: string | string[]; rotated?: string | string[] };
+type Search = {
+    error?: string | string[];
+    saved?: string | string[];
+    reset?: string | string[];
+    adjusted?: string | string[];
+    rotated?: string | string[];
+    sponsor?: string | string[];
+    sponsorDeleted?: string | string[];
+};
 
 export default async function EditEvent({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Search> }) {
     await requireAdmin();
@@ -18,14 +28,17 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
     const event = await getEvent(pool, id);
     if (!event) notFound();
     const players = await listPlayers(pool, id);
+    const sponsors = await listSponsors(pool, id);
     const search = await searchParams;
-    const message = eventErrorMessage(search.error) ?? adjustErrorMessage(search.error);
+    const message = eventErrorMessage(search.error) ?? adjustErrorMessage(search.error) ?? sponsorErrorMessage(search.error);
     const resetId = typeof search.reset === 'string' ? parseId(search.reset) : null;
     const resetPlayer = players.find((player) => player.id === resetId);
     const adjustedId = typeof search.adjusted === 'string' ? parseId(search.adjusted) : null;
     const adjustedPlayer = players.find((player) => player.id === adjustedId);
     const rotatedId = typeof search.rotated === 'string' ? parseId(search.rotated) : null;
     const rotatedPlayer = players.find((player) => player.id === rotatedId);
+    const savedSponsorId = typeof search.sponsor === 'string' ? parseId(search.sponsor) : null;
+    const savedSponsor = sponsors.find((sponsor) => sponsor.id === savedSponsorId);
     const now = new Date();
     return (
         <main>
@@ -43,6 +56,8 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
             {search.saved === '1' && <p role="status">Saved.</p>}
             {resetPlayer && <p role="status">The PIN for {resetPlayer.nickname} is reset.</p>}
             {rotatedPlayer && <p role="status">{rotatedPlayer.nickname} has a new join code. The old code stops working.</p>}
+            {savedSponsor && <p role="status">Saved the sponsor {savedSponsor.name}.</p>}
+            {search.sponsorDeleted === '1' && <p role="status">The sponsor is deleted.</p>}
             {adjustedPlayer && (
                 <p role="status">
                     The Foza of {adjustedPlayer.nickname} is now {adjustedPlayer.fozaBalance}.
@@ -108,6 +123,8 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
                     </tbody>
                 </table>
             )}
+
+            <SponsorSection eventId={event.id} sponsors={sponsors} />
         </main>
     );
 }

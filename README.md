@@ -86,6 +86,18 @@ The two GET routes answer 401 when nobody is signed in. A signed out bet post is
 
 An admin can add or take Foza from a player with a reason on the event page.
 
+## Sponsors
+
+An admin manages the sponsors of an event on its page under `/admin/events`. A sponsor has a name of at most 60 characters, an optional http or https link, a logo, a place in the order and an on or off switch. Up and Down move a sponsor one place. The footer of every page and the game server API list the sponsors of the active event that are on, in this order. An event has at most 50 sponsors.
+
+A logo is a PNG, JPEG or WebP file of at most 1 MB and at most 2000 pixels wide and high. The site checks the first bytes of the file and decodes the whole image before it stores it. The type the browser sends is ignored. SVG is refused, since an SVG file can hold scripts. The site then writes the logo again in its own format and stores that in the database. This drops EXIF, GPS and other metadata, turns the image upright and converts its colours to sRGB.
+
+For the game the site makes a 24-bit BMP 32 pixels high and at most 160 wide, with the aspect ratio kept. A wider logo is centred on a band 32 pixels high. The game has no transparency, so transparent parts get the game background colour of the sponsor, white unless the admin picks another. A changed colour makes the BMP again from the stored logo.
+
+`GET /api/sponsors/<id>/logo` is public and returns the logo of a sponsor that is on in the active event, with its own content type and `X-Content-Type-Options: nosniff`. The footer adds `?v=<hash>`, the SHA-256 of the logo, and that address may be cached for a year. Without it the browser checks the ETag each time.
+
+Images are decoded with [sharp](https://sharp.pixelplumbing.com), which ships prebuilt libvips for Linux, macOS and Windows. Only its PNG, JPEG and WebP decoders are allowed to run. The BMP is written by `src/lib/sponsors/bmp.ts`.
+
 ## Game server API
 
 The dedicated game server at the LAN calls these routes. It only calls out to the site. The site never calls it. If the site cannot be reached, the server keeps the last sync on disk and sends its reports later, so a report may arrive late or twice.
@@ -148,6 +160,36 @@ Everything the server needs: the active event, every player of it with the join 
 - `nextGame` is the number the next game must be reported with. An admin restart or reset moves it on, so read it again before each game.
 - `awaitingDecision` is `true` when the last game was abandoned and the admin has not restarted or awarded it yet. The server should wait.
 - `speed` is in frames per second. `scoreToWin` is the points that win one game.
+
+### GET /api/server/sponsors
+
+The sponsors of the active event that are on, in the order the admin set. Each logo is a 24-bit BMP, 32 pixels high and at most 160 wide, sent as base64.
+
+    curl -H "Authorization: Bearer $GAME_SERVER_TOKEN" https://<site>/api/server/sponsors
+
+```json
+{
+  "eventId": 1,
+  "sponsorsVersion": "9c1e44b07a2d3f58",
+  "sponsors": [
+    {
+      "sponsorId": 3,
+      "name": "Acme",
+      "logo": {
+        "format": "bmp",
+        "width": 96,
+        "height": 32,
+        "hash": "<SHA-256 of the BMP bytes, 64 hex characters>",
+        "data": "Qk02JAAAAAAAADYAAAAoAAAAYAAAACAAAAABABgAAAAAAAAk..."
+      }
+    }
+  ]
+}
+```
+
+- `sponsorsVersion` changes whenever the list, a name or a logo changes. When it is the same as last time, nothing changed.
+- `hash` is the SHA-256 of the BMP. The server can keep logos by hash and skip one it already has.
+- `eventId` is `null` and the list is empty when no event is active.
 
 ### POST /api/server/matches/{id}/connected
 

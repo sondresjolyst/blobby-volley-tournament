@@ -9,12 +9,16 @@ const updateLiveScore = vi.fn();
 const getLiveScore = vi.fn();
 const reportPlayersConnected = vi.fn();
 const reportServerGame = vi.fn();
+const listServerSponsors = vi.fn();
 
 vi.mock('@/lib/db', () => ({ getPool: () => getPool() }));
 vi.mock('@/lib/store/game-server', () => ({
     getServerSync: (...args: unknown[]) => getServerSync(...args),
     updateLiveScore: (...args: unknown[]) => updateLiveScore(...args),
     getLiveScore: (...args: unknown[]) => getLiveScore(...args),
+}));
+vi.mock('@/lib/store/sponsors', () => ({
+    listServerSponsors: (...args: unknown[]) => listServerSponsors(...args),
 }));
 vi.mock('@/lib/store/matches', () => ({
     reportPlayersConnected: (...args: unknown[]) => reportPlayersConnected(...args),
@@ -25,7 +29,9 @@ import { GET as publicLive } from '../matches/[id]/live/route';
 import { POST as games } from './games/route';
 import { POST as live } from './live/route';
 import { POST as connected } from './matches/[id]/connected/route';
+import { GET as sponsors } from './sponsors/route';
 import { GET as sync } from './sync/route';
+import { encodeBmp24 } from '@/lib/sponsors/bmp';
 
 // A placeholder, not a real token.
 const TOKEN = 'test-placeholder-token';
@@ -70,7 +76,7 @@ const liveBody = { matchId: 7, game: 2, points: [{ playerId: 12, points: 3 }, { 
 
 beforeEach(() => {
     vi.stubEnv('GAME_SERVER_TOKEN', TOKEN);
-    for (const mock of [getPool, getServerSync, updateLiveScore, getLiveScore, reportPlayersConnected, reportServerGame]) mock.mockClear();
+    for (const mock of [getPool, getServerSync, updateLiveScore, getLiveScore, reportPlayersConnected, reportServerGame, listServerSponsors]) mock.mockClear();
 });
 
 afterEach(() => {
@@ -79,7 +85,7 @@ afterEach(() => {
 
 describe('every /api/server route', () => {
     it('is found', () => {
-        expect(routes.sort()).toEqual(['games/route.ts', 'live/route.ts', 'matches/[id]/connected/route.ts', 'sync/route.ts']);
+        expect(routes.sort()).toEqual(['games/route.ts', 'live/route.ts', 'matches/[id]/connected/route.ts', 'sponsors/route.ts', 'sync/route.ts']);
     });
 
     it.each(routes)('%s checks the token before it does anything else', async (route) => {
@@ -118,6 +124,49 @@ describe('GET /api/server/sync', () => {
         expect(res.headers.get('cache-control')).toBe('no-store');
         expect(await res.json()).toEqual(body);
         expect(getServerSync).toHaveBeenCalledWith({}, expect.any(Date));
+    });
+});
+
+describe('GET /api/server/sponsors', () => {
+    const bmp = encodeBmp24(new Uint8Array(96 * 32 * 3).fill(255), 96, 32);
+
+    it('answers the sponsors in order with each game logo as base64 and its hash', async () => {
+        listServerSponsors.mockResolvedValue({
+            eventId: 1,
+            sponsors: [
+                { sponsorId: 4, name: 'Acme', gameLogo: bmp, gameLogoHash: 'a'.repeat(64) },
+                { sponsorId: 2, name: 'Beta', gameLogo: bmp, gameLogoHash: 'b'.repeat(64) },
+            ],
+        });
+        const res = await sponsors(request('sponsors'));
+        expect(res.status).toBe(200);
+        expect(res.headers.get('cache-control')).toBe('no-store');
+        const body = await res.json();
+        expect(body).toEqual({
+            eventId: 1,
+            sponsorsVersion: expect.stringMatching(/^[0-9a-f]{16}$/),
+            sponsors: [
+                { sponsorId: 4, name: 'Acme', logo: { format: 'bmp', width: 96, height: 32, hash: 'a'.repeat(64), data: expect.any(String) } },
+                { sponsorId: 2, name: 'Beta', logo: { format: 'bmp', width: 96, height: 32, hash: 'b'.repeat(64), data: expect.any(String) } },
+            ],
+        });
+        expect(new Uint8Array(Buffer.from(body.sponsors[0].logo.data, 'base64'))).toEqual(bmp);
+        expect(listServerSponsors).toHaveBeenCalledWith({});
+    });
+
+    it('keeps the version while nothing changes and changes it with a logo', async () => {
+        const answer = (hash: string) => ({ eventId: 1, sponsors: [{ sponsorId: 4, name: 'Acme', gameLogo: bmp, gameLogoHash: hash }] });
+        const version = async () => (await (await sponsors(request('sponsors'))).json()).sponsorsVersion;
+        listServerSponsors.mockResolvedValue(answer('a'.repeat(64)));
+        const first = await version();
+        expect(await version()).toBe(first);
+        listServerSponsors.mockResolvedValue(answer('c'.repeat(64)));
+        expect(await version()).not.toBe(first);
+    });
+
+    it('answers an empty list when no event is active', async () => {
+        listServerSponsors.mockResolvedValue({ eventId: null, sponsors: [] });
+        expect(await (await sponsors(request('sponsors'))).json()).toMatchObject({ eventId: null, sponsors: [] });
     });
 });
 

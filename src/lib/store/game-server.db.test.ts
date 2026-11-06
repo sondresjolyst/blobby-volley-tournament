@@ -167,7 +167,7 @@ describe('join codes', () => {
              SELECT $1, 'P' || n, 'p' || n, '\\x00', '\\x00', 0 FROM generate_series(1, 200) AS n`,
             [eventId],
         );
-        expect(await migrate(pool)).toEqual(['0007_game_server.sql']);
+        expect(await migrate(pool)).toContain('0007_game_server.sql');
         const { rows } = await pool.query<{ join_code: string }>('SELECT join_code FROM players');
         expect(rows).toHaveLength(200);
         expect(rows.every((row) => isJoinCode(row.join_code))).toBe(true);
