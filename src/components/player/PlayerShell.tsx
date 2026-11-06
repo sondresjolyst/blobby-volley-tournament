@@ -1,11 +1,7 @@
-import { Inter, Lilita_One } from 'next/font/google';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import styles from './player.module.css';
 import { foza } from './text';
-
-const display = Lilita_One({ weight: '400', subsets: ['latin'], variable: '--font-display' });
-const body = Inter({ subsets: ['latin'], variable: '--font-body' });
 
 /** A plain pizza with pepperoni. It is drawn here, so no outside artwork is used. */
 export function Pizza({ size, className }: { size: number; className?: string }) {
@@ -35,7 +31,7 @@ interface ShellProps {
 export function PlayerShell({ page, eventName, nickname, balance, children }: ShellProps) {
     const current = (p: PlayerPage) => (p === page ? ('page' as const) : undefined);
     return (
-        <div className={`${styles.shell} ${display.variable} ${body.variable}`} lang="nn">
+        <div className={styles.shell} lang="nn">
             <header className={styles.header}>
                 <Pizza size={220} className={styles.headerPizza} />
                 <Pizza size={120} className={styles.headerPizzaSmall} />

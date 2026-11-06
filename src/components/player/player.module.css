@@ -10,13 +10,13 @@
     --line: #f1dfc2;
     --chip: #fcebc0;
     --white: #ffffff;
-    --display: var(--font-display), 'Arial Rounded MT Bold', system-ui, sans-serif;
+    --display: var(--font-lilita-one), 'Arial Rounded MT Bold', system-ui, sans-serif;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
     background: var(--cream);
     color: var(--ink);
-    font-family: var(--font-body), system-ui, sans-serif;
+    font-family: var(--font-inter), system-ui, sans-serif;
     font-size: 16px;
     line-height: 1.4;
 }
@@ -31,7 +31,7 @@
     background: #2a1a12;
     color: #fff8ec;
     padding: 20px 32px 28px;
-    font-family: system-ui, sans-serif;
+    font-family: var(--font-inter), system-ui, sans-serif;
 }
 
 :global(body):has(.shell) > :global(footer)::before {

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { SponsorFooter } from '@/components/sponsors/SponsorFooter';
+import { fontVariables } from './fonts';
 
 export const metadata: Metadata = {
     title: 'Blobby Volley Tournament',
@@ -9,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
     return (
-        <html lang="en">
+        <html lang="en" className={fontVariables}>
             <body>
                 {children}
                 <SponsorFooter />
