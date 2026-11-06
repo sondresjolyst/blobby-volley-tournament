@@ -86,6 +86,24 @@ The two GET routes answer 401 when nobody is signed in. A signed out bet post is
 
 An admin can add or take Foza from a player with a reason on the event page.
 
+## Leaderboards and stats
+
+`/leaderboard` shows the leaderboards of the active event, for the whole event or one tournament. `?event=<id>` shows a past event, which keeps its own numbers. There are three boards:
+
+- Foza ranks bettors by correct bets, then hit rate, then Foza won net. The balance does not count.
+- Sigra ranks players by matches won, then win rate, then games won minus games lost.
+- Elo ranks players by rating and shows the change during the event or the tournament.
+
+Below the boards the page lists every number: bets, correct bets, hit rate, Foza won and lost, biggest win and best odds hit for bettors, and matches, games, win rate, points scored and conceded and the longest win streak for players. `/leaderboard/players/<id>` shows one player with tournament places and head to head records.
+
+Only finished matches that were played out count for player stats and Elo. A no-show, a cancel or a reset match does not. Settled bets count for betting stats. A refunded bet does not. A returned stake, when nobody backed the winner, counts as a wrong bet. When a series score is set by hand, the points of the games it replaces no longer count.
+
+Nothing here is stored. Every number is worked out from the stored results, bets and places when a page is read, so a correction shows up at once. The logic is in `src/lib/stats` and the queries in `src/lib/store/stats.ts`.
+
+### Elo
+
+Every player starts at 1000. After each finished match, not each game, the winner gains `32 * (1 - E)` and the loser loses the same, where `E = 1 / (1 + 10^((loser - winner) / 400))` is the chance the winner had. Ratings are played through in order: events by start date, then matches by when they started. A corrected match keeps its start time, so it keeps its place, and every later rating follows. Ratings carry over between events. Each event has its own player rows, so a player is known across events by the nickname, ignoring case.
+
 ## Sponsors
 
 An admin manages the sponsors of an event on its page under `/admin/events`. A sponsor has a name of at most 60 characters, an optional http or https link, a logo, a place in the order and an on or off switch. Up and Down move a sponsor one place. The footer of every page and the game server API list the sponsors of the active event that are on, in this order. An event has at most 50 sponsors.
