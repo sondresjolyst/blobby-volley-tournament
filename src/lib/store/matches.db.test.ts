@@ -552,15 +552,47 @@ describe('reset to upcoming', () => {
         await report(id, 2, null);
         await setSeriesScore(pool, id, 1, 1);
         handled.calls = [];
-        expect(await resetMatch(pool, id)).toMatchObject({ ok: true, events: [{ type: 'reset', matchId: id, previousWinnerId: null }] });
-        expect(handled.calls).toEqual([[{ type: 'reset', matchId: id, previousWinnerId: null }]]);
-        expect(await getMatch(pool, id)).toMatchObject({ state: 'upcoming', score1: 0, score2: 0, manualScore: null, games: [], nextGame: 3, awaitingDecision: false, calledAt: null, startedAt: null });
-        expect(await report(id, 3, 1)).toMatchObject({ ok: true, status: 'ignored', reason: 'state' });
+        const reset = { type: 'reset', matchId: id, previousWinnerId: null, previousResult: null };
+        expect(await resetMatch(pool, id)).toMatchObject({ ok: true, events: [reset] });
+        expect(handled.calls).toEqual([[reset]]);
+        // Games 1 and 2 are cleared, and game 3 may have been in progress, so the series goes on with game 4.
+        expect(await getMatch(pool, id)).toMatchObject({ state: 'upcoming', score1: 0, score2: 0, manualScore: null, games: [], nextGame: 4, awaitingDecision: false, calledAt: null, startedAt: null });
+        expect(await report(id, 4, 1)).toMatchObject({ ok: true, status: 'ignored', reason: 'state' });
         await start(id);
         expect(await report(id, 1, 1)).toMatchObject({ ok: true, status: 'ignored', reason: 'game-closed' });
         expect(await enterGameResult(pool, id, { game: 2, winnerSlot: 1, points1: 15, points2: 3 })).toEqual({ ok: false, error: 'game' });
-        expect(await report(id, 3, 2)).toMatchObject({ ok: true, status: 'applied' });
-        expect(await getMatch(pool, id)).toMatchObject({ score1: 0, score2: 1, nextGame: 4 });
+        expect(await report(id, 4, 2)).toMatchObject({ ok: true, status: 'applied' });
+        expect(await getMatch(pool, id)).toMatchObject({ score1: 0, score2: 1, nextGame: 5 });
+    });
+
+    it('skips the game that was in progress when a started match is reset', async () => {
+        const t = await tournament('single_elimination', 2, 3);
+        const [id] = t.ids;
+        await start(id);
+        // Game 1 is being played and not stored yet when the admin resets the match.
+        expect(await resetMatch(pool, id)).toMatchObject({ ok: true });
+        expect(await getMatch(pool, id)).toMatchObject({ nextGame: 2 });
+        await start(id);
+        expect(await report(id, 1, 1)).toMatchObject({ ok: true, status: 'ignored', reason: 'game-closed' });
+        expect(await getMatch(pool, id)).toMatchObject({ score1: 0, score2: 0, games: [] });
+        expect(await report(id, 2, 1)).toMatchObject({ ok: true, status: 'applied' });
+    });
+
+    it('does not skip a game number when a called match is reset', async () => {
+        const t = await tournament('single_elimination', 2, 3);
+        const [id] = t.ids;
+        await callMatch(pool, id);
+        expect(await resetMatch(pool, id)).toMatchObject({ ok: true });
+        expect(await getMatch(pool, id)).toMatchObject({ nextGame: 1 });
+    });
+
+    it('reports a forfeit as the previous result, so betting does not refund twice', async () => {
+        const t = await tournament('single_elimination', 2, 1);
+        const [id] = t.ids;
+        await callMatch(pool, id);
+        await recordNoShow(pool, id, 1);
+        expect(await resetMatch(pool, id)).toMatchObject({ ok: true, events: [{ type: 'reset', matchId: id, previousWinnerId: t.players[1], previousResult: 'forfeit' }] });
+        expect(await getMatch(pool, id)).toMatchObject({ state: 'upcoming', result: null, winnerId: null });
     });
 
     it('names the later match that blocks a correction and lets the correction through once it is reset', async () => {
@@ -587,7 +619,7 @@ describe('reset to upcoming', () => {
         await win(semi2, 1);
         const decided = await win(final, 2);
         expect(await resetMatch(pool, semi1)).toEqual({ ok: false, error: 'downstream-played', blockedBy: final });
-        expect(await resetMatch(pool, final)).toMatchObject({ ok: true, events: [{ type: 'reset', matchId: final, previousWinnerId: decided.players[1]!.id }] });
+        expect(await resetMatch(pool, final)).toMatchObject({ ok: true, events: [{ type: 'reset', matchId: final, previousWinnerId: decided.players[1]!.id, previousResult: 'played' }] });
         expect((await getPlacings(pool, t.tournamentId)).map((p) => p.place)).toEqual([3, 3]);
         expect(await resetMatch(pool, semi1)).toMatchObject({ ok: true });
         expect((await playersOf(final))[t.next(semi1, 'winner')!.slot - 1]).toBeNull();

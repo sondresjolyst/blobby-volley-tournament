@@ -511,15 +511,17 @@ export async function cancelMatch(pool: Pool, matchId: number): Promise<MatchRes
 /**
  * Sends a called, started or finished match back to upcoming. Its games, its manual score and its
  * result are cleared, and bets on it are refunded through the reset event. The game numbers go on
- * from where they were, so a late report for a cleared game is ignored. A finished tournament
+ * from where they were, so a late report for a cleared game is ignored. A started match may have a
+ * game in progress that is not stored yet, so its number is skipped too. A finished tournament
  * match takes its players back out of the later matches, which is refused when one of those is
  * called, started or finished too. Reset that one first.
  */
 export async function resetMatch(pool: Pool, matchId: number): Promise<MatchResult> {
     return withMatch(pool, matchId, async (tx) => {
         const previousWinnerId = tx.match.winner_id;
+        const previousResult = tx.match.result;
         const games = await readGames(tx.client, tx.match.id);
-        const gameBase = lastGame(tx.match, games);
+        const gameBase = lastGame(tx.match, games) + (tx.match.state === 'started' ? 1 : 0);
         await tx.client.query('DELETE FROM match_games WHERE match_id = $1', [tx.match.id]);
         await tx.transition('reset', {
             winner_id: null,
@@ -531,7 +533,7 @@ export async function resetMatch(pool: Pool, matchId: number): Promise<MatchResu
             manual_after_game: null,
             game_base: gameBase,
         });
-        tx.emit({ type: 'reset', matchId: tx.match.id, previousWinnerId });
+        tx.emit({ type: 'reset', matchId: tx.match.id, previousWinnerId, previousResult });
         if (tx.match.tournament_id !== null && previousWinnerId !== null) await advanceBracket(tx, tx.match.tournament_id);
         return {};
     });
