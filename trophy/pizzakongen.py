@@ -48,6 +48,9 @@ PLAQUE_T = 3.0                   # plate thickness without the text
 PLAQUE_POCKET = 1.6              # pocket depth in the box front
 PLAQUE_Z = 3.0                   # bottom of the plaque above the bed
 TEXT_RELIEF = 1.2                # raised text and frame height
+STENCIL = True                   # True cuts the text through the plaque, so the base shows
+                                 # through the letters. False gives raised text.
+BRIDGE_W = 1.2                   # mm, stencil bridges that hold the inside of closed letters
 FONT_FILE = None                 # None uses matplotlib's bundled DejaVu Sans Bold
 
 # Blob (spun from the real sprite outline of data/gfx/blobbym1.bmp)
@@ -439,6 +442,54 @@ def plaque_layout():
     return s1, s2, gap
 
 
+def stencil_bridges(material, text, bw):
+    """Bridges that tie every loose island (the inside of o, e, a, 0 and so on)
+    to the rest of the plaque. Each bridge crosses one letter stroke, straight
+    up or down from the island, whichever stroke is thinner. Sideways is the
+    fallback.
+    """
+    bridges = []
+    for _ in range(50):
+        comps = sorted(material.decompose(), key=lambda c: -c.area())
+        if len(comps) == 1:
+            return material, bridges
+        island = comps[1]
+        b = island.bounds()
+        cx, cy = (b[0] + b[2]) / 2, (b[1] + b[3]) / 2
+        cands = []
+        for dx, dy in ((0, 1), (0, -1), (1, 0), (-1, 0)):
+            if dx == 0:
+                ray = CrossSection.square([bw, 300]).translate([cx - bw / 2, cy if dy > 0 else cy - 300])
+            else:
+                ray = CrossSection.square([300, bw]).translate([cx if dx > 0 else cx - 300, cy - bw / 2])
+            hits = (ray ^ text).decompose()
+            if not hits:
+                continue
+            def dist(h):
+                hb = h.bounds()
+                return {(0, 1): hb[1] - cy, (0, -1): cy - hb[3],
+                        (1, 0): hb[0] - cx, (-1, 0): cx - hb[2]}[(dx, dy)]
+            first = min(hits, key=dist)
+            hb = first.bounds()
+            if dx == 0:
+                rect = CrossSection.square([bw, hb[3] - hb[1] + 0.4]).translate([cx - bw / 2, hb[1] - 0.2])
+                length = hb[3] - hb[1]
+            else:
+                rect = CrossSection.square([hb[2] - hb[0] + 0.4, bw]).translate([hb[0] - 0.2, cy - bw / 2])
+                length = (hb[2] - hb[0]) + 100      # prefer vertical bridges
+            cands.append((length, rect))
+        n_before = len(comps)
+        for length, rect in sorted(cands, key=lambda c: c[0]):
+            trial = material + rect
+            if len(trial.decompose()) < n_before:
+                material = trial
+                bridges.append(rect)
+                break
+        else:
+            raise SystemExit("could not bridge a stencil island")
+    raise SystemExit("too many stencil islands")
+
+
 def make_plaque():
     s1, s2, gap = plaque_layout()
     outline = rounded_rect(PLAQUE_W, PLAQUE_H, 3.0)
@@ -452,8 +503,17 @@ def make_plaque():
     y_top = (h1 + gap + h2) / 2
     t1 = t1.translate([-(b1[0] + b1[2]) / 2, y_top - b1[3]])
     t2 = t2.translate([-(b2[0] + b2[2]) / 2, y_top - h1 - gap - b2[3]])
-    rel = (frame + t1 + t2).extrude(TEXT_RELIEF).translate([0, 0, PLAQUE_T - 0.01])
-    return plate + rel, dict(size1=s1, size2=s2, text=(t1, t2))
+    info = dict(size1=s1, size2=s2, text=(t1, t2), stencil=STENCIL)
+    if not STENCIL:
+        rel = (frame + t1 + t2).extrude(TEXT_RELIEF).translate([0, 0, PLAQUE_T - 0.01])
+        return plate + rel, info
+    text = t1 + t2
+    material, bridges = stencil_bridges(outline - text, text, BRIDGE_W)
+    holes = outline.offset(-0.5) - material
+    cut = holes.extrude(PLAQUE_T + 2).translate([0, 0, -1])
+    rel = frame.extrude(TEXT_RELIEF).translate([0, 0, PLAQUE_T - 0.01])
+    info.update(material=material, bridges=len(bridges), holes=holes)
+    return plate - cut + rel, info
 
 
 def make_pin_vertical():
@@ -491,14 +551,19 @@ def build():
            "crown_band": band.translate([0, 0, zc + g["band_bot"]])}
     asm["slices"] = union(slice_.transform(slice_world_transform(g, k).tolist())
                           .translate([0, 0, zc]) for k in range(NUM_SLICES))
-    pl = plaque.rotate([90, 0, 0])        # the text side (+z) turns to face the front (-y)
-    pb = pl.bounding_box()
-    asm["plaque"] = pl.translate([0, -BOX_W / 2 + PLAQUE_POCKET - pb[4], PLAQUE_Z - pb[2]])
+    asm["plaque"] = place_plaque(plaque)
     asm["pin"] = make_pin_vertical().translate([0, 0, zc - PIN_DEPTH])
 
     parts = {"blob": to_bed(blob), "crown_band": to_bed(band), "slice": to_bed(slice_),
              "base": to_bed(base), "plaque": to_bed(plaque), "pin": to_bed(make_pin())}
     return parts, asm, dict(g=g, band=band_radii(g), base=base_info, plaque=pinfo)
+
+
+def place_plaque(plaque):
+    """Stand the flat plaque up in its pocket on the box front."""
+    pl = plaque.rotate([90, 0, 0])        # the text side (+z) turns to face the front (-y)
+    pb = pl.bounding_box()
+    return pl.translate([0, -BOX_W / 2 + PLAQUE_POCKET - pb[4], PLAQUE_Z - pb[2]])
 
 
 def mesh_arrays(m):
@@ -561,6 +626,18 @@ def run_checks(parts, asm, info):
     print(f"blob belly steepest {worst:.1f} deg, band seat steepest {worst_band:.1f} deg from vertical")
     print(f"band slot walls: inner {inner_wall:.2f} mm, outer at slot ends {outer_wall:.2f} mm")
     print(f"plaque font size: line 1 {info['plaque']['size1']:.2f} mm, line 2 {info['plaque']['size2']:.2f} mm")
+    pq = info["plaque"]
+    if pq["stencil"]:
+        mat, holes = pq["material"], pq["holes"]
+        thin = 1 - mat.offset(-0.4).offset(0.4).area() / mat.area()
+        print(f"stencil: {pq['bridges']} bridges of {BRIDGE_W} mm, plaque material in one piece: "
+              f"{len(mat.decompose()) == 1}, letter openings {len(holes.decompose())}, "
+              f"material lost by a 0.8 mm opening {thin * 100:.2f}%")
+        assert len(mat.decompose()) == 1
+    pb = parts["plaque"].bounding_box()
+    print(f"plaque {pb[3] - pb[0]:.2f} x {pb[4] - pb[1]:.2f} mm in a pocket of "
+          f"{PLAQUE_W + TOLERANCE:.2f} x {PLAQUE_H + TOLERANCE:.2f} mm, clearance {TOLERANCE / 2:.2f} mm per side")
+    assert pb[3] - pb[0] <= PLAQUE_W + 1e-6 and pb[4] - pb[1] <= PLAQUE_H + 1e-6
     for label, t in zip(("line 1", "line 2"), info["plaque"]["text"]):
         bb = t.bounds()
         thin = 1 - t.offset(-0.4).offset(0.4).area() / t.area()
@@ -592,6 +669,8 @@ def main(argv=None):
     ap.add_argument("--height", type=float, default=OVERALL_HEIGHT)
     ap.add_argument("--tolerance", type=float, default=TOLERANCE)
     ap.add_argument("--part", default=PART, choices=["all"] + PARTS)
+    ap.add_argument("--raised-text", action="store_true",
+                    help="raised text on the plaque instead of stencil text cut through it")
     ap.add_argument("--out", default=os.path.join(HERE, "stl"))
     ap.add_argument("--from-sprite", help="print the row widths of a blobbym*.bmp and exit")
     a = ap.parse_args(argv)
@@ -599,6 +678,8 @@ def main(argv=None):
         print(widths_from_sprite(a.from_sprite))
         return None
     YEAR, TEXT, OVERALL_HEIGHT, TOLERANCE, PART = a.year, a.text, a.height, a.tolerance, a.part
+    global STENCIL
+    STENCIL = not a.raised_text
     if not 150 <= OVERALL_HEIGHT <= 200:
         raise SystemExit("OVERALL_HEIGHT must be between 150 and 200 mm")
 

@@ -15,15 +15,37 @@ Print one of each part, except the slices. The weights assume PLA with 4 walls a
 | Part | File | Colour | Print orientation | Approx. filament |
 |---|---|---|---|---|
 | Base (box and pizza) | `stl/pizzakongen_base.stl` | Black | Upright, box bottom on the bed | 276 g |
-| Blob | `stl/pizzakongen_blob.stl` | Black, silk or glossy if you have it | Upright, flat foot on the bed | 131 g |
-| Crown band | `stl/pizzakongen_crown_band.stl` | Silk gold | Upright, as exported | 21 g |
-| Pizza slice, print 5 | `stl/pizzakongen_slice.stl` | Silk gold | Flat, back on the bed, toppings up | 2 g each |
-| Plaque | `stl/pizzakongen_plaque.stl` | Silk gold | Flat, text facing up | 14 g |
-| Pin | `stl/pizzakongen_pin.stl` | Any | Lying on its flat side | 1 g |
+| Blob | `stl/pizzakongen_blob.stl` | Dark blue | Upright, flat foot on the bed | 131 g |
+| Crown band | `stl/pizzakongen_crown_band.stl` | White | Upright, as exported | 21 g |
+| Pizza slice, print 5 | `stl/pizzakongen_slice.stl` | White, or dark green | Flat, back on the bed, toppings up | 2 g each |
+| Plaque | `stl/pizzakongen_plaque.stl` | White | Flat, front facing up | 12 g |
+| Pin | `stl/pizzakongen_pin.stl` | White, or any colour | Lying on its flat side | 1 g |
 
-The total is about 455 g. The STL files are already in print orientation.
+The STL files are already in print orientation.
 
-Black base and blob with a gold crown and plaque gives the most contrast. All details are relief, so every part also works in one colour. The text, frame and toppings stand 1.2 mm proud. The cheese cuts and crust notches are 1 mm deep. The plaque text is DejaVu Sans Bold, about 7 mm cap height.
+Filament per colour, about 450 g in total:
+
+| Colour | Parts | Approx. filament |
+|---|---|---|
+| Black | Base | 276 g |
+| Dark blue | Blob | 131 g |
+| White | Crown band, 5 slices, plaque, pin | 44 g |
+
+With the dark green alternative, the 5 slices take about 10 g of dark green and white drops to about 34 g.
+
+The blob is dark blue, which fits "Blåbby", the blue blobby. The black base and the white crown and plaque frame it.
+
+![Dark green slices](renders/alt_green_slices.png)
+
+### Plaque text
+
+By default the text is cut all the way through the white plaque, like a stencil. The black floor of the pocket shows through the letters, so the text reads as black on white with no colour change. Closed letters such as e, a, å, B, b, 0 and 6 have 1.2 mm bridges. These hold the inside of each letter to the rest of the plaque, so nothing falls out. The script finds the islands and adds the bridges by itself, and it stops if the plaque is not one piece. The bridges run straight up or down through the thinnest stroke, and they are as thick as the plaque.
+
+Run with `--raised-text`, or set `STENCIL = False`, to get the earlier version with the text raised 1.2 mm instead. In one colour that text only shows through shadow, so the stencil plaque reads much better.
+
+![Stencil plaque](renders/plaque_closeup.png)
+
+The toppings and the plaque frame stand 1.2 mm proud. The cheese cuts and crust notches are 1 mm deep. The plaque text is DejaVu Sans Bold, about 7 mm cap height. The plaque is 122 x 28 mm and its pocket is 0.3 mm larger each way with the default tolerance.
 
 No part needs supports. The steepest surfaces are 45 degrees, on purpose. These are the bottom chamfers against elephant's foot, the underside of the box lid, the roof of the plaque pocket, the undersides of the crown band rings and the pointed roof of the pin socket in the blob. The blob belly is at most 37 degrees from vertical. The inside of the crown band follows the head at up to 44 degrees.
 
@@ -33,7 +55,7 @@ No part needs supports. The steepest surfaces are 45 degrees, on purpose. These 
 2. Glue the pin into the base, then glue the blob onto the pin. Use CA glue for PLA and two-part epoxy for PETG.
 3. Push the tab of each slice into a slot in the crown band, toppings facing out. Glue them.
 4. Lower the crown band over the head. The inside follows the shape of the head, so it seats by itself. Glue it.
-5. Glue the plaque into the pocket on the front of the box, text up.
+5. Glue the plaque into the pocket on the front of the box, with the year at the bottom. Put the glue on the frame area only, so none shows through the letters.
 
 ## Change the year or the text
 
@@ -52,6 +74,7 @@ Other options:
 - `--text "..."` changes the first line.
 - `--height 150` to `--height 200` sets the overall height. The blob scales to match.
 - `--tolerance 0.3` is the total clearance for every fit. Use 0.3 for PLA and 0.4 for PETG.
+- `--raised-text` makes raised text instead of the stencil plaque.
 - `--part blob` exports a single part. The choices are `all`, `blob`, `crown_band`, `slice`, `base`, `plaque` and `pin`.
 
 `NUM_SLICES` at the top of the script sets the number of slices. Use 3 or 1 for 2nd and 3rd place.

@@ -19,13 +19,18 @@ import pizzakongen as P
 
 OUT = os.path.join(P.HERE, "renders")
 
+# The filament colours on hand
 BLACK = (0.13, 0.13, 0.14)
-GOLD = (0.85, 0.63, 0.20)
-GREY = (0.55, 0.57, 0.60)
-BED = (0.82, 0.82, 0.80)
+BLUE = (0.07, 0.13, 0.42)
+GREEN = (0.06, 0.30, 0.15)
+WHITE = (0.90, 0.90, 0.88)
+BED = (0.75, 0.76, 0.78)
 
-SCHEME = {"base": BLACK, "blob": BLACK, "crown_band": GOLD, "slices": GOLD,
-          "plaque": GOLD, "pin": GREY}
+SCHEME = {"base": BLACK, "blob": BLUE, "crown_band": WHITE, "slices": WHITE,
+          "plaque": WHITE, "pin": WHITE}
+PRINT_COLOUR = {"blob": BLUE, "crown_band": WHITE, "slice": WHITE, "base": BLACK,
+                "plaque": WHITE, "pin": WHITE}
+GLOSS = {BLACK: 0.5, BLUE: 0.55, GREEN: 0.5, WHITE: 0.15}
 
 
 def prep(m, color, gloss=0.6):
@@ -162,33 +167,44 @@ def bed_under(m, margin=8.0):
 def main():
     os.makedirs(OUT, exist_ok=True)
     parts, asm, info = P.build()
-    items = [prep(m, SCHEME[name], 0.5 if SCHEME[name] is BLACK else 0.35)
-             for name, m in asm.items() if name != "pin"]
-    render(items, os.path.join(OUT, "assembled_front.png"), az=0, el=6,
-           title="Pizzakongen, assembled, front")
-    render(items, os.path.join(OUT, "assembled_angle.png"), az=35, el=24,
-           title="Pizzakongen, assembled, front left")
 
-    # close up of the plaque, straight on with a raking light from the upper left
+    def scene(scheme):
+        return [prep(m, scheme[name], GLOSS[scheme[name]])
+                for name, m in asm.items() if name != "pin"]
+
+    items = scene(SCHEME)
+    render(items, os.path.join(OUT, "assembled_front.png"), az=0, el=6,
+           title="Pizzakongen, front. Blue blob, black base, white crown and plaque")
+    render(items, os.path.join(OUT, "assembled_angle.png"), az=35, el=24,
+           title="Pizzakongen, front left")
+    green = dict(SCHEME, slices=GREEN)
+    render(scene(green), os.path.join(OUT, "alt_green_slices.png"), az=35, el=24,
+           title="Alternative: dark green pizza slices")
+
+    # close ups of the plaque, straight on with a raking light from the upper left
     crop = (P.mesh_arrays(asm["plaque"])[0], 5.0)
     rake = [((-0.6, -0.5, 0.6), 1.0), ((0.4, -0.8, 0.2), 0.25)]
-    base_items = [prep(asm["base"], BLACK, 0.5)]
-    render(base_items + [prep(asm["plaque"], GOLD, 0.35)],
+    base_items = [prep(asm["base"], BLACK, GLOSS[BLACK])]
+    render(base_items + [prep(asm["plaque"], WHITE, GLOSS[WHITE])],
            os.path.join(OUT, "plaque_closeup.png"), az=0, el=12, size=(1400, 380), crop=crop,
            lights=rake, title=None)
-    render(base_items + [prep(asm["plaque"], BLACK, 0.5)],
-           os.path.join(OUT, "plaque_closeup_black.png"), az=0, el=12, size=(1400, 380),
+    stencil = P.STENCIL
+    P.STENCIL = False
+    raised, _ = P.make_plaque()
+    P.STENCIL = stencil
+    render(base_items + [prep(P.place_plaque(raised), WHITE, GLOSS[WHITE])],
+           os.path.join(OUT, "plaque_closeup_raised.png"), az=0, el=12, size=(1400, 380),
            crop=crop, lights=rake, title=None)
 
     labels = {"blob": "Blob, upright, flat foot on the bed",
               "crown_band": "Crown band, upright",
               "slice": "Pizza slice (print 5), flat, back on the bed",
               "base": "Base, upright",
-              "plaque": "Plaque, flat, text facing up",
+              "plaque": "Plaque, flat, front facing up",
               "pin": "Pin, lying on its flat side"}
     for name, m in parts.items():
-        col = GOLD if name in ("crown_band", "slice", "plaque") else (GREY if name == "pin" else BLACK)
-        render([prep(m, col, 0.45), prep(bed_under(m), BED, 0.0)],
+        col = PRINT_COLOUR[name]
+        render([prep(m, col, GLOSS[col]), prep(bed_under(m), BED, 0.0)],
                os.path.join(OUT, f"print_{name}.png"), az=30, el=32, size=(900, 900),
                title=labels[name])
 
