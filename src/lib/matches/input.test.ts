@@ -3,7 +3,7 @@ import { matchErrorMessage, parseCount, parseMatchForm, parseMatchIds } from './
 
 describe('parseMatchForm', () => {
     it('reads the plain actions', () => {
-        for (const action of ['call', 'restart', 'cancel']) expect(parseMatchForm({ action })).toEqual({ action });
+        for (const action of ['call', 'restart', 'cancel', 'reset']) expect(parseMatchForm({ action })).toEqual({ action });
     });
 
     it('reads a game result, with abandoned as no winner', () => {

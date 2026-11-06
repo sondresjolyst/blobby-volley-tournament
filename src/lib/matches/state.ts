@@ -14,9 +14,12 @@ export function isMatchState(value: unknown): value is MatchState {
  * - finish: the series is decided.
  * - reopen: a correction leaves a finished series undecided again.
  * - forfeit: a player did not show up. The other player wins.
- * - cancel: an admin cancels the match, or player 2 declines a 1v1 match.
+ * - cancel: an admin cancels a 1v1 match, or player 2 declines it. A tournament match is never
+ *   cancelled, since the bracket could not move on. A no-show is used instead.
+ * - reset: an admin sends a called, started or finished match back to upcoming and clears its games,
+ *   so an earlier match can be corrected. Its bets are refunded.
  */
-export type MatchAction = 'call' | 'start' | 'finish' | 'reopen' | 'forfeit' | 'cancel';
+export type MatchAction = 'call' | 'start' | 'finish' | 'reopen' | 'forfeit' | 'cancel' | 'reset';
 
 const TRANSITIONS: Readonly<Record<MatchAction, Partial<Record<MatchState, MatchState>>>> = {
     call: { upcoming: 'called' },
@@ -25,6 +28,7 @@ const TRANSITIONS: Readonly<Record<MatchAction, Partial<Record<MatchState, Match
     reopen: { finished: 'started' },
     forfeit: { upcoming: 'finished', called: 'finished', started: 'finished' },
     cancel: { upcoming: 'cancelled', called: 'cancelled', started: 'cancelled' },
+    reset: { called: 'upcoming', started: 'upcoming', finished: 'upcoming' },
 };
 
 /** The state after the action, or null when the action is not allowed in this state. */

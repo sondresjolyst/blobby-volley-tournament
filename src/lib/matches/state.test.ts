@@ -12,9 +12,12 @@ const ALLOWED: [MatchState, MatchAction, MatchState][] = [
     ['upcoming', 'cancel', 'cancelled'],
     ['called', 'cancel', 'cancelled'],
     ['started', 'cancel', 'cancelled'],
+    ['called', 'reset', 'upcoming'],
+    ['started', 'reset', 'upcoming'],
+    ['finished', 'reset', 'upcoming'],
 ];
 
-const ACTIONS: MatchAction[] = ['call', 'start', 'finish', 'reopen', 'forfeit', 'cancel'];
+const ACTIONS: MatchAction[] = ['call', 'start', 'finish', 'reopen', 'forfeit', 'cancel', 'reset'];
 
 describe('match state machine', () => {
     it.each(ALLOWED)('allows %s to %s and goes to %s', (from, action, to) => {
@@ -30,6 +33,7 @@ describe('match state machine', () => {
             ['upcoming', 'start'],
             ['upcoming', 'finish'],
             ['upcoming', 'reopen'],
+            ['upcoming', 'reset'],
             ['called', 'call'],
             ['called', 'finish'],
             ['called', 'reopen'],
@@ -47,6 +51,7 @@ describe('match state machine', () => {
             ['cancelled', 'reopen'],
             ['cancelled', 'forfeit'],
             ['cancelled', 'cancel'],
+            ['cancelled', 'reset'],
         ]);
     });
 

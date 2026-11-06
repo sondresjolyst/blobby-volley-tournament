@@ -19,11 +19,11 @@ export function parseMatchIds(values: readonly string[]): number[] {
     return [...new Set(ids)].slice(0, 64);
 }
 
-export const MATCH_ACTIONS = ['call', 'restart', 'game', 'score', 'no-show', 'cancel'] as const;
+export const MATCH_ACTIONS = ['call', 'restart', 'game', 'score', 'no-show', 'cancel', 'reset'] as const;
 export type MatchFormAction = (typeof MATCH_ACTIONS)[number];
 
 export type MatchForm =
-    | { action: 'call' | 'restart' | 'cancel' }
+    | { action: 'call' | 'restart' | 'cancel' | 'reset' }
     | { action: 'game'; game: number; winnerSlot: 1 | 2 | null; points1: number; points2: number }
     | { action: 'score'; score1: number; score2: number }
     | { action: 'no-show'; absentSlot: 1 | 2 };
@@ -34,6 +34,7 @@ export function parseMatchForm(form: Record<string, string>): MatchForm | null {
         case 'call':
         case 'restart':
         case 'cancel':
+        case 'reset':
             return { action: form.action };
         case 'game': {
             const game = parseId(form.game ?? '');
@@ -74,9 +75,10 @@ const MESSAGES: Record<string, string> = {
     'player-busy': 'A player is already in a called or started match.',
     'not-accepted': 'The other player has not accepted this 1v1 match yet.',
     game: 'The game must be one of the games played or the next one.',
-    score: 'The score is not valid for this best-of.',
+    score: 'The score is not valid. The winner of a game must have more points, and a series score must fit the best-of.',
     forfeit: 'This match was decided by a no-show. Its games cannot change it.',
-    'downstream-played': 'The change would move a player out of a later match that is already called, started or finished.',
+    'downstream-played': 'The change would move a player out of a later match that is already called, started or finished. Reset that match to upcoming first.',
+    'tournament-cancel': 'A tournament match cannot be cancelled, since the bracket could not move on. Record a no-show instead.',
 };
 
 /** The text for an error code in the address. Unknown codes show nothing. */

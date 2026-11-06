@@ -8,7 +8,7 @@ import { matchErrorMessage, STATE_LABELS } from '@/lib/matches/input';
 import { winsNeeded } from '@/lib/matches/state';
 import { getMatch } from '@/lib/store/matches';
 
-type Search = { error?: string | string[]; done?: string | string[] };
+type Search = { error?: string | string[]; done?: string | string[]; blocked?: string | string[] };
 
 const DONE: Record<string, string> = {
     call: 'The match is called.',
@@ -17,6 +17,7 @@ const DONE: Record<string, string> = {
     score: 'The series score is saved.',
     'no-show': 'The no-show is recorded.',
     cancel: 'The match is cancelled.',
+    reset: 'The match is back to upcoming. Its games are cleared.',
 };
 
 export default async function AdminMatch({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Search> }) {
@@ -27,6 +28,7 @@ export default async function AdminMatch({ params, searchParams }: { params: Pro
     if (!match) notFound();
     const search = await searchParams;
     const error = matchErrorMessage(search.error);
+    const blocked = search.error === 'downstream-played' && typeof search.blocked === 'string' ? parseId(search.blocked) : null;
     const done = typeof search.done === 'string' && Object.hasOwn(DONE, search.done) ? DONE[search.done] : null;
     const action = `/api/admin/matches/${match.id}`;
     const name = (slot: 1 | 2) => match.players[slot - 1]?.nickname ?? `Player ${slot}`;
@@ -45,7 +47,17 @@ export default async function AdminMatch({ params, searchParams }: { params: Pro
                     </>
                 )}
             </p>
-            {error && <p role="alert">{error}</p>}
+            {error && (
+                <p role="alert">
+                    {error}
+                    {blocked !== null && (
+                        <>
+                            {' '}
+                            It is <Link href={`/admin/matches/${blocked}`}>match {blocked}</Link>. Reset it there and come back.
+                        </>
+                    )}
+                </p>
+            )}
             {done && <p role="status">{done}</p>}
             <p>{matchTitle(match)}</p>
             <p>{matchPlayers(match)}</p>
@@ -120,10 +132,10 @@ export default async function AdminMatch({ params, searchParams }: { params: Pro
                             </select>
                         </label>{' '}
                         <label>
-                            Points for {name(1)} <input name="points1" type="number" min={0} max={1000} defaultValue={0} required />
+                            Points for {name(1)} <input name="points1" type="number" min={0} max={1000} required />
                         </label>{' '}
                         <label>
-                            Points for {name(2)} <input name="points2" type="number" min={0} max={1000} defaultValue={0} required />
+                            Points for {name(2)} <input name="points2" type="number" min={0} max={1000} required />
                         </label>{' '}
                         <button type="submit">Save game</button>
                     </form>
@@ -156,7 +168,17 @@ export default async function AdminMatch({ params, searchParams }: { params: Pro
                     </form>
                 </>
             )}
-            {open && (
+            {(match.state === 'called' || match.state === 'started' || match.state === 'finished') && (
+                <>
+                    <h3>Reset to upcoming</h3>
+                    <p>This clears the games and the series score and refunds the bets on this match.</p>
+                    <form method="post" action={action}>
+                        <input type="hidden" name="action" value="reset" />
+                        <button type="submit">Reset to upcoming</button>
+                    </form>
+                </>
+            )}
+            {open && match.tournamentId === null && (
                 <form method="post" action={action}>
                     <input type="hidden" name="action" value="cancel" />
                     <button type="submit">Cancel match</button>

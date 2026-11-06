@@ -2,9 +2,9 @@ import { requireAdminApi } from '@/lib/auth/options';
 import { getPool } from '@/lib/db';
 import { parseId, readForm, seeOther } from '@/lib/http';
 import { parseMatchForm } from '@/lib/matches/input';
-import { callMatch, cancelMatch, enterGameResult, recordNoShow, restartCurrentGame, setSeriesScore, type MatchResult } from '@/lib/store/matches';
+import { callMatch, cancelMatch, enterGameResult, recordNoShow, resetMatch, restartCurrentGame, setSeriesScore, type MatchResult } from '@/lib/store/matches';
 
-/** Runs one admin tool from /admin/matches/[id]: call, restart, game result, series score, no-show or cancel. */
+/** Runs one admin tool from /admin/matches/[id]: call, restart, game result, series score, no-show, cancel or reset. */
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
     const admin = await requireAdminApi(req);
     if (admin instanceof Response) return admin;
@@ -33,10 +33,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         case 'cancel':
             result = await cancelMatch(pool, id);
             break;
+        case 'reset':
+            result = await resetMatch(pool, id);
+            break;
     }
     if (!result.ok) {
         if (result.error === 'not-found') return Response.json({ error: 'not found' }, { status: 404 });
-        return seeOther(`/admin/matches/${id}?error=${result.error}`);
+        const blocked = result.blockedBy === undefined ? '' : `&blocked=${result.blockedBy}`;
+        return seeOther(`/admin/matches/${id}?error=${result.error}${blocked}`);
     }
     return seeOther(`/admin/matches/${id}?done=${form.action}`);
 }

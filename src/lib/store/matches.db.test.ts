@@ -1,7 +1,7 @@
 import { copyFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Pool } from 'pg';
+import { Pool, type PoolClient } from 'pg';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { migrate, MIGRATIONS_DIR, readMigrations } from '../../../scripts/migrate.mjs';
 import { generateBracket, type BestOf, type FormatId } from '@/lib/bracket';
@@ -22,8 +22,10 @@ import {
     recordNoShow,
     reportGameResult,
     reportPlayersConnected,
+    resetMatch,
     restartCurrentGame,
     setSeriesScore,
+    withMatchForBet,
 } from './matches';
 import { getTournament, saveTournament } from './tournaments';
 
@@ -286,7 +288,7 @@ describe('corrections and the bracket', () => {
         await win(semi1, 1);
         await win(semi2, 1);
         await callMatch(pool, final);
-        expect(await enterGameResult(pool, semi1, { game: 1, winnerSlot: 2, points1: 0, points2: 15 })).toEqual({ ok: false, error: 'downstream-played' });
+        expect(await enterGameResult(pool, semi1, { game: 1, winnerSlot: 2, points1: 0, points2: 15 })).toEqual({ ok: false, error: 'downstream-played', blockedBy: final });
         expect(await getMatch(pool, semi1)).toMatchObject({ state: 'finished', winnerId: (await getMatch(pool, semi1))!.players[0]!.id });
         expect((await getMatch(pool, semi1))!.games[0]).toMatchObject({ winnerSlot: 1, source: 'server' });
     });
@@ -362,15 +364,34 @@ describe('cancel and no-show', () => {
         expect(await recordNoShow(pool, semi1, 2)).toEqual({ ok: false, error: 'state' });
     });
 
-    it('cancels a started match and reports it, and refuses a finished one', async () => {
+    it('cancels a started 1v1 match and reports it, and refuses a finished one', async () => {
+        const { players } = await activeEvent(4);
+        const ids: number[] = [];
+        for (const [a, b] of [
+            [0, 1],
+            [2, 3],
+        ]) {
+            const created = await createChallenge(pool, players[a], players[b]);
+            if (!created.ok) throw new Error(created.error);
+            await acceptChallenge(pool, created.matchId, players[b]);
+            ids.push(created.matchId);
+        }
+        await start(ids[0]);
+        expect(await cancelMatch(pool, ids[0])).toMatchObject({ ok: true, events: [{ type: 'cancelled', matchId: ids[0], reason: 'admin' }] });
+        expect(await getMatch(pool, ids[0])).toMatchObject({ state: 'cancelled', cancelReason: 'admin', winnerId: null });
+        expect(await report(ids[0], 1, 1)).toMatchObject({ ok: true, status: 'ignored', reason: 'state' });
+        await win(ids[1], 1);
+        expect(await cancelMatch(pool, ids[1])).toEqual({ ok: false, error: 'state' });
+    });
+
+    it('refuses to cancel a tournament match, so the bracket cannot stall', async () => {
         const t = await tournament('single_elimination', 4, 1);
         const [semi1, semi2] = t.ids;
         await start(semi1);
-        expect(await cancelMatch(pool, semi1)).toMatchObject({ ok: true, events: [{ type: 'cancelled', matchId: semi1, reason: 'admin' }] });
-        expect(await getMatch(pool, semi1)).toMatchObject({ state: 'cancelled', cancelReason: 'admin', winnerId: null });
-        expect(await report(semi1, 1, 1)).toMatchObject({ ok: true, status: 'ignored', reason: 'state' });
-        await win(semi2, 1);
-        expect(await cancelMatch(pool, semi2)).toEqual({ ok: false, error: 'state' });
+        expect(await cancelMatch(pool, semi1)).toEqual({ ok: false, error: 'tournament-cancel' });
+        expect(await cancelMatch(pool, semi2)).toEqual({ ok: false, error: 'tournament-cancel' });
+        expect(await getMatch(pool, semi1)).toMatchObject({ state: 'started' });
+        expect(await getMatch(pool, semi2)).toMatchObject({ state: 'upcoming' });
     });
 
     it('cannot forfeit a match before both players are known', async () => {
@@ -519,6 +540,146 @@ describe('1v1 matches', () => {
         await pool.query('UPDATE events SET is_active = false');
         expect(await acceptChallenge(pool, created.matchId, players[1])).toEqual({ ok: false, error: 'no-event' });
         expect(await createChallenge(pool, players[1], stranger)).toEqual({ ok: false, error: 'no-event' });
+    });
+});
+
+describe('reset to upcoming', () => {
+    it('clears the games and the manual score, reports the reset and ignores late reports for cleared games', async () => {
+        const t = await tournament('single_elimination', 2, 3);
+        const [id] = t.ids;
+        await start(id);
+        await report(id, 1, 1);
+        await report(id, 2, null);
+        await setSeriesScore(pool, id, 1, 1);
+        handled.calls = [];
+        expect(await resetMatch(pool, id)).toMatchObject({ ok: true, events: [{ type: 'reset', matchId: id, previousWinnerId: null }] });
+        expect(handled.calls).toEqual([[{ type: 'reset', matchId: id, previousWinnerId: null }]]);
+        expect(await getMatch(pool, id)).toMatchObject({ state: 'upcoming', score1: 0, score2: 0, manualScore: null, games: [], nextGame: 3, awaitingDecision: false, calledAt: null, startedAt: null });
+        expect(await report(id, 3, 1)).toMatchObject({ ok: true, status: 'ignored', reason: 'state' });
+        await start(id);
+        expect(await report(id, 1, 1)).toMatchObject({ ok: true, status: 'ignored', reason: 'game-closed' });
+        expect(await enterGameResult(pool, id, { game: 2, winnerSlot: 1, points1: 15, points2: 3 })).toEqual({ ok: false, error: 'game' });
+        expect(await report(id, 3, 2)).toMatchObject({ ok: true, status: 'applied' });
+        expect(await getMatch(pool, id)).toMatchObject({ score1: 0, score2: 1, nextGame: 4 });
+    });
+
+    it('names the later match that blocks a correction and lets the correction through once it is reset', async () => {
+        const t = await tournament('single_elimination', 4, 1);
+        const [semi1, semi2, final] = t.ids;
+        await win(semi1, 1);
+        await win(semi2, 1);
+        await callMatch(pool, final);
+        const correction = { game: 1, winnerSlot: 2 as const, points1: 0, points2: 15 };
+        expect(await enterGameResult(pool, semi1, correction)).toEqual({ ok: false, error: 'downstream-played', blockedBy: final });
+        expect(await resetMatch(pool, final)).toMatchObject({ ok: true });
+        handled.calls = [];
+        expect(await enterGameResult(pool, semi1, correction)).toMatchObject({ ok: true });
+        const corrected = (await getMatch(pool, semi1))!;
+        const to = t.next(semi1, 'winner')!;
+        expect((await playersOf(final))[to.slot - 1]).toBe(corrected.players[1]!.id);
+        expect(handled.calls.flat().map((e) => e.type)).toEqual(['reopened', 'finished', 'players-changed']);
+    });
+
+    it('takes the winner of a reset match back out of the bracket and the placings', async () => {
+        const t = await tournament('single_elimination', 4, 1);
+        const [semi1, semi2, final] = t.ids;
+        await win(semi1, 1);
+        await win(semi2, 1);
+        const decided = await win(final, 2);
+        expect(await resetMatch(pool, semi1)).toEqual({ ok: false, error: 'downstream-played', blockedBy: final });
+        expect(await resetMatch(pool, final)).toMatchObject({ ok: true, events: [{ type: 'reset', matchId: final, previousWinnerId: decided.players[1]!.id }] });
+        expect((await getPlacings(pool, t.tournamentId)).map((p) => p.place)).toEqual([3, 3]);
+        expect(await resetMatch(pool, semi1)).toMatchObject({ ok: true });
+        expect((await playersOf(final))[t.next(semi1, 'winner')!.slot - 1]).toBeNull();
+        expect(await getMatch(pool, semi1)).toMatchObject({ state: 'upcoming', winnerId: null, result: null });
+    });
+
+    it('refuses an upcoming or cancelled match', async () => {
+        const t = await tournament('single_elimination', 2, 1);
+        expect(await resetMatch(pool, t.ids[0])).toEqual({ ok: false, error: 'state' });
+    });
+});
+
+/** Runs the work in a transaction on one client, as betting will. */
+async function inTx<T>(work: (client: PoolClient) => Promise<T>): Promise<T> {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const result = await work(client);
+        await client.query('COMMIT');
+        return result;
+    } finally {
+        client.release();
+    }
+}
+
+describe('withMatchForBet', () => {
+    it('is open for an upcoming or called match with both players and closed otherwise', async () => {
+        const t = await tournament('single_elimination', 4, 1);
+        const [semi1, , final] = t.ids;
+        expect(await inTx((c) => withMatchForBet(c, semi1))).toMatchObject({ ok: true, match: { id: semi1, eventId: t.eventId, tournamentId: t.tournamentId, state: 'upcoming' } });
+        expect(await inTx((c) => withMatchForBet(c, final))).toEqual({ ok: false, error: 'closed' });
+        await callMatch(pool, semi1);
+        expect(await inTx((c) => withMatchForBet(c, semi1))).toMatchObject({ ok: true, match: { state: 'called' } });
+        await reportPlayersConnected(pool, semi1);
+        expect(await inTx((c) => withMatchForBet(c, semi1))).toEqual({ ok: false, error: 'closed' });
+        expect(await inTx((c) => withMatchForBet(c, 999))).toEqual({ ok: false, error: 'not-found' });
+        const created = await createChallenge(pool, t.players[0], t.players[3]);
+        if (!created.ok) throw new Error(created.error);
+        expect(await inTx((c) => withMatchForBet(c, created.matchId))).toEqual({ ok: false, error: 'closed' });
+    });
+
+    it('holds the match, so it cannot start while a bet is being written', async () => {
+        const t = await tournament('single_elimination', 2, 1);
+        const [id] = t.ids;
+        await callMatch(pool, id);
+        const client = await pool.connect();
+        let started = false;
+        try {
+            await client.query('BEGIN');
+            expect(await withMatchForBet(client, id)).toMatchObject({ ok: true });
+            const starting = reportPlayersConnected(pool, id).then((r) => {
+                started = true;
+                return r;
+            });
+            await new Promise((resolve) => setTimeout(resolve, 300));
+            expect(started).toBe(false);
+            await client.query('COMMIT');
+            expect(await starting).toMatchObject({ ok: true, started: true });
+        } finally {
+            client.release();
+        }
+        expect(await inTx((c) => withMatchForBet(c, id))).toEqual({ ok: false, error: 'closed' });
+    });
+});
+
+describe('fix round checks', () => {
+    it('calls only one of several matches that share a player when they are called at once', async () => {
+        const { players } = await activeEvent(7);
+        const ids: number[] = [];
+        for (const opponent of players.slice(1)) {
+            const created = await createChallenge(pool, players[0], opponent);
+            if (!created.ok) throw new Error(created.error);
+            await acceptChallenge(pool, created.matchId, opponent);
+            ids.push(created.matchId);
+        }
+        await Promise.all(Array.from({ length: 8 }, () => pool.query('SELECT pg_sleep(0.05)')));
+        const results = await Promise.all(ids.map((id) => callMatch(pool, id)));
+        expect(results.filter((r) => r.ok)).toHaveLength(1);
+        expect(results.filter((r) => !r.ok && r.error === 'player-busy')).toHaveLength(ids.length - 1);
+    });
+
+    it('refuses a game result where the winner does not have more points', async () => {
+        const t = await tournament('single_elimination', 2, 3);
+        const [id] = t.ids;
+        await start(id);
+        expect(await enterGameResult(pool, id, { game: 1, winnerSlot: 1, points1: 10, points2: 15 })).toEqual({ ok: false, error: 'score' });
+        expect(await enterGameResult(pool, id, { game: 1, winnerSlot: 2, points1: 15, points2: 15 })).toEqual({ ok: false, error: 'score' });
+        expect(await reportGameResult(pool, { reportId: 'low', matchId: id, game: 1, winnerSlot: 2, points1: 15, points2: 3 })).toEqual({ ok: false, error: 'invalid' });
+        expect(await reportGameResult(pool, { reportId: 'even', matchId: id, game: 1, winnerSlot: 1, points1: 7, points2: 7 })).toEqual({ ok: false, error: 'invalid' });
+        expect(await getMatch(pool, id)).toMatchObject({ games: [], score1: 0, score2: 0 });
+        // An abandoned game has no winner, so equal points are fine.
+        expect(await reportGameResult(pool, { reportId: 'abandoned', matchId: id, game: 1, winnerSlot: null, points1: 7, points2: 7 })).toMatchObject({ ok: true, status: 'applied' });
     });
 });
 

@@ -59,13 +59,13 @@ Each tournament match and each 1v1 match is a row in the `matches` table. A matc
 
 A match is best of 1, 3, 5 or 7. Each game is stored with its own result, and the series score is stored with the match. A game that ends without a winner, such as on a disconnect, is abandoned and does not count. The admin then restarts it from 0-0 or awards it.
 
-On the match page an admin can restart the current game, enter or correct a game result, set the series score by hand, record a no-show and cancel the match. A no-show gives the other player the win. When a series is decided, the winner and the loser move on to their next matches and the tournament places are updated. A correction works out the series and the bracket again. It is refused when it would move a player out of a later match that is already called, started or finished.
+On the match page an admin can restart the current game, enter or correct a game result, set the series score by hand, record a no-show, reset the match to upcoming and cancel a 1v1 match. A game result needs more points for the winner. A no-show gives the other player the win. A tournament match cannot be cancelled, since the bracket could not move on. Record a no-show instead. When a series is decided, the winner and the loser move on to their next matches and the tournament places are updated. A correction works out the series and the bracket again. It is refused when it would move a player out of a later match that is already called, started or finished. The page then links to that match. Reset it to upcoming, which clears its games and refunds its bets, and the correction goes through.
 
-The game server sends each game result with a unique report id. A report that comes again changes nothing. A report for a game that already has a result, such as one an admin entered, is kept but ignored.
+The game server sends each game result with a report id that is unique across all matches, such as a UUID. It reads the next game number again before each game. A report that comes again changes nothing. A report for a game that already has a result, such as one an admin entered, is kept but ignored.
 
 A player can ask another player of the active event for a 1v1 match. It can be called once the other player accepts. The pages for this come later.
 
-Every match change is in `src/lib/store/matches.ts`. Each change runs in one transaction and passes what happened to `handleMatchEvents` in `src/lib/store/match-events.ts` before it commits.
+Every match change is in `src/lib/store/matches.ts`. Each change runs in one transaction and passes what happened to `handleMatchEvents` in `src/lib/store/match-events.ts` before it commits. A bet must lock the match first with `withMatchForBet` in the same transaction.
 
 ## Admin login
 
