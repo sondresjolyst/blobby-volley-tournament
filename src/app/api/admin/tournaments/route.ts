@@ -2,6 +2,7 @@ import { requireAdminApi } from '@/lib/auth/options';
 import { getPool } from '@/lib/db';
 import { seeOther } from '@/lib/http';
 import { getActiveEvent } from '@/lib/store/events';
+import { eloRatings } from '@/lib/store/stats';
 import { saveTournament } from '@/lib/store/tournaments';
 import { fieldsOf, parseTournamentDraft, planTournament, roundsMatch } from '@/lib/tournaments/input';
 
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
     const pool = getPool();
     const event = await getActiveEvent(pool);
     if (!event) return back('no-event');
-    const bracket = planTournament(draft.value);
+    const bracket = planTournament(draft.value, draft.value.seeding === 'elo' ? await eloRatings(pool, event.id) : undefined);
     if (!roundsMatch(draft.value, bracket)) return back('rounds');
     const result = await saveTournament(pool, event.id, {
         name: draft.value.name,

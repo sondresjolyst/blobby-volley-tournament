@@ -5,6 +5,8 @@ import { BEST_OF, FORMATS, type PlannedBracket } from '@/lib/bracket';
 import { getPool } from '@/lib/db';
 import { getActiveEvent } from '@/lib/store/events';
 import { listPlayers } from '@/lib/store/players';
+import { eloRatings } from '@/lib/store/stats';
+import { ELO_START, shownRating } from '@/lib/stats/elo';
 import {
     bestOfField,
     fieldsOf,
@@ -42,7 +44,7 @@ export default async function NewTournament({ searchParams }: { searchParams: Pr
             </main>
         );
     }
-    const players = await listPlayers(pool, event.id);
+    const [players, ratings] = await Promise.all([listPlayers(pool, event.id), eloRatings(pool, event.id)]);
     const params = toSearchParams(await searchParams);
     const read = fieldsOf(params);
     const value = (name: string) => read(name)[0] ?? '';
@@ -57,7 +59,7 @@ export default async function NewTournament({ searchParams }: { searchParams: Pr
         else if (!parsed.value.playerIds.every((id) => players.some((p) => p.id === id))) message ??= tournamentErrorMessage('players');
         else {
             draft = parsed.value;
-            plan = planTournament(draft);
+            plan = planTournament(draft, ratings);
         }
     }
     const randomSeed = value('randomSeed') || String(newRandomSeed());
@@ -123,7 +125,7 @@ export default async function NewTournament({ searchParams }: { searchParams: Pr
                     </label>
                 </p>
                 <p>75 frames per second is the normal speed of the game.</p>
-                <p>Elo ratings come later. Until then every player counts as 1000, so Elo seeding follows the order the players signed up in.</p>
+                <p>Seeding by Elo rating puts the highest rating first. It uses the ratings when you save, so a match that ends after the preview can change the seeds. Equal ratings go in the order the players signed up in.</p>
 
                 <fieldset>
                     <legend>Players</legend>
@@ -135,6 +137,7 @@ export default async function NewTournament({ searchParams }: { searchParams: Pr
                                 <tr>
                                     <th>Play</th>
                                     <th>Seed when seeding by hand</th>
+                                    <th>Elo rating</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -151,6 +154,7 @@ export default async function NewTournament({ searchParams }: { searchParams: Pr
                                                 <input name={seedField(player.id)} inputMode="numeric" size={3} defaultValue={value(seedField(player.id))} />
                                             </label>
                                         </td>
+                                        <td>{shownRating(ratings.get(player.id) ?? ELO_START)}</td>
                                     </tr>
                                 ))}
                             </tbody>

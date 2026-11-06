@@ -132,10 +132,7 @@ export function parseTournamentDraft(read: FieldReader): DraftResult {
     return { ok: true, value: { name, format, seeding: seeding as SeedingMethod, randomSeed, playerIds, manualOrder, thirdPlaceMatch, scoreToWin, speed, rounds, roundsFor } };
 }
 
-/**
- * Builds the bracket for a draft. Elo ratings are not stored yet, so the caller passes what it
- * has, and a player without a rating counts as 1000.
- */
+/** Builds the bracket for a draft. For Elo seeding the caller passes the ratings, and a player without one counts as 1000. */
 export function planTournament(draft: TournamentDraft, ratings: ReadonlyMap<number, number> = new Map()): PlannedBracket {
     const seeding: Seeding =
         draft.seeding === 'random'
