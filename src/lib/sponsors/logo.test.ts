@@ -47,7 +47,37 @@ describe('checkLogo', () => {
         for (const data of [await png(300, 100), await bytes(image(300, 100).jpeg()), await bytes(image(300, 100).webp())]) {
             const logo = await checked(data);
             expect(logo).toMatchObject({ width: 300, height: 100 });
-            expect(logo.bytes).toBe(data);
+            expect(sniffLogoType(logo.bytes)).toBe(sniffLogoType(data));
+        }
+    });
+
+    it('stores a JPEG without its EXIF data, turned upright and in sRGB', async () => {
+        const photo = await bytes(
+            image(100, 50)
+                .jpeg()
+                .withMetadata({ orientation: 6 })
+                .withExifMerge({ IFD0: { Artist: 'Secret Person' }, IFD3: { GPSLatitudeRef: 'N', GPSLatitude: '59/1 54/1 0/1' } })
+                .withIccProfile('p3'),
+        );
+        const before = await sharp(photo).metadata();
+        expect(before).toMatchObject({ orientation: 6, exif: expect.anything(), icc: expect.anything() });
+        expect(Buffer.from(photo).includes('Secret Person')).toBe(true);
+        const logo = await checked(photo);
+        const after = await sharp(logo.bytes).metadata();
+        expect(after).toMatchObject({ format: 'jpeg', width: 50, height: 100, space: 'srgb' });
+        expect(after.exif).toBeUndefined();
+        expect(after.icc).toBeUndefined();
+        expect(after.orientation).toBeUndefined();
+        expect(Buffer.from(logo.bytes).includes('Secret Person')).toBe(false);
+        expect(logo).toMatchObject({ type: 'image/jpeg', width: 50, height: 100 });
+    });
+
+    it('stores PNG and WebP without metadata too', async () => {
+        for (const data of [await bytes(image(20, 10).png().withExif({ IFD0: { Artist: 'Secret Person' } })), await bytes(image(20, 10).webp().withExif({ IFD0: { Artist: 'Secret Person' } }))]) {
+            expect((await sharp(data).metadata()).exif).toBeDefined();
+            const logo = await checked(data);
+            expect((await sharp(logo.bytes).metadata()).exif).toBeUndefined();
+            expect(Buffer.from(logo.bytes).includes('Secret Person')).toBe(false);
         }
     });
 

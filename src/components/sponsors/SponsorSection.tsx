@@ -66,7 +66,7 @@ export function SponsorSection({ eventId, sponsors }: { eventId: number; sponsor
                         {sponsors.map((sponsor, index) => (
                             <tr key={sponsor.id}>
                                 <td>
-                                    {/* The logo is served as it was uploaded. The image optimizer of Next is not used. */}
+                                    {/* The logo is served as it was stored. The image optimizer of Next is not used. */}
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img src={`/api/admin/sponsors/${sponsor.id}/logo?v=${sponsor.logoHash}`} alt={`Logo of ${sponsor.name}`} height={40} width={Math.round((40 * sponsor.logoWidth) / sponsor.logoHeight)} />
                                     {!sponsor.enabled && <p>Off</p>}

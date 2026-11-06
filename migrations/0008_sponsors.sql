@@ -10,7 +10,7 @@ CREATE TABLE sponsors (
     -- position. The check waits until commit, so a move can swap two positions.
     position integer NOT NULL CHECK (position >= 1),
     enabled boolean NOT NULL DEFAULT true,
-    -- The uploaded logo, as it came. Only PNG, JPEG and WebP are stored. SVG can hold scripts.
+    -- The uploaded logo, written again without metadata. Only PNG, JPEG and WebP are stored. SVG can hold scripts.
     logo bytea NOT NULL CHECK (octet_length(logo) BETWEEN 1 AND 1048576),
     logo_type text NOT NULL CHECK (logo_type IN ('image/png', 'image/jpeg', 'image/webp')),
     logo_width integer NOT NULL CHECK (logo_width BETWEEN 1 AND 2000),

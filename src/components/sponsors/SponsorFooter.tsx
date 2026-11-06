@@ -22,7 +22,7 @@ export async function SponsorFooter() {
             <ul style={{ listStyle: 'none', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '1.5rem', padding: 0 }}>
                 {sponsors.map((sponsor) => {
                     const logo = (
-                        // The logo is served as it was uploaded. The image optimizer of Next is not used.
+                        // The logo is served as it was stored. The image optimizer of Next is not used.
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                             src={`/api/sponsors/${sponsor.id}/logo?v=${sponsor.logoHash}`}

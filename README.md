@@ -90,7 +90,7 @@ An admin can add or take Foza from a player with a reason on the event page.
 
 An admin manages the sponsors of an event on its page under `/admin/events`. A sponsor has a name of at most 60 characters, an optional http or https link, a logo, a place in the order and an on or off switch. Up and Down move a sponsor one place. The footer of every page and the game server API list the sponsors of the active event that are on, in this order. An event has at most 50 sponsors.
 
-A logo is a PNG, JPEG or WebP file of at most 1 MB and at most 2000 pixels wide and high. The site checks the first bytes of the file and decodes the whole image before it stores it. The type the browser sends is ignored. SVG is refused, since an SVG file can hold scripts. The logo is stored in the database as it was uploaded.
+A logo is a PNG, JPEG or WebP file of at most 1 MB and at most 2000 pixels wide and high. The site checks the first bytes of the file and decodes the whole image before it stores it. The type the browser sends is ignored. SVG is refused, since an SVG file can hold scripts. The site then writes the logo again in its own format and stores that in the database. This drops EXIF, GPS and other metadata, turns the image upright and converts its colours to sRGB.
 
 For the game the site makes a 24-bit BMP 32 pixels high and at most 160 wide, with the aspect ratio kept. A wider logo is centred on a band 32 pixels high. The game has no transparency, so transparent parts get the game background colour of the sponsor, white unless the admin picks another. A changed colour makes the BMP again from the stored logo.
 

@@ -65,13 +65,27 @@ export async function checkLogo(bytes: Uint8Array): Promise<{ ok: true; value: C
     if (metadata.format !== SHARP_FORMAT[type] || (metadata.pages ?? 1) > 1) return { ok: false, error: 'logo-image' };
     const { width, height } = metadata.autoOrient;
     if (!(width >= 1 && height >= 1 && width <= MAX_LOGO_SIDE && height <= MAX_LOGO_SIDE)) return { ok: false, error: 'logo-dimensions' };
-    // The header can be fine while the pixels are broken, so the whole image is decoded once here.
+    // The whole image is decoded and written again, so broken pixels are caught here and the
+    // stored logo carries no EXIF, XMP or other metadata, such as the GPS position of a phone photo.
+    let clean: Uint8Array;
     try {
-        await decoder(bytes).raw().toBuffer();
+        clean = await reencode(bytes, type);
     } catch {
         return { ok: false, error: 'logo-image' };
     }
-    return { ok: true, value: { bytes, type, width, height } };
+    if (clean.length > MAX_LOGO_BYTES) return { ok: false, error: 'logo-size' };
+    return { ok: true, value: { bytes: clean, type, width, height } };
+}
+
+/**
+ * Writes the logo again in its own format. sharp leaves out all metadata unless asked, and
+ * converts an embedded colour profile to sRGB. The EXIF orientation is applied to the pixels first.
+ */
+async function reencode(bytes: Uint8Array, type: LogoType): Promise<Uint8Array> {
+    const image = decoder(bytes).autoOrient().toColourspace('srgb');
+    const output = type === 'image/png' ? image.png() : type === 'image/jpeg' ? image.jpeg({ quality: 90 }) : image.webp({ quality: 90 });
+    const data = await output.toBuffer();
+    return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
 }
 
 /**
