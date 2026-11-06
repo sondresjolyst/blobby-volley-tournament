@@ -31,7 +31,7 @@ beforeEach(() => {
 
 describe('every /api/admin route', () => {
     it('is found', () => {
-        expect(routes.length).toBeGreaterThanOrEqual(5);
+        expect(routes).toEqual(expect.arrayContaining(['matches/call/route.ts', 'matches/[id]/route.ts']));
     });
 
     it.each(routes)('%s answers with the response from requireAdminApi before it does anything else', async (route) => {

@@ -1,5 +1,7 @@
-import type { Pool, PoolClient } from 'pg';
+import type { Pool } from 'pg';
 import { MAX_PLAYERS, MIN_PLAYERS, type BestOf, type FormatId, type PlannedBracket, type Section, type SeedingMethod } from '@/lib/bracket';
+import { createBracketMatches } from './matches';
+import { inTransaction } from './transaction';
 
 export interface NewTournament {
     name: string;
@@ -49,30 +51,6 @@ export interface TournamentSummary {
 }
 
 export type SaveTournamentResult = { ok: true; id: number } | { ok: false; error: 'no-event' | 'players' };
-
-async function inTransaction<T>(pool: Pool, work: (client: PoolClient) => Promise<T>): Promise<T> {
-    const client = await pool.connect();
-    let released = false;
-    try {
-        await client.query('BEGIN');
-        try {
-            const result = await work(client);
-            await client.query('COMMIT');
-            return result;
-        } catch (error) {
-            try {
-                await client.query('ROLLBACK');
-            } catch (rollbackError) {
-                // The connection is broken. It is dropped from the pool and the first error is kept.
-                released = true;
-                client.release(rollbackError instanceof Error ? rollbackError : true);
-            }
-            throw error;
-        }
-    } finally {
-        if (!released) client.release();
-    }
-}
 
 class Abort extends Error {
     constructor(readonly reason: 'no-event' | 'players') {
@@ -138,6 +116,7 @@ export async function saveTournament(pool: Pool, eventId: number, input: NewTour
                     ],
                 );
             }
+            await createBracketMatches(client, tournamentId);
             return tournamentId;
         });
         return { ok: true, id };

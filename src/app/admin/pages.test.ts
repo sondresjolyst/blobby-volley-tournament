@@ -30,7 +30,7 @@ beforeEach(() => {
 
 describe('every /admin page', () => {
     it('is found', () => {
-        expect(pages).toEqual(expect.arrayContaining(['page.tsx', 'tournaments/page.tsx', 'tournaments/new/page.tsx', 'tournaments/[id]/page.tsx']));
+        expect(pages).toEqual(expect.arrayContaining(['page.tsx', 'tournaments/page.tsx', 'tournaments/new/page.tsx', 'tournaments/[id]/page.tsx', 'matches/page.tsx', 'matches/[id]/page.tsx']));
     });
 
     it.each(pages)('%s calls requireAdmin before it does anything else', async (page) => {
