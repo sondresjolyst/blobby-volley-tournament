@@ -140,13 +140,20 @@ describe('POST /api/server/matches/{id}/connected', () => {
         }
     });
 
-    it('answers 404 for an unknown match or a bad id', async () => {
+    it('answers an unknown match with 200 and refused not-found, like the other routes', async () => {
         reportPlayersConnected.mockResolvedValueOnce({ ok: false, error: 'not-found' });
         const unknown = await post({ playerIds: [12, 17] });
-        expect(unknown.status).toBe(404);
-        expect(await unknown.json()).toEqual({ error: 'not-found' });
-        for (const id of ['x', '0', '-1', '99999999999']) expect((await post({ playerIds: [12, 17] }, id)).status).toBe(404);
-        expect(reportPlayersConnected).toHaveBeenCalledTimes(1);
+        expect(unknown.status).toBe(200);
+        expect(await unknown.json()).toEqual({ status: 'refused', reason: 'not-found' });
+    });
+
+    it('answers 400 JSON for an id that is not a match id', async () => {
+        for (const id of ['x', '0', '-1', '99999999999']) {
+            const res = await post({ playerIds: [12, 17] }, id);
+            expect(res.status).toBe(400);
+            expect(await res.json()).toEqual({ error: 'invalid', field: 'id' });
+        }
+        expect(reportPlayersConnected).not.toHaveBeenCalled();
     });
 
     it('answers 400 JSON for a bad body without touching the match', async () => {

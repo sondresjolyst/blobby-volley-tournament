@@ -11,17 +11,50 @@ const TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,9})?(Z|[+-]\d{2}:\d{2}
 
 export type Parsed<T> = { ok: true; value: T } | { ok: false; field: string };
 
-/** Reads a JSON body of at most MAX_BODY_BYTES. Returns undefined when it is too large or not JSON. */
-export async function readJsonBody(req: Request): Promise<unknown> {
-    const length = Number(req.headers.get('content-length') ?? '0');
-    if (!(length <= MAX_BODY_BYTES)) return undefined;
-    let text: string;
+/**
+ * Reads the body bytes, and stops as soon as there are more than MAX_BODY_BYTES. A body sent
+ * without a content-length is counted as it arrives, so it is never held in full.
+ */
+async function readCapped(req: Request): Promise<Uint8Array | undefined> {
+    if (!req.body) return new Uint8Array();
+    const reader = req.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let total = 0;
     try {
-        text = await req.text();
+        for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            total += value.byteLength;
+            if (total > MAX_BODY_BYTES) {
+                await reader.cancel().catch(() => undefined);
+                return undefined;
+            }
+            chunks.push(value);
+        }
     } catch {
         return undefined;
     }
-    if (Buffer.byteLength(text, 'utf8') > MAX_BODY_BYTES) return undefined;
+    const bytes = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+        bytes.set(chunk, offset);
+        offset += chunk.byteLength;
+    }
+    return bytes;
+}
+
+/** Reads a JSON body of at most MAX_BODY_BYTES. Returns undefined when it is too large, not UTF-8 or not JSON. */
+export async function readJsonBody(req: Request): Promise<unknown> {
+    const length = Number(req.headers.get('content-length') ?? '0');
+    if (!(length <= MAX_BODY_BYTES)) return undefined;
+    const bytes = await readCapped(req);
+    if (!bytes) return undefined;
+    let text: string;
+    try {
+        text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    } catch {
+        return undefined;
+    }
     try {
         return JSON.parse(text) as unknown;
     } catch {

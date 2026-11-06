@@ -438,14 +438,15 @@ describe('live score', () => {
         expect((await getLiveScore(pool, m1))!.live).toMatchObject({ game: 2 });
     });
 
-    it('does not go back to an older game', async () => {
+    it('ignores a game number past the next game, so it cannot block the real game', async () => {
         const s = await setup();
         const [m1] = s.ids;
         const [a, b] = [s.players[0], s.players[3]];
         await callMatch(pool, m1);
-        expect(await updateLiveScore(pool, { matchId: m1, game: 2, points: [{ playerId: a, points: 1 }, { playerId: b, points: 0 }] }, NOW)).toEqual({ status: 'stored' });
-        expect(await updateLiveScore(pool, { matchId: m1, game: 1, points: [{ playerId: a, points: 9 }, { playerId: b, points: 0 }] }, NOW)).toEqual({ status: 'ignored', reason: 'game-closed' });
-        expect((await getLiveScore(pool, m1))!.live).toMatchObject({ game: 2, points: [{ points: 1 }, { points: 0 }] });
+        expect(await updateLiveScore(pool, { matchId: m1, game: 5, points: [{ playerId: a, points: 1 }, { playerId: b, points: 0 }] }, NOW)).toEqual({ status: 'ignored', reason: 'game-ahead' });
+        expect((await getLiveScore(pool, m1))!.live).toBeNull();
+        expect(await updateLiveScore(pool, { matchId: m1, game: 1, points: [{ playerId: a, points: 9 }, { playerId: b, points: 0 }] }, NOW)).toEqual({ status: 'stored' });
+        expect((await getLiveScore(pool, m1))!.live).toMatchObject({ game: 1, points: [{ points: 9 }, { points: 0 }] });
     });
 
     it('ignores an unknown match, a match that is not called or started, and other players', async () => {

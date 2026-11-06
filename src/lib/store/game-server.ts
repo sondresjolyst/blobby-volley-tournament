@@ -123,7 +123,7 @@ export interface LiveInput {
     points: readonly { playerId: number; points: number }[];
 }
 
-export type LiveResult = { status: 'stored' } | { status: 'ignored'; reason: 'not-found' | 'state' | 'players' | 'game-closed' };
+export type LiveResult = { status: 'stored' } | { status: 'ignored'; reason: 'not-found' | 'state' | 'players' | 'game-closed' | 'game-ahead' };
 
 interface LiveMatchRow {
     state: MatchState;
@@ -134,8 +134,8 @@ interface LiveMatchRow {
 
 /**
  * Stores the score of the game being played. Best effort: it never changes a result and is only
- * kept for a called or started match. A score for a game that already has a result, or for an
- * older game than the one stored, is ignored.
+ * kept for a called or started match, and only for the next game. A score for a game that
+ * already has a result, or for a later game than the next one, is ignored.
  */
 export async function updateLiveScore(pool: Pool, input: LiveInput, now: Date): Promise<LiveResult> {
     const { rows } = await pool.query<LiveMatchRow>(`SELECT m.state, m.player1_id, m.player2_id, ${GAME_STATE} FROM matches m ${LAST_GAME} WHERE m.id = $1`, [input.matchId]);
@@ -147,6 +147,8 @@ export async function updateLiveScore(pool: Pool, input: LiveInput, now: Date): 
         return { status: 'ignored', reason: 'players' };
     }
     if (input.game < match.next_game) return { status: 'ignored', reason: 'game-closed' };
+    // Only the game being played is stored, so one wrong number cannot block the real game.
+    if (input.game > match.next_game) return { status: 'ignored', reason: 'game-ahead' };
     const pointsOf = (playerId: number | null) => input.points.find((p) => p.playerId === playerId)!.points;
     const stored = await pool.query(
         `INSERT INTO live_scores (match_id, game_number, points1, points2, updated_at) VALUES ($1, $2, $3, $4, $5)

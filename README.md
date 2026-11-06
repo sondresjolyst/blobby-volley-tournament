@@ -96,7 +96,13 @@ Every route under `/api/server` needs the header `Authorization: Bearer <token>`
 - `GAME_SERVER_TOKEN` is not set or empty: `503` with `{ "error": "not-configured" }` for every request.
 - A body that is not valid: `400` with `{ "error": "invalid", "field": "<the first bad field>" }`. The field is `body` when the body is not a JSON object or is larger than 16 KB.
 
-Bodies are JSON. Ids are whole numbers from 1 to 2147483647. Points are whole numbers from 0 to 1000. Times are ISO 8601 with a time zone, such as `2026-11-20T18:04:05Z`. Every `200` answer is final, so the server should not send the same request again. On a network error or a `5xx`, it should try again later with the same body.
+Bodies are JSON. Ids are whole numbers from 1 to 2147483647. Points are whole numbers from 0 to 1000. Times are ISO 8601 with a time zone, such as `2026-11-20T18:04:05Z`. How the server should treat an answer:
+
+- `200`, `400` and `404` are final. Do not send the same request again. A `400` or `404` means the request itself is wrong and will never work.
+- `401` and `503` mean the token is wrong or not set on the site. Sending again does not help. Fix the configuration first, and keep the queued reports until then.
+- Any other `5xx` or a network error: try again later with the same body.
+
+Reports for one match must be sent one at a time and in game order. Wait for the answer to game 1 before sending game 2. A report for a game past `nextGame` is refused with `game-ahead`, and that answer is final.
 
 ### Join codes
 
@@ -155,11 +161,12 @@ Both players of the match are connected. A called match starts, and bets on it c
 - `200` `{ "status": "already-started" }`: it had started already.
 - `200` `{ "status": "refused", "reason": "players" }`: the ids are not the two players of the match, in any order.
 - `200` `{ "status": "refused", "reason": "state" }`: the match is not called or started.
-- `404` `{ "error": "not-found" }`: there is no such match.
+- `200` `{ "status": "refused", "reason": "not-found" }`: there is no such match.
+- `400` `{ "error": "invalid", "field": "id" }`: the id in the address is not a match id.
 
 ### POST /api/server/games
 
-One game ended. Send it once per game, with a new UUID as `reportId`. Send the same body again only when no `200` came back.
+One game ended. Send it once per game, with a new UUID as `reportId`. Send the same body again only when no final answer came back. Send the reports of one match one at a time, in game order.
 
 ```json
 {
@@ -204,7 +211,7 @@ The score of the game being played, for the big screen. Send it as often as is u
 ```
 
 - `200` `{ "status": "stored" }`
-- `200` `{ "status": "ignored", "reason": "<reason>" }`: `not-found`, `state` when the match is not called or started, `players`, or `game-closed` when the game already has a result or a later game was sent.
+- `200` `{ "status": "ignored", "reason": "<reason>" }`: `not-found`, `state` when the match is not called or started, `players`, `game-closed` when the game already has a result, or `game-ahead` when the game number is past `nextGame`. Only the next game is stored, so one wrong number does not block later updates.
 
 ### GET /api/matches/{id}/live
 

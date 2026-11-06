@@ -31,6 +31,44 @@ describe('readJsonBody', () => {
         expect(await readJsonBody(post(JSON.stringify({ a: 'x'.repeat(MAX_BODY_BYTES) })))).toBeUndefined();
         expect(await readJsonBody(post('{}', { 'content-length': String(MAX_BODY_BYTES + 1) }))).toBeUndefined();
     });
+
+    it('stops reading a streamed body with no content-length once it passes the limit', async () => {
+        const chunk = new TextEncoder().encode('x'.repeat(1024));
+        let pulled = 0;
+        let cancelled = false;
+        const stream = new ReadableStream<Uint8Array>({
+            pull(controller) {
+                pulled++;
+                // Never ends by itself, so a reader that buffers the whole body would hang.
+                controller.enqueue(pulled === 1 ? new TextEncoder().encode('{"a":"') : chunk);
+            },
+            cancel() {
+                cancelled = true;
+            },
+        });
+        const req = new Request('https://bvt.example.test/api/server/games', { method: 'POST', body: stream, duplex: 'half' } as RequestInit);
+        expect(req.headers.get('content-length')).toBeNull();
+        expect(await readJsonBody(req)).toBeUndefined();
+        expect(cancelled).toBe(true);
+        expect(pulled).toBeLessThanOrEqual(MAX_BODY_BYTES / chunk.byteLength + 3);
+    });
+
+    it('reads a streamed body under the limit and refuses bytes that are not UTF-8', async () => {
+        const streamOf = (...parts: Uint8Array[]) =>
+            new Request('https://bvt.example.test/api/server/games', {
+                method: 'POST',
+                body: new ReadableStream<Uint8Array>({
+                    start(controller) {
+                        for (const part of parts) controller.enqueue(part);
+                        controller.close();
+                    },
+                }),
+                duplex: 'half',
+            } as RequestInit);
+        const enc = new TextEncoder();
+        expect(await readJsonBody(streamOf(enc.encode('{"a":'), enc.encode('"æ"}')))).toEqual({ a: 'æ' });
+        expect(await readJsonBody(streamOf(enc.encode('{"a":"'), new Uint8Array([0xff]), enc.encode('"}')))).toBeUndefined();
+    });
 });
 
 describe('parseConnected', () => {
