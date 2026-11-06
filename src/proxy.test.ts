@@ -23,6 +23,15 @@ describe('proxy', () => {
         expect(getToken).not.toHaveBeenCalled();
     });
 
+    it('leaves the game server API to its own token check, even when the auth address is misconfigured', async () => {
+        vi.stubEnv('NODE_ENV', 'production');
+        vi.stubEnv('NEXTAUTH_URL', 'http://bvt.example.test');
+        for (const path of ['/api/server/sync', '/api/server/games', '/api/server/matches/7/connected', '/api/server/live', '/api/matches/7/live']) {
+            expect(passes(await call(path))).toBe(true);
+        }
+        expect(getToken).not.toHaveBeenCalled();
+    });
+
     it('redirects an admin page without a session to sign-in', async () => {
         getToken.mockResolvedValue(null);
         const res = await call('/admin/players');

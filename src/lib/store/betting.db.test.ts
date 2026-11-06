@@ -6,6 +6,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { migrate, MIGRATIONS_DIR, readMigrations } from '../../../scripts/migrate.mjs';
 import { generateBracket, type BestOf } from '@/lib/bracket';
 import type { EventInput } from '@/lib/events/input';
+import { newJoinCode } from '@/lib/players/join-code';
 import { getMatchPool, listMatchPools, listPlayerBets, placeBet } from './bets';
 import { createEvent, setActiveEvent, updateEvent, clearActiveEvent } from './events';
 import { addLedger, adjustBalance, getBalance, getFozaSummary, listFozaSummaries, listLedger } from './foza';
@@ -62,9 +63,9 @@ afterAll(async () => {
 async function addPlayer(eventId: number, nickname: string, starting = 1000, signedUp = SIGNED_UP): Promise<number> {
     return inTransaction(pool, async (client) => {
         const { rows } = await client.query<{ id: number }>(
-            `INSERT INTO players (event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance, created_at)
-             VALUES ($1, $2, $3, '\\x00', '\\x00', 0, $4) RETURNING id`,
-            [eventId, nickname, nickname.toLowerCase(), signedUp],
+            `INSERT INTO players (event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance, created_at, join_code)
+             VALUES ($1, $2, $3, '\\x00', '\\x00', 0, $4, $5) RETURNING id`,
+            [eventId, nickname, nickname.toLowerCase(), signedUp, newJoinCode()],
         );
         await addLedger(client, [{ playerId: rows[0].id, type: 'starting', amount: starting }]);
         return rows[0].id;
@@ -409,7 +410,7 @@ describe('ledger', () => {
         const s = await setup();
         await expect(pool.query('UPDATE players SET foza_balance = foza_balance + 5 WHERE id = $1', [s.X])).rejects.toThrow(/ledger sums to/);
         await expect(
-            pool.query(`INSERT INTO players (event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance) VALUES ($1, 'Rich', 'rich', '\\x00', '\\x00', 500)`, [s.eventId]),
+            pool.query(`INSERT INTO players (event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance, join_code) VALUES ($1, 'Rich', 'rich', '\\x00', '\\x00', 500, $2)`, [s.eventId, newJoinCode()]),
         ).rejects.toThrow(/ledger sums to/);
         expect(await balance(s.X)).toBe(1000);
     });
@@ -456,7 +457,12 @@ describe('ledger', () => {
         } finally {
             rmSync(dir, { recursive: true, force: true });
         }
-        const eventId = await createEvent(pool, lan);
+        // A plain insert, since createEvent writes columns that later migrations add.
+        const eventId = (
+            await pool.query<{ id: number }>(
+                `INSERT INTO events (name, starts_on, ends_on, code, starting_foza, daily_foza) VALUES ('LAN 2026', '2026-11-20', '2026-11-22', 'LAN-2026', 1000, 100) RETURNING id`,
+            )
+        ).rows[0].id;
         const { rows } = await pool.query<{ id: number }>(
             `INSERT INTO players (event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance) VALUES
              ($1, 'Old1', 'old1', '\\x00', '\\x00', 1000), ($1, 'Old2', 'old2', '\\x00', '\\x00', 0) RETURNING id`,

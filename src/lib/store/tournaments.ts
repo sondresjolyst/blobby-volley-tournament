@@ -1,5 +1,6 @@
 import type { Pool } from 'pg';
 import { MAX_PLAYERS, MIN_PLAYERS, type BestOf, type FormatId, type PlannedBracket, type Section, type SeedingMethod } from '@/lib/bracket';
+import { DEFAULT_GAME_SPEED, DEFAULT_SCORE_TO_WIN } from '@/lib/matches/settings';
 import { createBracketMatches } from './matches';
 import { inTransaction } from './transaction';
 
@@ -9,6 +10,10 @@ export interface NewTournament {
     /** Set for random seeding, null otherwise. */
     randomSeed: number | null;
     bracket: PlannedBracket;
+    /** Points that win a game. 15 when not given. */
+    scoreToWin?: number;
+    /** Game speed in frames per second. 75 when not given. */
+    speed?: number;
 }
 
 export interface TournamentPlayer {
@@ -37,6 +42,8 @@ export interface SavedTournament {
     seeding: SeedingMethod;
     randomSeed: number | null;
     thirdPlaceMatch: boolean;
+    scoreToWin: number;
+    speed: number;
     /** In seed order. */
     players: TournamentPlayer[];
     /** In play order. A match only links to matches later in the list. */
@@ -82,8 +89,9 @@ export async function saveTournament(pool: Pool, eventId: number, input: NewTour
             if (known.rows[0].n !== bracket.seeds.length) throw new Abort('players');
 
             const { rows } = await client.query<{ id: number }>(
-                'INSERT INTO tournaments (event_id, name, format, seeding, random_seed, third_place_match) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
-                [eventId, input.name, bracket.format, input.seeding, input.randomSeed, bracket.thirdPlaceMatch],
+                `INSERT INTO tournaments (event_id, name, format, seeding, random_seed, third_place_match, score_to_win, game_speed)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+                [eventId, input.name, bracket.format, input.seeding, input.randomSeed, bracket.thirdPlaceMatch, input.scoreToWin ?? DEFAULT_SCORE_TO_WIN, input.speed ?? DEFAULT_GAME_SPEED],
             );
             const tournamentId = rows[0].id;
             await client.query(
@@ -142,8 +150,8 @@ interface MatchRecord {
 }
 
 export async function getTournament(pool: Pool, id: number): Promise<SavedTournament | null> {
-    const found = await pool.query<{ id: number; event_id: number; name: string; format: FormatId; seeding: SeedingMethod; random_seed: number | null; third_place_match: boolean }>(
-        'SELECT id, event_id, name, format, seeding, random_seed, third_place_match FROM tournaments WHERE id = $1',
+    const found = await pool.query<{ id: number; event_id: number; name: string; format: FormatId; seeding: SeedingMethod; random_seed: number | null; third_place_match: boolean; score_to_win: number; game_speed: number }>(
+        'SELECT id, event_id, name, format, seeding, random_seed, third_place_match, score_to_win, game_speed FROM tournaments WHERE id = $1',
         [id],
     );
     const row = found.rows[0];
@@ -168,6 +176,8 @@ export async function getTournament(pool: Pool, id: number): Promise<SavedTourna
         seeding: row.seeding,
         randomSeed: row.random_seed,
         thirdPlaceMatch: row.third_place_match,
+        scoreToWin: row.score_to_win,
+        speed: row.game_speed,
         players: players.rows.map((p) => ({ playerId: p.player_id, nickname: p.nickname, seed: p.seed })),
         matches: matches.rows.map((m) => ({
             id: m.id,

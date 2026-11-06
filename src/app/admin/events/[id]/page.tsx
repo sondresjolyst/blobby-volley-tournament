@@ -8,7 +8,7 @@ import { parseId } from '@/lib/http';
 import { getEvent } from '@/lib/store/events';
 import { listPlayers } from '@/lib/store/players';
 
-type Search = { error?: string | string[]; saved?: string | string[]; reset?: string | string[]; adjusted?: string | string[] };
+type Search = { error?: string | string[]; saved?: string | string[]; reset?: string | string[]; adjusted?: string | string[]; rotated?: string | string[] };
 
 export default async function EditEvent({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Search> }) {
     await requireAdmin();
@@ -24,6 +24,8 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
     const resetPlayer = players.find((player) => player.id === resetId);
     const adjustedId = typeof search.adjusted === 'string' ? parseId(search.adjusted) : null;
     const adjustedPlayer = players.find((player) => player.id === adjustedId);
+    const rotatedId = typeof search.rotated === 'string' ? parseId(search.rotated) : null;
+    const rotatedPlayer = players.find((player) => player.id === rotatedId);
     const now = new Date();
     return (
         <main>
@@ -40,6 +42,7 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
             {message && <p role="alert">{message}</p>}
             {search.saved === '1' && <p role="status">Saved.</p>}
             {resetPlayer && <p role="status">The PIN for {resetPlayer.nickname} is reset.</p>}
+            {rotatedPlayer && <p role="status">{rotatedPlayer.nickname} has a new join code. The old code stops working.</p>}
             {adjustedPlayer && (
                 <p role="status">
                     The Foza of {adjustedPlayer.nickname} is now {adjustedPlayer.fozaBalance}.
@@ -61,6 +64,7 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
                             <th>Locked</th>
                             <th>Reset PIN</th>
                             <th>Adjust Foza</th>
+                            <th>Join code</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -90,6 +94,13 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
                                             Reason for {player.nickname} <input name="reason" type="text" required minLength={1} maxLength={200} autoComplete="off" />
                                         </label>{' '}
                                         <button type="submit">Adjust Foza</button>
+                                    </form>
+                                </td>
+                                <td>
+                                    <form method="post" action={`/api/admin/players/${player.id}/join-code`}>
+                                        <button type="submit" aria-label={`New join code for ${player.nickname}`}>
+                                            New join code
+                                        </button>
                                     </form>
                                 </td>
                             </tr>

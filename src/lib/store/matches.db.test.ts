@@ -6,6 +6,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { migrate, MIGRATIONS_DIR, readMigrations } from '../../../scripts/migrate.mjs';
 import { generateBracket, type BestOf, type FormatId } from '@/lib/bracket';
 import type { EventInput } from '@/lib/events/input';
+import { newJoinCode } from '@/lib/players/join-code';
 import { createEvent, setActiveEvent } from './events';
 import type { MatchEvent } from './match-events';
 import {
@@ -66,9 +67,9 @@ async function addPlayers(eventId: number, count: number, prefix = 'P'): Promise
     const ids: number[] = [];
     for (let i = 1; i <= count; i++) {
         const { rows } = await pool.query<{ id: number }>(
-            `INSERT INTO players (event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance)
-             VALUES ($1, $2, $3, '\\x00', '\\x00', 0) RETURNING id`,
-            [eventId, `${prefix}${i}`, `${prefix.toLowerCase()}${i}`],
+            `INSERT INTO players (event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance, join_code)
+             VALUES ($1, $2, $3, '\\x00', '\\x00', 0, $4) RETURNING id`,
+            [eventId, `${prefix}${i}`, `${prefix.toLowerCase()}${i}`, newJoinCode()],
         );
         ids.push(rows[0].id);
     }
@@ -738,8 +739,19 @@ describe('migration', () => {
         try {
             for (const { name } of readMigrations().filter((m) => m.name < '0004')) copyFileSync(join(MIGRATIONS_DIR, name), join(dir, name));
             await migrate(pool, dir);
-            const eventId = await createEvent(pool, lan);
-            const [a, b] = await addPlayers(eventId, 2);
+            // Plain inserts, since the store functions write columns that later migrations add.
+            const eventId = (
+                await pool.query<{ id: number }>(
+                    `INSERT INTO events (name, starts_on, ends_on, code, starting_foza, daily_foza) VALUES ('LAN 2026', '2026-11-20', '2026-11-22', 'LAN-2026', 1000, 100) RETURNING id`,
+                )
+            ).rows[0].id;
+            const [a, b] = (
+                await pool.query<{ id: number }>(
+                    `INSERT INTO players (event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance)
+                     VALUES ($1, 'P1', 'p1', '\\x00', '\\x00', 0), ($1, 'P2', 'p2', '\\x00', '\\x00', 0) RETURNING id`,
+                    [eventId],
+                )
+            ).rows.map((row) => row.id);
             const t = await pool.query<{ id: number }>(`INSERT INTO tournaments (event_id, name, format, seeding) VALUES ($1, 'Old', 'single_elimination', 'manual') RETURNING id`, [eventId]);
             await pool.query('INSERT INTO tournament_players (tournament_id, event_id, player_id, seed) VALUES ($1, $2, $3, 1), ($1, $2, $4, 2)', [t.rows[0].id, eventId, a, b]);
             await pool.query(`INSERT INTO bracket_matches (tournament_id, section, round, position, best_of, rule_file, player1_id, player2_id) VALUES ($1, 'winners', 1, 1, 3, 'old.lua', $2, $3)`, [t.rows[0].id, a, b]);

@@ -1,12 +1,21 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 import { isLocked, lockDurationMs, MAX_WRONG_PINS } from '@/lib/players/lockout';
+import { newJoinCode } from '@/lib/players/join-code';
 import { DUMMY_PIN_HASH, hashPin, verifyPin, type PinHash } from '@/lib/players/pin';
 import { hashSessionToken, isSessionExpired, newSessionToken, sessionExpiresAt } from '@/lib/players/session';
 import { bumpAttempts, claimAttempts, releaseAttempt } from './attempts';
 import { addLedger } from './foza';
 
 const UNIQUE_VIOLATION = '23505';
+const JOIN_CODE_CONSTRAINT = 'players_event_id_join_code_key';
+// Two codes of 10 characters from 31 are almost never the same, so a few tries are plenty.
+const JOIN_CODE_TRIES = 5;
+
+function isJoinCodeClash(error: unknown): boolean {
+    const { code, constraint } = error as { code?: unknown; constraint?: unknown };
+    return code === UNIQUE_VIOLATION && constraint === JOIN_CODE_CONSTRAINT;
+}
 
 /**
  * Unknown nicknames and wrong event codes allowed per client address in an hour. It is generous,
@@ -68,23 +77,26 @@ export async function signUpPlayer(pool: Pool, input: SignUpInput, client: strin
     // A right code is not a failure.
     await releaseAttempt(pool, client, now);
     const pin = await hashPin(input.pin);
-    try {
-        return await inTransaction(pool, async (tx) => {
-            const { rows } = await tx.query<{ id: number; starting_foza: number }>(
-                `INSERT INTO players (event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance)
-                 SELECT id, $2, $3, $4, $5, 0 FROM events WHERE id = $1 AND is_active AND code = $6
-                 RETURNING id, (SELECT starting_foza FROM events WHERE id = $1) AS starting_foza`,
-                [event.id, input.nickname, input.nicknameKey, pin.hash, pin.salt, event.code],
-            );
-            // The event was changed between the two queries.
-            if (!rows[0]) return { ok: false as const, error: 'code' as const };
-            // The starting Foza is the first ledger row. The ledger trigger adds it to the balance.
-            await addLedger(tx, [{ playerId: rows[0].id, type: 'starting', amount: rows[0].starting_foza }]);
-            return { ok: true as const, playerId: rows[0].id };
-        });
-    } catch (error) {
-        if ((error as { code?: unknown }).code === UNIQUE_VIOLATION) return { ok: false, error: 'taken' };
-        throw error;
+    for (let attempt = 1; ; attempt++) {
+        try {
+            return await inTransaction(pool, async (tx) => {
+                const { rows } = await tx.query<{ id: number; starting_foza: number }>(
+                    `INSERT INTO players (event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance, join_code)
+                     SELECT id, $2, $3, $4, $5, 0, $7 FROM events WHERE id = $1 AND is_active AND code = $6
+                     RETURNING id, (SELECT starting_foza FROM events WHERE id = $1) AS starting_foza`,
+                    [event.id, input.nickname, input.nicknameKey, pin.hash, pin.salt, event.code, newJoinCode()],
+                );
+                // The event was changed between the two queries.
+                if (!rows[0]) return { ok: false as const, error: 'code' as const };
+                // The starting Foza is the first ledger row. The ledger trigger adds it to the balance.
+                await addLedger(tx, [{ playerId: rows[0].id, type: 'starting', amount: rows[0].starting_foza }]);
+                return { ok: true as const, playerId: rows[0].id };
+            });
+        } catch (error) {
+            if (isJoinCodeClash(error) && attempt < JOIN_CODE_TRIES) continue;
+            if ((error as { code?: unknown }).code === UNIQUE_VIOLATION && !isJoinCodeClash(error)) return { ok: false, error: 'taken' };
+            throw error;
+        }
     }
 }
 
@@ -242,4 +254,20 @@ export async function resetPlayerPin(pool: Pool, playerId: number, pin: PinHash)
         await client.query('DELETE FROM player_sessions WHERE player_id = $1', [playerId]);
         return { eventId: rows[0].event_id };
     });
+}
+
+/**
+ * Gives a player a new join code, so the old one stops working at the next sync of the game
+ * server. Returns null when the player does not exist.
+ */
+export async function rotateJoinCode(pool: Pool, playerId: number): Promise<{ eventId: number } | null> {
+    for (let attempt = 1; ; attempt++) {
+        try {
+            const { rows } = await pool.query<{ event_id: number }>('UPDATE players SET join_code = $2 WHERE id = $1 RETURNING event_id', [playerId, newJoinCode()]);
+            return rows[0] ? { eventId: rows[0].event_id } : null;
+        } catch (error) {
+            if (isJoinCodeClash(error) && attempt < JOIN_CODE_TRIES) continue;
+            throw error;
+        }
+    }
 }

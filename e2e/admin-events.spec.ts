@@ -28,8 +28,16 @@ test('an admin creates and edits an event', async ({ page }) => {
     await expect(page.getByText('This event is not active.')).toBeVisible();
 
     await page.getByLabel('Daily Foza').fill('250');
+    await page.getByLabel('Game server host').fill('LAN-PC.local');
+    await page.getByLabel('Game server port').fill('1234');
     await page.getByRole('button', { name: 'Save' }).click();
     await expect(page.getByLabel('Daily Foza')).toHaveValue('250');
+    await expect(page.getByLabel('Game server host')).toHaveValue('lan-pc.local');
+    await expect(page.getByLabel('Game server port')).toHaveValue('1234');
+
+    await page.getByLabel('Game server port').fill('');
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(page.getByRole('alert').filter({ hasText: 'Give both a game server host' })).toBeVisible();
 
     await page.goto('/admin/events');
     await expect(page.getByRole('link', { name })).toBeVisible();

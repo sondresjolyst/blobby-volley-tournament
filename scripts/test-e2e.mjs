@@ -16,6 +16,7 @@ const databaseUrl = `postgres://postgres:test@127.0.0.1:${dbPort}/bvt_e2e`;
 const baseUrl = `http://localhost:${appPort}`;
 const secret = 'e2e-placeholder-secret';
 const adminId = '1';
+const gameServerToken = 'e2e-placeholder-game-server-token';
 
 // The event the tests sign up to. The code is invented.
 const E2E_EVENT_CODE = 'E2E-LAN-2026';
@@ -90,6 +91,7 @@ try {
             GITHUB_CLIENT_ID: 'e2e-placeholder',
             GITHUB_CLIENT_SECRET: 'e2e-placeholder',
             ALLOWED_GITHUB_USER_IDS: adminId,
+            GAME_SERVER_TOKEN: gameServerToken,
         },
     });
     await waitFor(async () => {
@@ -102,7 +104,7 @@ try {
 
     // A session for the test admin, signed with the placeholder secret.
     const adminToken = await encode({ token: { githubId: adminId }, secret });
-    code = run('@playwright/test/cli.js', ['test', ...process.argv.slice(2)], { E2E_BASE_URL: baseUrl, E2E_EVENT_CODE, E2E_ADMIN_TOKEN: adminToken });
+    code = run('@playwright/test/cli.js', ['test', ...process.argv.slice(2)], { E2E_BASE_URL: baseUrl, E2E_EVENT_CODE, E2E_ADMIN_TOKEN: adminToken, E2E_GAME_SERVER_TOKEN: gameServerToken });
 } catch (error) {
     console.error(error instanceof Error ? error.message : 'The check failed.');
 } finally {

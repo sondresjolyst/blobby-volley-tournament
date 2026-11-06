@@ -3,6 +3,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { migrate } from '../../../scripts/migrate.mjs';
 import { generateBracket, type FormatId, type PlannedBracket } from '@/lib/bracket';
 import type { EventInput } from '@/lib/events/input';
+import { newJoinCode } from '@/lib/players/join-code';
 import { createEvent, setActiveEvent } from './events';
 import { getTournament, listTournaments, saveTournament } from './tournaments';
 
@@ -29,9 +30,9 @@ async function addPlayers(eventId: number, count: number, prefix = 'P'): Promise
     const ids: number[] = [];
     for (let i = 1; i <= count; i++) {
         const { rows } = await pool.query<{ id: number }>(
-            `INSERT INTO players (event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance)
-             VALUES ($1, $2, $3, '\\x00', '\\x00', 0) RETURNING id`,
-            [eventId, `${prefix}${i}`, `${prefix.toLowerCase()}${i}`],
+            `INSERT INTO players (event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance, join_code)
+             VALUES ($1, $2, $3, '\\x00', '\\x00', 0, $4) RETURNING id`,
+            [eventId, `${prefix}${i}`, `${prefix.toLowerCase()}${i}`, newJoinCode()],
         );
         ids.push(rows[0].id);
     }

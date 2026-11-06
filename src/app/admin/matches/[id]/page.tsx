@@ -65,6 +65,9 @@ export default async function AdminMatch({ params, searchParams }: { params: Pro
             <p>
                 Best of {match.bestOf}, first to {winsNeeded(match.bestOf)}. Rules: {match.ruleFile}
             </p>
+            <p>
+                Games to {match.scoreToWin} points at {match.speed} frames per second.
+            </p>
             <p>Series: {matchOutcome(match)}</p>
             {match.manualScore && (
                 <p>
