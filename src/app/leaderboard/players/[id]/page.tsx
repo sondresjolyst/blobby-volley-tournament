@@ -27,7 +27,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ id
             <h1 className={styles.title}>{player.nickname}</h1>
             <p className={styles.subtitle}>Statistikk frå {player.eventName}</p>
 
-            <dl className={styles.facts}>
+            <dl className={`${styles.facts} ${styles.factsWide}`}>
                 <div className={styles.fact}>
                     <dt>Elo</dt>
                     <dd>

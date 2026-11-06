@@ -169,7 +169,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
                             <h2 id="pallen" className={styles.heading}>
                                 Pallen
                             </h2>
-                            <ol className={styles.plainList}>
+                            <ol className={styles.podium}>
                                 {podium.map((p) => (
                                     <li key={p.playerId} value={p.place}>
                                         {p.place}. plass: {name(p.playerId)}

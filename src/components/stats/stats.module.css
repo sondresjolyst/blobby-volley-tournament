@@ -11,7 +11,13 @@
     padding: 24px 32px 40px;
     background: var(--cream);
     color: var(--ink);
-    font-family: Inter, system-ui, sans-serif;
+    font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+/* These pages fill the window with their own background, so the body margin goes. */
+:global(body):has(.page) {
+    margin: 0;
+    background: #fff8ec;
 }
 
 .page a {
@@ -24,7 +30,7 @@
 
 .title {
     margin: 0 0 4px;
-    font-family: 'Lilita One', 'Arial Rounded MT Bold', system-ui, sans-serif;
+    font-family: var(--font-lilita-one), 'Arial Rounded MT Bold', system-ui, sans-serif;
     font-weight: 400;
     font-size: 40px;
     color: var(--red);
@@ -37,7 +43,7 @@
 
 .heading {
     margin: 0 0 10px;
-    font-family: 'Lilita One', 'Arial Rounded MT Bold', system-ui, sans-serif;
+    font-family: var(--font-lilita-one), 'Arial Rounded MT Bold', system-ui, sans-serif;
     font-weight: 400;
     font-size: 24px;
 }
@@ -132,7 +138,7 @@
 
 .rank {
     width: 32px;
-    font-family: 'Lilita One', 'Arial Rounded MT Bold', system-ui, sans-serif;
+    font-family: var(--font-lilita-one), 'Arial Rounded MT Bold', system-ui, sans-serif;
     font-size: 22px;
     text-align: center;
 }
@@ -143,6 +149,15 @@
     flex-direction: column;
     gap: 2px;
     min-width: 0;
+}
+
+.page a.name {
+    color: inherit;
+    text-decoration: none;
+}
+
+.page a.name:hover {
+    text-decoration: underline;
 }
 
 .name {
@@ -174,6 +189,10 @@
     margin: 0;
 }
 
+.factsWide {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .fact {
     display: flex;
     flex-direction: column;
@@ -198,7 +217,7 @@
 
 .factValue {
     display: block;
-    font-family: 'Lilita One', 'Arial Rounded MT Bold', system-ui, sans-serif;
+    font-family: var(--font-lilita-one), 'Arial Rounded MT Bold', system-ui, sans-serif;
     font-size: 22px;
     color: var(--red);
 }
@@ -228,11 +247,17 @@
     white-space: nowrap;
 }
 
+/* A table of one stat per row may wrap its values on a narrow screen. */
+.table th[scope='row'] ~ td {
+    white-space: normal;
+}
+
 .table th:first-child,
 .table td:first-child {
     text-align: left;
 }
 
+.table tbody tr:last-child th,
 .table tbody tr:last-child td {
     border-bottom: 0;
 }
@@ -249,6 +274,14 @@
     padding-left: 20px;
 }
 
+.podium {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 16px;
+    line-height: 1.6;
+}
+
 @media (max-width: 760px) {
     .page {
         padding: 20px 16px 32px;
@@ -256,6 +289,10 @@
 
     .title {
         font-size: 30px;
+    }
+
+    .factsWide {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .columns {
