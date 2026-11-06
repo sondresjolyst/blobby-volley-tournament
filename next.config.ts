@@ -31,6 +31,9 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
     output: 'standalone',
     poweredByHeader: false,
+    // sharp loads libvips at run time, so the file trace misses it. Only the packages for the
+    // platform of the build are installed, so this copies just those.
+    outputFileTracingIncludes: { '/**/*': ['./node_modules/@img/**/*'] },
     async headers() {
         return [{ source: '/:path*', headers: securityHeaders }];
     },
