@@ -223,6 +223,15 @@ export async function getSessionPlayer(pool: Pool, token: string, now: Date): Pr
     return { id: row.id, nickname: row.nickname, fozaBalance: row.foza_balance, eventId: row.event_id, eventName: row.event_name, eventActive: row.event_active };
 }
 
+/**
+ * The secret join code of a player, or null when there is no such player. Only the player's own
+ * page may show it, and only inside the join link.
+ */
+export async function getJoinCode(pool: Pool, playerId: number): Promise<string | null> {
+    const { rows } = await pool.query<{ join_code: string }>('SELECT join_code FROM players WHERE id = $1', [playerId]);
+    return rows[0]?.join_code ?? null;
+}
+
 export async function deleteSession(pool: Pool, token: string): Promise<void> {
     await pool.query('DELETE FROM player_sessions WHERE token_hash = $1', [hashSessionToken(token)]);
 }

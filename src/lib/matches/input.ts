@@ -1,4 +1,6 @@
+import { isBestOf } from '@/lib/bracket';
 import { parseId } from '@/lib/http';
+import { DEFAULT_GAME_SPEED, DEFAULT_SCORE_TO_WIN, formNumber, isGameSpeed, isScoreToWin } from './settings';
 import type { MatchState } from './state';
 
 /** A whole number from 0 to 1000 from a form field, or null. */
@@ -57,6 +59,34 @@ export function parseMatchForm(form: Record<string, string>): MatchForm | null {
         default:
             return null;
     }
+}
+
+export interface ChallengeForm {
+    opponentId: number;
+    bestOf: number;
+    scoreToWin: number;
+    speed: number;
+}
+
+/**
+ * Reads the form a player sends to ask another player for a 1v1 match. An empty best-of, points
+ * or speed gives 1, 15 and 75. Returns null when a field is missing or out of bounds.
+ */
+export function parseChallengeForm(form: Record<string, string>): ChallengeForm | null {
+    const opponentId = parseId(form.opponent ?? '');
+    const bestOf = formNumber(form.bestOf ?? '', 1);
+    const scoreToWin = formNumber(form.scoreToWin ?? '', DEFAULT_SCORE_TO_WIN);
+    const speed = formNumber(form.speed ?? '', DEFAULT_GAME_SPEED);
+    if (opponentId === null || bestOf === null || !isBestOf(bestOf) || !isScoreToWin(scoreToWin) || !isGameSpeed(speed)) return null;
+    return { opponentId, bestOf, scoreToWin, speed };
+}
+
+export const CHALLENGE_ANSWERS = ['accept', 'decline', 'withdraw'] as const;
+export type ChallengeAnswer = (typeof CHALLENGE_ANSWERS)[number];
+
+/** Reads an answer to a 1v1 match: accept or decline from the asked player, withdraw from the asker. Null for anything else. */
+export function parseChallengeAnswer(form: Record<string, string>): ChallengeAnswer | null {
+    return (CHALLENGE_ANSWERS as readonly string[]).includes(form.answer) ? (form.answer as ChallengeAnswer) : null;
 }
 
 export const STATE_LABELS: Record<MatchState, string> = {

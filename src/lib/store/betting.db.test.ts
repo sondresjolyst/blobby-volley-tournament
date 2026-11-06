@@ -23,6 +23,7 @@ import {
     reportPlayersConnected,
     resetMatch,
     setSeriesScore,
+    withdrawChallenge,
 } from './matches';
 import { signUpPlayer } from './players';
 import { saveTournament } from './tournaments';
@@ -164,6 +165,18 @@ describe('placing a bet', () => {
         expect(await bet(s.X, created.matchId, s.A, 10)).toMatchObject({ ok: true });
         await cancelMatch(pool, created.matchId);
         expect(await bet(s.Y, created.matchId, s.A, 10)).toEqual({ ok: false, error: 'closed' });
+    });
+
+    it('takes no bet before a 1v1 match is accepted, so a withdraw has nothing to refund', async () => {
+        const s = await setup();
+        const created = await createChallenge(pool, s.A, s.B);
+        if (!created.ok) throw new Error(created.error);
+        expect(await bet(s.X, created.matchId, s.A, 10)).toEqual({ ok: false, error: 'closed' });
+        expect(await bet(s.A, created.matchId, s.A, 10)).toEqual({ ok: false, error: 'closed' });
+        expect(await withdrawChallenge(pool, created.matchId, s.A)).toMatchObject({ ok: true });
+        expect(await statuses(created.matchId)).toEqual([]);
+        expect(await ledgerTypes(s.X)).toEqual([['starting', 1000]]);
+        expect(await bet(s.X, created.matchId, s.A, 10)).toEqual({ ok: false, error: 'closed' });
     });
 
     it('lets a player raise a bet but not move it to the other side', async () => {

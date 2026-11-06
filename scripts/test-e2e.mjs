@@ -45,8 +45,8 @@ async function seed() {
     try {
         await migrate(pool);
         await pool.query(
-            `INSERT INTO events (name, starts_on, ends_on, code, starting_foza, daily_foza, is_active)
-             VALUES ('E2E LAN', '2026-11-20', '2026-11-22', $1, 1000, 100, true)`,
+            `INSERT INTO events (name, starts_on, ends_on, code, starting_foza, daily_foza, is_active, server_host, server_port)
+             VALUES ('E2E LAN', '2026-11-20', '2026-11-22', $1, 1000, 100, true, 'e2e-server.lan', 1234)`,
             [E2E_EVENT_CODE],
         );
     } finally {
