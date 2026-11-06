@@ -13,7 +13,7 @@ vi.mock('next/navigation', () => ({
 vi.mock('@/lib/db', () => ({ getPool: () => ({}) }));
 vi.mock('@/lib/store/players', () => ({ getSessionPlayer: (...args: unknown[]) => getSessionPlayer(...args) }));
 
-import { requireActivePlayer } from './current';
+import { getActivePlayer, requireActivePlayer } from './current';
 
 const token = 'a'.repeat(43);
 const player: SessionPlayer = { id: 1, nickname: 'Ola', fozaBalance: 1000, eventId: 2, eventName: 'LAN', eventActive: true };
@@ -46,5 +46,17 @@ describe('requireActivePlayer', () => {
         cookieValue.mockReturnValue(token);
         getSessionPlayer.mockResolvedValue(null);
         await expect(requireActivePlayer()).rejects.toThrow('redirect:/login');
+    });
+});
+
+describe('getActivePlayer', () => {
+    it('returns the player when the event is active and null otherwise, without redirecting', async () => {
+        cookieValue.mockReturnValue(token);
+        getSessionPlayer.mockResolvedValue(player);
+        await expect(getActivePlayer()).resolves.toBe(player);
+        getSessionPlayer.mockResolvedValue({ ...player, eventActive: false });
+        await expect(getActivePlayer()).resolves.toBeNull();
+        cookieValue.mockReturnValue(undefined);
+        await expect(getActivePlayer()).resolves.toBeNull();
     });
 });
