@@ -1,110 +1,275 @@
-import { matchPlayers, matchTitle } from '@/components/matches/describe';
+import { MatchCard } from '@/components/player/MatchCard';
+import { Pizza, PlayerShell } from '@/components/player/PlayerShell';
+import styles from '@/components/player/player.module.css';
+import { BET_STATUS, challengeErrorMessage, foza, matchPlayers, matchSettings, matchTitle, noticeMessage } from '@/components/player/text';
+import { BEST_OF } from '@/lib/bracket';
 import { betErrorMessage } from '@/lib/betting/input';
 import { getPool } from '@/lib/db';
+import { DEFAULT_GAME_SPEED, DEFAULT_SCORE_TO_WIN, MAX_GAME_SPEED, MAX_SCORE_TO_WIN, MIN_GAME_SPEED, MIN_SCORE_TO_WIN } from '@/lib/matches/settings';
 import { requireActivePlayer } from '@/lib/players/current';
+import { joinLink } from '@/lib/players/join-code';
 import { listMatchPools, listPlayerBets } from '@/lib/store/bets';
+import { getEvent } from '@/lib/store/events';
 import { getBalance } from '@/lib/store/foza';
-import { listMatches } from '@/lib/store/matches';
+import { listMatches, type MatchSummary } from '@/lib/store/matches';
+import { getJoinCode, listPlayers } from '@/lib/store/players';
 
-type Search = { error?: string | string[]; bet?: string | string[] };
+type Search = { error?: string | string[]; bet?: string | string[]; challenge?: string | string[]; challengeError?: string | string[] };
 
-const STATUS_LABELS = { open: 'Open', won: 'Won', lost: 'Lost', returned: 'Stake back, nobody backed the winner', refunded: 'Refunded' } as const;
+// Live matches first, then called ones, then the rest in play order.
+const STATE_ORDER = { started: 0, called: 1, upcoming: 2, finished: 3, cancelled: 3 } as const;
 
-const multiplier = (value: number | null) => (value === null ? 'no bets yet' : `pays ${value.toFixed(2)}x`);
+/** A 1v1 match that the asked player has not answered yet. */
+const isPending = (m: MatchSummary) => m.tournamentId === null && m.state === 'upcoming' && m.acceptedAt === null;
 
 export default async function Me({ searchParams }: { searchParams: Promise<Search> }) {
     const player = await requireActivePlayer();
     const pool = getPool();
     const balance = (await getBalance(pool, player.id, new Date())) ?? player.fozaBalance;
-    const [matches, pools, bets] = await Promise.all([listMatches(pool, player.eventId), listMatchPools(pool, player.eventId), listPlayerBets(pool, player.id)]);
+    const [matches, pools, bets, players, event] = await Promise.all([
+        listMatches(pool, player.eventId),
+        listMatchPools(pool, player.eventId),
+        listPlayerBets(pool, player.id),
+        listPlayers(pool, player.eventId),
+        getEvent(pool, player.eventId),
+    ]);
+    const plays = (m: MatchSummary) => m.players.some((p) => p?.id === player.id);
+    // A player is in at most one called or started match, since calling refuses a busy player.
+    const current = matches.find((m) => (m.state === 'called' || m.state === 'started') && plays(m));
+    // The join code is secret, so it is read only when the player has a match to join.
+    const code = current && event?.serverHost && event.serverPort ? await getJoinCode(pool, player.id) : null;
+    const join = code && event?.serverHost && event.serverPort ? joinLink(event.serverHost, event.serverPort, code) : null;
+
     const poolOf = new Map(pools.map((p) => [p.matchId, p]));
-    const open = matches.filter((m) => poolOf.get(m.id)?.open);
     const liveBet = new Map(bets.filter((b) => b.status !== 'refunded').map((b) => [b.matchId, b]));
+    const matchOf = new Map(matches.map((m) => [m.id, m]));
+    // A match with no player known yet is only shown on the bracket page.
+    const ahead = matches.filter((m) => STATE_ORDER[m.state] < 3 && !isPending(m) && m.players.some((p) => p !== null)).sort((a, b) => STATE_ORDER[a.state] - STATE_ORDER[b.state] || a.id - b.id);
+    const incoming = matches.filter((m) => isPending(m) && m.players[1]?.id === player.id);
+    const outgoing = matches.filter((m) => isPending(m) && m.players[0]?.id === player.id);
+    const opponents = players.filter((p) => p.id !== player.id);
+
     const search = await searchParams;
-    const error = betErrorMessage(search.error);
+    const betError = betErrorMessage(search.error);
+    const betNotice = noticeMessage(search.bet);
+    const challengeError = challengeErrorMessage(search.challengeError);
+    const challengeNotice = noticeMessage(search.challenge);
     return (
-        <main>
-            <h1>{player.nickname}</h1>
-            <p>Event: {player.eventName}</p>
-            <p>Foza: {balance}</p>
-            {error && <p role="alert">{error}</p>}
-            {search.bet === 'placed' && <p role="status">Your bet is placed.</p>}
-            {search.bet === 'raised' && <p role="status">Your bet is raised.</p>}
+        <PlayerShell page="matches" eventName={player.eventName} nickname={player.nickname} balance={balance}>
+            <div className={styles.column}>
+                <h1 className={styles.h1}>Hei, {player.nickname}!</h1>
+                {betError && (
+                    <p role="alert" className={styles.alert}>
+                        {betError}
+                    </p>
+                )}
+                {betNotice && (
+                    <p role="status" className={styles.notice}>
+                        {betNotice}
+                    </p>
+                )}
 
-            <h2>Open for bets</h2>
-            {open.length === 0 ? (
-                <p>No matches are open for bets.</p>
-            ) : (
-                <ul aria-label="Open for bets">
-                    {open.map((m) => {
-                        const odds = poolOf.get(m.id)!;
-                        const mine = liveBet.get(m.id);
-                        return (
-                            <li key={m.id}>
-                                <form method="post" action="/api/player/bets">
-                                    <fieldset>
-                                        <legend>
-                                            Match {m.id}: {matchTitle(m)}, {matchPlayers(m)}
-                                        </legend>
-                                        <p>Pool: {odds.total} Foza</p>
-                                        {mine && (
-                                            <p>
-                                                Your bet: {mine.amount} Foza on {mine.onNickname}
-                                            </p>
-                                        )}
-                                        <input type="hidden" name="matchId" value={m.id} />
-                                        {odds.sides.map((side) => {
-                                            const nickname = m.players.find((p) => p?.id === side.playerId)?.nickname ?? `Player ${side.playerId}`;
-                                            return (
-                                                <label key={side.playerId}>
-                                                    <input type="radio" name="on" value={side.playerId} required defaultChecked={mine?.onPlayerId === side.playerId} disabled={mine !== undefined && mine.onPlayerId !== side.playerId} />{' '}
-                                                    {nickname} ({side.stake} Foza, {multiplier(side.multiplier)}){' '}
-                                                </label>
-                                            );
-                                        })}
-                                        <label>
-                                            Foza to bet on match {m.id} <input name="amount" type="number" min={1} max={Math.max(1, balance)} step={1} required />
-                                        </label>{' '}
-                                        <button type="submit">{mine ? 'Raise bet' : 'Place bet'}</button>
-                                    </fieldset>
-                                </form>
-                            </li>
-                        );
-                    })}
-                </ul>
-            )}
+                {incoming.length > 0 && (
+                    <p className={styles.notice}>
+                        <a href="#utfordringa">{incoming.length === 1 ? 'Nogen utfordre deg te 1v1. Svar her.' : `${incoming.length} utfordre deg te 1v1. Svar her.`}</a>
+                    </p>
+                )}
 
-            <h2>My bets</h2>
-            {bets.length === 0 ? (
-                <p>No bets yet.</p>
-            ) : (
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Match</th>
-                            <th>On</th>
-                            <th>Stake</th>
-                            <th>Result</th>
-                            <th>Won or lost</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {bets.map((b) => (
-                            <tr key={b.id}>
-                                <td>{b.matchId}</td>
-                                <td>{b.onNickname}</td>
-                                <td>{b.amount}</td>
-                                <td>{STATUS_LABELS[b.status]}</td>
-                                <td>{b.net === null ? '' : b.net}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            )}
+                {current && (
+                    <section className={styles.hero} aria-labelledby="din-kamp">
+                        <Pizza size={160} className={styles.heroPizza} />
+                        <p className={styles.kicker}>
+                            {matchTitle(current)} · {matchSettings(current)}
+                        </p>
+                        <h2 id="din-kamp" className={styles.heroTitle}>
+                            {current.state === 'called' ? 'Kampen din e ropt opp!' : 'Kampen din e i gang'}
+                        </h2>
+                        <p className={styles.heroVersus}>
+                            {matchPlayers(current)}
+                            {current.state === 'started' && ` · ${current.score1}-${current.score2}`}
+                        </p>
+                        {join ? (
+                            <>
+                                <a className={styles.joinButton} href={join}>
+                                    Bli med i kampen
+                                </a>
+                                <p className={styles.heroNote}>
+                                    Lenkjå opne Bløbby Volley og sende deg rett inn på serveren. Ho e bare di, så ikkje del ho med nogen. Mista du sambandet, trykk på ho igjen.
+                                </p>
+                            </>
+                        ) : (
+                            <p className={styles.heroNote}>Serveren e ikkje sett opp enno. Spør ein admin.</p>
+                        )}
+                    </section>
+                )}
 
-            <form method="post" action="/api/player/signout">
-                <button type="submit">Sign out</button>
-            </form>
-        </main>
+                <section className={styles.section} aria-labelledby="snart">
+                    <div className={styles.sectionHead}>
+                        <h2 id="snart" className={styles.h2}>
+                            Snart i ringen
+                        </h2>
+                        <a href="#utfordra" className={styles.buttonQuiet}>
+                            Utfordra nogen te 1v1
+                        </a>
+                    </div>
+                    {ahead.length === 0 ? (
+                        <p className={styles.empty}>Ingen kampar på plakaten enno. Ta deg ein bit pizza og vent litt.</p>
+                    ) : (
+                        <div className={styles.cards}>
+                            {ahead.map((m) => (
+                                <MatchCard key={m.id} match={m} pool={poolOf.get(m.id)} viewerId={player.id} balance={balance} bet={liveBet.get(m.id)} />
+                            ))}
+                        </div>
+                    )}
+                </section>
+
+                <section className={styles.section} aria-labelledby="spel">
+                    <h2 id="spel" className={styles.h2}>
+                        Spelå dine
+                    </h2>
+                    {bets.length === 0 ? (
+                        <p className={styles.muted}>Du har ikkje satsa nogen Foza enno.</p>
+                    ) : (
+                        <div className={styles.tableWrap}>
+                            <table className={styles.table}>
+                                <thead>
+                                    <tr>
+                                        <th>Kamp</th>
+                                        <th>På</th>
+                                        <th>Innsats</th>
+                                        <th>Resultat</th>
+                                        <th>Vunne eller tapt</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {bets.map((b) => {
+                                        const m = matchOf.get(b.matchId);
+                                        return (
+                                            <tr key={b.id}>
+                                                <td>{m ? matchPlayers(m) : `Kamp ${b.matchId}`}</td>
+                                                <td>{b.onNickname}</td>
+                                                <td>{foza(b.amount)}</td>
+                                                <td>{BET_STATUS[b.status]}</td>
+                                                <td className={b.net === null || b.net === 0 ? undefined : b.net > 0 ? styles.plus : styles.minus}>
+                                                    {b.net === null ? '' : b.net > 0 ? `+${b.net}` : b.net}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </section>
+            </div>
+
+            <aside className={styles.aside}>
+                <section id="utfordringa" className={`${styles.panel} ${styles.panelYellow}`} aria-labelledby="utfordringa-tittel">
+                    <h2 id="utfordringa-tittel" className={styles.h2}>
+                        Utfordringa
+                    </h2>
+                    {challengeError && (
+                        <p role="alert" className={styles.alert}>
+                            {challengeError}
+                        </p>
+                    )}
+                    {challengeNotice && (
+                        <p role="status" className={styles.notice}>
+                            {challengeNotice}
+                        </p>
+                    )}
+                    {incoming.length === 0 && outgoing.length === 0 && <p className={styles.muted}>Ingen utfordringa akkurat nå.</p>}
+                    {incoming.length > 0 && (
+                        <ul className={styles.list} aria-label="Utfordringa te deg">
+                            {incoming.map((m) => (
+                                <li key={m.id} className={styles.challenge}>
+                                    <strong>{m.players[0]?.nickname} utfordre deg!</strong>
+                                    <span className={styles.meta}>{matchSettings(m)}</span>
+                                    <div className={styles.challengeButtons}>
+                                        <form method="post" action={`/api/player/challenges/${m.id}`}>
+                                            <input type="hidden" name="answer" value="accept" />
+                                            <button type="submit" className={styles.button}>
+                                                Godta
+                                            </button>
+                                        </form>
+                                        <form method="post" action={`/api/player/challenges/${m.id}`}>
+                                            <input type="hidden" name="answer" value="decline" />
+                                            <button type="submit" className={styles.buttonQuiet}>
+                                                Nei takk
+                                            </button>
+                                        </form>
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                    {outgoing.length > 0 && (
+                        <ul className={styles.list} aria-label="Utfordringa frå deg">
+                            {outgoing.map((m) => (
+                                <li key={m.id} className={styles.challenge}>
+                                    <strong>Du venta på svar frå {m.players[1]?.nickname}</strong>
+                                    <span className={styles.meta}>{matchSettings(m)}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </section>
+
+                <section id="utfordra" className={styles.panel} aria-labelledby="utfordra-tittel">
+                    <h2 id="utfordra-tittel" className={styles.h2}>
+                        Utfordra nogen te 1v1
+                    </h2>
+                    {opponents.length === 0 ? (
+                        <p className={styles.muted}>Ingen andre e med enno. Få nogen te å bli med på LANet først.</p>
+                    ) : (
+                        <form method="post" action="/api/player/challenges" className={styles.challengeForm}>
+                            <label className={styles.field}>
+                                Motstandar
+                                <select name="opponent" required className={styles.input} defaultValue="">
+                                    <option value="" disabled>
+                                        Velg nogen
+                                    </option>
+                                    {opponents.map((p) => (
+                                        <option key={p.id} value={p.id}>
+                                            {p.nickname}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                            <label className={styles.field}>
+                                Best av
+                                <select name="bestOf" className={styles.input} defaultValue="1">
+                                    {BEST_OF.map((n) => (
+                                        <option key={n} value={n}>
+                                            {n}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                            <div className={styles.fieldRow}>
+                                <label className={styles.field}>
+                                    Poeng for å vinna
+                                    <input name="scoreToWin" type="number" className={styles.input} min={MIN_SCORE_TO_WIN} max={MAX_SCORE_TO_WIN} step={1} defaultValue={DEFAULT_SCORE_TO_WIN} required />
+                                    <span className={styles.hint}>
+                                        {MIN_SCORE_TO_WIN} te {MAX_SCORE_TO_WIN}, vanleg e {DEFAULT_SCORE_TO_WIN}
+                                    </span>
+                                </label>
+                                <label className={styles.field}>
+                                    Fart i fps
+                                    <input name="speed" type="number" className={styles.input} min={MIN_GAME_SPEED} max={MAX_GAME_SPEED} step={1} defaultValue={DEFAULT_GAME_SPEED} required />
+                                    <span className={styles.hint}>
+                                        {MIN_GAME_SPEED} te {MAX_GAME_SPEED}, vanleg e {DEFAULT_GAME_SPEED}
+                                    </span>
+                                </label>
+                            </div>
+                            <button type="submit" className={styles.button}>
+                                Send utfordring
+                            </button>
+                            <p className={styles.closingNote}>Motstandaren må godta før ein admin kan ropa dåkke opp.</p>
+                        </form>
+                    )}
+                </section>
+            </aside>
+        </PlayerShell>
     );
 }

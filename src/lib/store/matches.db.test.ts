@@ -332,6 +332,8 @@ describe('single elimination placings', () => {
         const final = (await getMatch(pool, t.ids[2]))!;
         const third = (await getMatch(pool, t.ids[3]))!;
         expect(final.roundLabel).toBe('Final, match 1');
+        expect(final.bracketRound).toEqual({ format: 'single_elimination', section: 'winners', round: 2, lastRound: 2, position: 1 });
+        expect(third.bracketRound).toEqual({ format: 'single_elimination', section: 'third_place', round: 1, lastRound: 1, position: 1 });
         expect(await getPlacings(pool, t.tournamentId)).toEqual(
             [
                 { place: 1, playerId: final.players[0]!.id },
@@ -495,7 +497,7 @@ describe('1v1 matches', () => {
         const { eventId, players } = await activeEvent(3);
         const created = await createChallenge(pool, players[0], players[1], { bestOf: 3 });
         if (!created.ok) throw new Error(created.error);
-        expect(await getMatch(pool, created.matchId)).toMatchObject({ eventId, tournamentId: null, roundLabel: null, state: 'upcoming', bestOf: 3, acceptedAt: null });
+        expect(await getMatch(pool, created.matchId)).toMatchObject({ eventId, tournamentId: null, roundLabel: null, bracketRound: null, state: 'upcoming', bestOf: 3, acceptedAt: null });
         expect(await callMatch(pool, created.matchId)).toEqual({ ok: false, error: 'not-accepted' });
         expect(await acceptChallenge(pool, created.matchId, players[0])).toEqual({ ok: false, error: 'not-allowed' });
         expect(await acceptChallenge(pool, created.matchId, players[1])).toMatchObject({ ok: true });

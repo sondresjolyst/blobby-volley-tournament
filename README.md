@@ -27,7 +27,7 @@ To change the schema, add a new file with the next number. Do not edit a file th
 
 An admin creates an event for each LAN under `/admin/events`, with a name, dates, an event code, a starting Foza amount and a daily Foza amount. One event at a time is active. Past events stay stored.
 
-Players sign up at `/join` with the event code, a nickname and a 4 digit PIN, and sign in at `/login`. `/me` shows the nickname and the Foza balance. A nickname is at most 15 bytes in UTF-8, so æ, ø and å count as 2. Nicknames are unique per event, ignoring case. An event code is 8 to 32 characters. An admin can reset a player's PIN on the event page.
+Players sign up at `/join` with the event code, a nickname and a 4 digit PIN, and sign in at `/login`. A nickname is at most 15 bytes in UTF-8, so æ, ø and å count as 2. Nicknames are unique per event, ignoring case. An event code is 8 to 32 characters. An admin can reset a player's PIN on the event page.
 
 An event can also have the host and port of the game server at the LAN. The site builds join links from them. Each player gets a secret join code at sign-up, 10 characters from `ABCDEFGHJKMNPQRSTUVWXYZ23456789`, so 0, O, 1, I and L are never used. Codes are drawn from a cryptographic random source and are unique per event. On the event page an admin can give a player a new code, which stops the old one at the next sync of the game server. The admin page does not show codes. A player sees their own code only in the join link, `blobby://join?server=<host>:<port>&code=<code>`.
 
@@ -65,9 +65,23 @@ On the match page an admin can restart the current game, enter or correct a game
 
 The game server sends each game result with a report id that is unique across all matches, a UUID. It reads the next game number again before each game. A report that comes again changes nothing. A report for a game that already has a result, such as one an admin entered, is kept but ignored. See [Game server API](#game-server-api).
 
-A player can ask another player of the active event for a 1v1 match. It can be called once the other player accepts. The pages for this come later.
+A player can ask another player of the active event for a 1v1 match. It can be called once the other player accepts.
 
 Every match change is in `src/lib/store/matches.ts`. Each change runs in one transaction and passes what happened to `handleMatchEvents` in `src/lib/store/match-events.ts` before it commits. A bet must lock the match first with `withMatchForBet` in the same transaction.
+
+## Player pages
+
+The player pages are written in Norwegian, in the jokey Rogaland dialect of the LAN. Both need a signed in player of the active event.
+
+- `/me` shows the Foza balance, the matches still to play with their pools and bet forms, the player's bets and the 1v1 matches. The player's own matches are marked. When the player's match is called or started, the page shows the join link, as long as the event has a game server host and port.
+- `/bracket` shows the bracket of each tournament of the event, with the state and series score of every match. `?t=<id>` picks a tournament. The newest is shown by default.
+
+On `/me` a player asks another player of the event for a 1v1 match, with a best-of, the points that win a game and the game speed. They default to 1, 15 and 75 and follow the same limits as a tournament. The asked player accepts or declines on their own `/me`.
+
+- `POST /api/player/challenges` asks for a 1v1 match from the form on `/me`.
+- `POST /api/player/challenges/<id>` accepts or declines one, with `answer` set to `accept` or `decline`.
+
+Both send a signed out browser to `/login`.
 
 ## Foza and betting
 

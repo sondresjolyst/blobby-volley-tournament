@@ -28,15 +28,16 @@ export function parseAdjustmentForm(form: Record<string, string>): { amount: num
     return { amount: match[1] === '-' ? -size : size, reason };
 }
 
+// Players read these on their own page, which is written in the dialect of the LAN.
 const BET_MESSAGES: Record<string, string> = {
-    'not-found': 'That match does not exist.',
-    closed: 'Bets on that match are closed.',
-    event: 'You can only bet on matches in your active event.',
-    side: 'Pick one of the two players in the match.',
-    switch: 'You already back the other player. You can raise your bet, but not move it.',
-    amount: 'The amount must be a whole number of Foza, at least 1.',
-    balance: 'You do not have that much Foza.',
-    form: 'Something went wrong. Try again.',
+    'not-found': 'Den kampen finnes ikkje.',
+    closed: 'Spelå på den kampen e stengt.',
+    event: 'Du kan bare satsa på kampar på LANet du e med på.',
+    side: 'Velg ein av dei to spelarane i kampen.',
+    switch: 'Du har allerede satsa på den andre. Du kan høgna spelet, men ikkje bytta side.',
+    amount: 'Innsatsen må vera eit heilt tal Foza, minst 1.',
+    balance: 'Så mykje Foza har du ikkje.',
+    form: 'Noe gjekk gale. Prøv igjen.',
 };
 
 /** The text for a bet error code in the address. Unknown codes show nothing. */

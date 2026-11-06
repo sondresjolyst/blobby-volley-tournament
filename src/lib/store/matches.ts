@@ -69,6 +69,8 @@ export interface MatchSummary {
     bracketMatchId: number | null;
     /** Such as `Winners round 1, match 2`. Null for a 1v1 match. */
     roundLabel: string | null;
+    /** Where the match sits in its bracket, so a page can name the round in its own words. Null for a 1v1 match. */
+    bracketRound: BracketRound | null;
     state: MatchState;
     bestOf: number;
     ruleFile: string;
@@ -84,6 +86,15 @@ export interface MatchSummary {
     winnerId: number | null;
     result: 'played' | 'forfeit' | null;
     cancelReason: 'admin' | 'declined' | null;
+}
+
+export interface BracketRound {
+    format: FormatId;
+    section: Section;
+    round: number;
+    /** The last round of the section. */
+    lastRound: number;
+    position: number;
 }
 
 export interface MatchDetails extends MatchSummary {
@@ -804,6 +815,7 @@ function toSummary(row: SummaryRecord): MatchSummary {
         tournamentName: row.tournament_name,
         bracketMatchId: row.bracket_match_id,
         roundLabel: row.format && row.section ? `${roundName(row.format, row.section, row.round!, row.last_round!)}, match ${row.position}` : null,
+        bracketRound: row.format && row.section ? { format: row.format, section: row.section, round: row.round!, lastRound: row.last_round!, position: row.position! } : null,
         state: row.state,
         bestOf: row.best_of,
         ruleFile: row.rule_file,

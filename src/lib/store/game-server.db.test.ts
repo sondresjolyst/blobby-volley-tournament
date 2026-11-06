@@ -10,7 +10,7 @@ import { isJoinCode, newJoinCode } from '@/lib/players/join-code';
 import { createEvent, setActiveEvent } from './events';
 import { getLiveScore, getServerSync, updateLiveScore } from './game-server';
 import { callMatch, createChallenge, acceptChallenge, enterGameResult, getMatch, listMatches, reportPlayersConnected, reportServerGame, resetMatch, restartCurrentGame, type ServerGameReport } from './matches';
-import { rotateJoinCode, signUpPlayer } from './players';
+import { getJoinCode, rotateJoinCode, signUpPlayer } from './players';
 import { getTournament, saveTournament } from './tournaments';
 
 // Lets a test choose the next codes drawn. Without a choice the real generator runs.
@@ -141,11 +141,13 @@ describe('join codes', () => {
         const after = await codeOf(players[0]);
         expect(isJoinCode(after)).toBe(true);
         expect(after).not.toBe(before);
+        expect(await getJoinCode(pool, players[0])).toBe(after);
         const next = await getServerSync(pool, NOW);
         expect(next.players.find((p) => p.playerId === players[0])!.code).toBe(after);
         expect(next.players.some((p) => p.code === before)).toBe(false);
         expect(next.syncVersion).not.toBe(sync.syncVersion);
         expect(await rotateJoinCode(pool, 999999)).toBeNull();
+        expect(await getJoinCode(pool, 999999)).toBeNull();
     });
 
     it('gives every player from before the migration a different valid code', async () => {

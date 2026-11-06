@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { matchErrorMessage, parseCount, parseMatchForm, parseMatchIds } from './input';
+import { matchErrorMessage, parseChallengeAnswer, parseChallengeForm, parseCount, parseMatchForm, parseMatchIds } from './input';
 
 describe('parseMatchForm', () => {
     it('reads the plain actions', () => {
@@ -28,6 +28,39 @@ describe('parseMatchForm', () => {
     it('refuses an unknown action', () => {
         expect(parseMatchForm({ action: 'delete' })).toBeNull();
         expect(parseMatchForm({})).toBeNull();
+    });
+});
+
+describe('parseChallengeForm', () => {
+    it('reads the opponent and the settings, with 1, 15 and 75 for empty fields', () => {
+        expect(parseChallengeForm({ opponent: '7', bestOf: '3', scoreToWin: '21', speed: '100' })).toEqual({ opponentId: 7, bestOf: 3, scoreToWin: 21, speed: 100 });
+        expect(parseChallengeForm({ opponent: '7', bestOf: '', scoreToWin: ' ', speed: '' })).toEqual({ opponentId: 7, bestOf: 1, scoreToWin: 15, speed: 75 });
+        expect(parseChallengeForm({ opponent: '7' })).toEqual({ opponentId: 7, bestOf: 1, scoreToWin: 15, speed: 75 });
+    });
+
+    it('takes the bounds of the game', () => {
+        expect(parseChallengeForm({ opponent: '7', scoreToWin: '1', speed: '30' })).toMatchObject({ scoreToWin: 1, speed: 30 });
+        expect(parseChallengeForm({ opponent: '7', scoreToWin: '99', speed: '120' })).toMatchObject({ scoreToWin: 99, speed: 120 });
+    });
+
+    it('refuses a missing opponent and settings out of bounds', () => {
+        expect(parseChallengeForm({})).toBeNull();
+        expect(parseChallengeForm({ opponent: 'x' })).toBeNull();
+        expect(parseChallengeForm({ opponent: '7', bestOf: '2' })).toBeNull();
+        expect(parseChallengeForm({ opponent: '7', scoreToWin: '0' })).toBeNull();
+        expect(parseChallengeForm({ opponent: '7', scoreToWin: '100' })).toBeNull();
+        expect(parseChallengeForm({ opponent: '7', speed: '29' })).toBeNull();
+        expect(parseChallengeForm({ opponent: '7', speed: '121' })).toBeNull();
+        expect(parseChallengeForm({ opponent: '7', speed: '75.5' })).toBeNull();
+    });
+});
+
+describe('parseChallengeAnswer', () => {
+    it('reads accept and decline only', () => {
+        expect(parseChallengeAnswer({ answer: 'accept' })).toBe('accept');
+        expect(parseChallengeAnswer({ answer: 'decline' })).toBe('decline');
+        expect(parseChallengeAnswer({ answer: 'cancel' })).toBeNull();
+        expect(parseChallengeAnswer({})).toBeNull();
     });
 });
 

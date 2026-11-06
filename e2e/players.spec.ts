@@ -19,7 +19,7 @@ test('a player signs up with the event code and sees the starting Foza', async (
     await signUp(page, nickname, '1234');
     await expect(page).toHaveURL(/\/me$/);
     await expect(page.getByRole('heading', { name: nickname })).toBeVisible();
-    await expect(page.getByText('Foza: 1000')).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Spelarsidå' })).toContainText(/1\s000 Foza/);
 
     const cookie = (await context.cookies()).find((c) => c.name === 'bvt_player');
     expect(cookie?.httpOnly).toBe(true);
@@ -31,7 +31,7 @@ test('a player signs up with the event code and sees the starting Foza', async (
     await page.goto('/me');
     await expect(page.getByRole('heading', { name: nickname })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Sign out' }).click();
+    await page.getByRole('button', { name: 'Logg ut' }).click();
     await expect(page).toHaveURL(/\/login$/);
     await page.goto('/me');
     await expect(page).toHaveURL(/\/login$/);
@@ -51,7 +51,7 @@ test('sign-in with a wrong PIN is refused and the right PIN works', async ({ pag
     const nickname = uniqueNickname();
     await signUp(page, nickname, '1234');
     await expect(page).toHaveURL(/\/me$/);
-    await page.getByRole('button', { name: 'Sign out' }).click();
+    await page.getByRole('button', { name: 'Logg ut' }).click();
     await expect(page).toHaveURL(/\/login$/);
 
     await page.getByLabel('Nickname').fill(nickname.toUpperCase());
