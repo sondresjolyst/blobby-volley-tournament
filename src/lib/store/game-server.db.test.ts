@@ -334,6 +334,32 @@ describe('reportServerGame', () => {
         expect((await getMatch(pool, m1))!.games).toHaveLength(1);
     });
 
+    it('stores one report id once, even when it comes for two matches at the same time', async () => {
+        const s = await setup();
+        const [m1, m2] = s.ids;
+        await callMatch(pool, m1);
+        await callMatch(pool, m2);
+        const reportId = nextUuid();
+        // Another transaction holds the id for match 1 and has not committed, so the check before
+        // the insert cannot see it. The insert for match 2 must wait for it and then find it.
+        const other = await pool.connect();
+        try {
+            await other.query('BEGIN');
+            await other.query(`INSERT INTO game_reports (report_id, match_id, game_number, points1, points2, outcome, reason) VALUES ($1, $2, 1, 0, 0, 'ignored', 'state')`, [reportId, m1]);
+            const pending = reportServerGame(pool, serverReport(m2, 1, s.players[1], [s.players[1], 15, s.players[2], 2], reportId));
+            for (let i = 0; i < 100; i++) {
+                const waiting = await pool.query<{ n: number }>(`SELECT count(*)::int AS n FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND query LIKE 'INSERT INTO game_reports%'`);
+                if (waiting.rows[0].n > 0) break;
+                await new Promise((resolve) => setTimeout(resolve, 20));
+            }
+            await other.query('COMMIT');
+            expect(await pending).toMatchObject({ ok: true, status: 'duplicate' });
+        } finally {
+            other.release();
+        }
+        expect((await getMatch(pool, m2))!.games).toEqual([]);
+    });
+
     it('keeps a late report after an admin result, but it changes nothing', async () => {
         const s = await setup();
         const [m1] = s.ids;
