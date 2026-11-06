@@ -82,19 +82,13 @@
     color: var(--white);
 }
 
+/* The pizza sits in the right padding of the header, so it never covers the menu. */
 .headerPizza {
     position: absolute;
-    opacity: 0.5;
-    right: -40px;
-    top: -60px;
-    pointer-events: none;
-}
-
-.headerPizzaSmall {
-    position: absolute;
-    opacity: 0.5;
-    right: 300px;
-    bottom: -70px;
+    right: -30px;
+    top: -50px;
+    width: 140px;
+    height: 140px;
     pointer-events: none;
 }
 
@@ -102,7 +96,7 @@
     position: relative;
     max-width: 1280px;
     margin: 0 auto;
-    padding: 20px 32px;
+    padding: 20px 130px 20px 32px;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -914,8 +908,15 @@
         font-size: 28px;
     }
 
-    .headerPizzaSmall {
-        display: none;
+    .headerInner {
+        padding-right: 72px;
+    }
+
+    .headerPizza {
+        right: -24px;
+        top: -28px;
+        width: 80px;
+        height: 80px;
     }
 
     .hero {

@@ -33,8 +33,7 @@ export function PlayerShell({ page, eventName, nickname, balance, children }: Sh
     return (
         <div className={styles.shell} lang="nn">
             <header className={styles.header}>
-                <Pizza size={220} className={styles.headerPizza} />
-                <Pizza size={120} className={styles.headerPizzaSmall} />
+                <Pizza size={140} className={styles.headerPizza} />
                 <div className={styles.headerInner}>
                     <Link href="/me" className={styles.brand}>
                         <Pizza size={48} />
