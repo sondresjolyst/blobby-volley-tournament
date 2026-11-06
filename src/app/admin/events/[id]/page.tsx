@@ -18,6 +18,7 @@ type Search = {
     rotated?: string | string[];
     sponsor?: string | string[];
     sponsorDeleted?: string | string[];
+    boardSaved?: string | string[];
 };
 
 export default async function EditEvent({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Search> }) {
@@ -58,6 +59,7 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
             {rotatedPlayer && <p role="status">{rotatedPlayer.nickname} has a new join code. The old code stops working.</p>}
             {savedSponsor && <p role="status">Saved the sponsor {savedSponsor.name}.</p>}
             {search.sponsorDeleted === '1' && <p role="status">The sponsor is deleted.</p>}
+            {search.boardSaved === '1' && <p role="status">Saved the sponsor board.</p>}
             {adjustedPlayer && (
                 <p role="status">
                     The Foza of {adjustedPlayer.nickname} is now {adjustedPlayer.fozaBalance}.
@@ -124,7 +126,7 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
                 </table>
             )}
 
-            <SponsorSection eventId={event.id} sponsors={sponsors} />
+            <SponsorSection eventId={event.id} gameBoard={event.gameBoard} sponsors={sponsors} />
         </main>
     );
 }

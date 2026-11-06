@@ -1,6 +1,6 @@
 // The sponsors of each event. Logos are checked and the game logo is made before anything is stored.
 import type { Pool, PoolClient } from 'pg';
-import type { SponsorInput } from '@/lib/sponsors/input';
+import type { GameBoard, SponsorInput } from '@/lib/sponsors/input';
 import type { CheckedLogo, LogoType } from '@/lib/sponsors/logo';
 import { inTransaction } from './transaction';
 
@@ -14,7 +14,8 @@ export interface SponsorRow {
     link: string | null;
     position: number;
     enabled: boolean;
-    gameBackground: string;
+    /** The own game background of the sponsor, or null to keep the game logo transparent. */
+    gameBackground: string | null;
     logoType: LogoType;
     logoWidth: number;
     logoHeight: number;
@@ -30,7 +31,7 @@ interface SponsorRecord {
     link: string | null;
     position: number;
     enabled: boolean;
-    game_background: string;
+    game_background: string | null;
     logo_type: LogoType;
     logo_width: number;
     logo_height: number;
@@ -77,20 +78,54 @@ export interface ServerSponsor {
     gameLogoHash: string;
 }
 
-/** The enabled sponsors of the active event with their game logos, for the game server. */
-export async function listServerSponsors(pool: Pool): Promise<{ eventId: number | null; sponsors: ServerSponsor[] }> {
-    // One query, so the event and the sponsors agree.
-    const { rows } = await pool.query<{ event_id: number; id: number | null; name: string | null; game_logo: Buffer | null; game_logo_hash: string | null }>(
-        `SELECT e.id AS event_id, s.id, s.name, s.game_logo, s.game_logo_hash
-         FROM events e LEFT JOIN sponsors s ON s.event_id = e.id AND s.enabled
+/**
+ * The board style and the enabled sponsors of the active event with their game logos, for the
+ * game server. The list is empty when the board is off.
+ */
+export async function listServerSponsors(pool: Pool): Promise<{ eventId: number | null; gameBoard: GameBoard; sponsors: ServerSponsor[] }> {
+    // One query, so the event, the board and the sponsors agree.
+    const { rows } = await pool.query<{ event_id: number; game_board: GameBoard; id: number | null; name: string | null; game_logo: Buffer | null; game_logo_hash: string | null }>(
+        `SELECT e.id AS event_id, e.game_board, s.id, s.name, s.game_logo, s.game_logo_hash
+         FROM events e LEFT JOIN sponsors s ON s.event_id = e.id AND s.enabled AND e.game_board <> 'off'
          WHERE e.is_active
          ORDER BY s.position, s.id`,
     );
-    if (rows.length === 0) return { eventId: null, sponsors: [] };
+    if (rows.length === 0) return { eventId: null, gameBoard: 'off', sponsors: [] };
     return {
         eventId: rows[0].event_id,
+        gameBoard: rows[0].game_board,
         sponsors: rows.filter((r) => r.id !== null).map((r) => ({ sponsorId: r.id!, name: r.name!, gameLogo: r.game_logo!, gameLogoHash: r.game_logo_hash! })),
     };
+}
+
+/** Makes a game logo from a logo and an own background. The route passes makeGameLogo, so this file does not load the image library. */
+export type GameLogoMaker = (logo: CheckedLogo, background: string | null) => Promise<Uint8Array>;
+
+/**
+ * Makes again, from the stored logos, the game logos that are still 24-bit BMPs from before the
+ * alpha channel. Byte 28 of a BMP is its bits per pixel. A row locked by another caller is
+ * skipped, since that caller makes it. A logo that fails stays as it is and is tried next time.
+ * Returns how many were made again.
+ */
+export async function upgradeGameLogos(pool: Pool, make: GameLogoMaker): Promise<number> {
+    return inTransaction(pool, async (client) => {
+        const { rows } = await client.query<{ id: number; logo: Buffer; logo_type: LogoType; logo_width: number; logo_height: number; game_background: string | null }>(
+            `SELECT id, logo, logo_type, logo_width, logo_height, game_background FROM sponsors
+             WHERE get_byte(game_logo, 28) <> 32 ORDER BY id FOR UPDATE SKIP LOCKED`,
+        );
+        let made = 0;
+        for (const row of rows) {
+            let gameLogo: Uint8Array;
+            try {
+                gameLogo = await make({ bytes: new Uint8Array(row.logo), type: row.logo_type, width: row.logo_width, height: row.logo_height }, row.game_background);
+            } catch {
+                continue;
+            }
+            await client.query('UPDATE sponsors SET game_logo = $2 WHERE id = $1', [row.id, Buffer.from(gameLogo)]);
+            made++;
+        }
+        return made;
+    });
 }
 
 export interface StoredLogo extends CheckedLogo {

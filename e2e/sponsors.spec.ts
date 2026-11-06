@@ -12,8 +12,9 @@ const auth = () => ({ authorization: `Bearer ${process.env.E2E_GAME_SERVER_TOKEN
 
 interface ServerSponsors {
     eventId: number | null;
+    gameBoard: string;
     sponsorsVersion: string;
-    sponsors: { sponsorId: number; name: string; logo: { format: string; width: number; height: number; hash: string; data: string } }[];
+    sponsors: { sponsorId: number; name: string; logo: { format: string; width: number; height: number; bitsPerPixel: number; hash: string; data: string } }[];
 }
 
 async function readSponsors(request: APIRequestContext): Promise<ServerSponsors> {
@@ -32,6 +33,15 @@ test('an admin adds, orders, turns off and deletes sponsors, and the footer and 
     await page.goto('/admin/events');
     await page.getByRole('row', { name: /E2E LAN/ }).getByRole('link').click();
     await expect(page).toHaveURL(/\/admin\/events\/\d+$/);
+
+    // The board is off until an admin picks a style.
+    const board = page.getByLabel('Sponsor board in the game');
+    await expect(board).toHaveValue('off');
+    expect((await readSponsors(request)).gameBoard).toBe('off');
+    await board.selectOption({ label: 'Dark LED with metal frame' });
+    await page.getByRole('button', { name: 'Change board' }).click();
+    await expect(page.getByRole('status')).toHaveText('Saved the sponsor board.');
+    await expect(board).toHaveValue('led');
 
     // SVG is refused whatever the browser says the file is.
     await page.getByLabel('Name of the new sponsor').fill(first);
@@ -70,16 +80,36 @@ test('an admin adds, orders, turns off and deletes sponsors, and the footer and 
     expect(logo.headers()['x-content-type-options']).toBe('nosniff');
     expect(logo.headers()['cache-control']).toBe('public, max-age=31536000, immutable');
 
-    // The game server gets both with a 96 by 32 BMP and the hash of it.
+    // The game server gets both with a 96 by 32 BMP with alpha and the hash of it.
     let sync = await readSponsors(request);
     const ours = () => sync.sponsors.filter((s) => s.name.endsWith(tag));
+    expect(sync.gameBoard).toBe('led');
     expect(ours().map((s) => s.name)).toEqual([first, second]);
     for (const sponsor of ours()) {
         const bmp = Buffer.from(sponsor.logo.data, 'base64');
         expect(bmp.subarray(0, 2).toString('latin1')).toBe('BM');
-        expect([bmp.readInt32LE(18), bmp.readInt32LE(22), bmp.readUInt16LE(28)]).toEqual([96, 32, 24]);
-        expect(sponsor.logo).toMatchObject({ format: 'bmp', width: 96, height: 32, hash: createHash('sha256').update(bmp).digest('hex') });
+        expect([bmp.readUInt32LE(14), bmp.readInt32LE(18), bmp.readInt32LE(22), bmp.readUInt16LE(28), bmp.readUInt32LE(30)]).toEqual([108, 96, 32, 32, 3]);
+        // The logos are opaque, so the alpha of the first pixel is 255.
+        expect(bmp[122 + 3]).toBe(255);
+        expect(sponsor.logo).toMatchObject({ format: 'bmp', width: 96, height: 32, bitsPerPixel: 32, hash: createHash('sha256').update(bmp).digest('hex') });
     }
+
+    // With the board off the game gets no sponsors and a new version, but the footer keeps them.
+    const onVersion = sync.sponsorsVersion;
+    await board.selectOption('off');
+    await page.getByRole('button', { name: 'Change board' }).click();
+    await expect(page.getByRole('status')).toHaveText('Saved the sponsor board.');
+    sync = await readSponsors(request);
+    expect(sync).toMatchObject({ eventId: expect.any(Number), gameBoard: 'off', sponsors: [] });
+    expect(sync.sponsorsVersion).not.toBe(onVersion);
+    await homePage.goto('/');
+    await expect(footer.getByRole('img', { name: first })).toBeVisible();
+    await board.selectOption({ label: 'Wooden beach bar' });
+    await page.getByRole('button', { name: 'Change board' }).click();
+    await expect(page.getByRole('status')).toHaveText('Saved the sponsor board.');
+    sync = await readSponsors(request);
+    expect(sync.gameBoard).toBe('wood');
+    expect(ours().map((s) => s.name)).toEqual([first, second]);
 
     // Move the second one up.
     await page.getByRole('button', { name: `Move ${second} up` }).click();

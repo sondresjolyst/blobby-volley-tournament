@@ -1,14 +1,17 @@
 import { createHash } from 'node:crypto';
+import { copyFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { Pool } from 'pg';
 import sharp from 'sharp';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { migrate } from '../../../scripts/migrate.mjs';
+import { migrate, MIGRATIONS_DIR, readMigrations } from '../../../scripts/migrate.mjs';
 import type { EventInput } from '@/lib/events/input';
-import { encodeBmp24, readBmpSize } from '@/lib/sponsors/bmp';
+import { BMP_HEADER_BYTES, encodeBmp32, readBmpInfo } from '@/lib/sponsors/bmp';
 import type { SponsorInput } from '@/lib/sponsors/input';
 import { checkLogo, makeGameLogo, type CheckedLogo } from '@/lib/sponsors/logo';
-import { createEvent, setActiveEvent } from './events';
-import { createSponsor, deleteSponsor, getSponsorLogo, listServerSponsors, listShownSponsors, listSponsors, MAX_SPONSORS, moveSponsor, updateSponsor } from './sponsors';
+import { createEvent, getEvent, setActiveEvent, setGameBoard } from './events';
+import { createSponsor, deleteSponsor, getSponsorLogo, listServerSponsors, listShownSponsors, listSponsors, MAX_SPONSORS, moveSponsor, updateSponsor, upgradeGameLogos } from './sponsors';
 
 if (!process.env.TEST_DATABASE_URL) {
     throw new Error('TEST_DATABASE_URL is not set. Run these tests with npm run test:db.');
@@ -22,10 +25,11 @@ const sha256 = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest(
 
 let logo: CheckedLogo;
 let otherLogo: CheckedLogo;
-const gameLogo = encodeBmp24(new Uint8Array(32 * 32 * 3), 32, 32);
+const gameLogo = encodeBmp32(new Uint8Array(32 * 32 * 4), 32, 32);
 
-async function checked(colour: string): Promise<CheckedLogo> {
-    const result = await checkLogo(new Uint8Array(await sharp({ create: { width: 60, height: 20, channels: 3, background: colour } }).png().toBuffer()));
+async function checked(colour: string, channels: 3 | 4 = 3): Promise<CheckedLogo> {
+    const background = channels === 3 ? colour : { r: 0, g: 0, b: 0, alpha: 0 };
+    const result = await checkLogo(new Uint8Array(await sharp({ create: { width: 60, height: 20, channels, background } }).png().toBuffer()));
     if (!result.ok) throw new Error(result.error);
     return result.value;
 }
@@ -103,7 +107,7 @@ describe('sponsors', () => {
     it('changes a sponsor and keeps the logo when no new one is given', async () => {
         const eventId = await createEvent(pool, lan);
         const id = await add(eventId, 'Acme');
-        const newGameLogo = encodeBmp24(new Uint8Array(40 * 32 * 3).fill(9), 40, 32);
+        const newGameLogo = encodeBmp32(new Uint8Array(40 * 32 * 4).fill(9), 40, 32);
         expect(await updateSponsor(pool, id, input('Acme AS', { link: 'https://acme.example.test/', enabled: false, gameBackground: '#000000' }), null, newGameLogo)).toBe(eventId);
         const [kept] = await listSponsors(pool, eventId);
         expect(kept).toMatchObject({ name: 'Acme AS', enabled: false, gameBackground: '#000000', logoHash: sha256(logo.bytes), gameLogoHash: sha256(newGameLogo) });
@@ -119,9 +123,10 @@ describe('sponsors', () => {
         const active = await createEvent(pool, lan);
         const other = await createEvent(pool, { ...lan, name: 'LAN 2027', code: 'LAN-2027' });
         expect(await listShownSponsors(pool)).toEqual([]);
-        expect(await listServerSponsors(pool)).toEqual({ eventId: null, sponsors: [] });
+        expect(await listServerSponsors(pool)).toEqual({ eventId: null, gameBoard: 'off', sponsors: [] });
         await setActiveEvent(pool, active);
-        expect(await listServerSponsors(pool)).toEqual({ eventId: active, sponsors: [] });
+        await setGameBoard(pool, active, 'led');
+        expect(await listServerSponsors(pool)).toEqual({ eventId: active, gameBoard: 'led', sponsors: [] });
         await add(active, 'Off', { enabled: false });
         const b = await add(active, 'B');
         const a = await add(active, 'A');
@@ -140,10 +145,128 @@ describe('sponsors', () => {
     it('stores a game logo made from the upload', async () => {
         const eventId = await createEvent(pool, lan);
         await setActiveEvent(pool, eventId);
-        const made = await makeGameLogo(logo, '#ffffff');
+        await setGameBoard(pool, eventId, 'wood');
+        const made = await makeGameLogo(logo, null);
         await createSponsor(pool, eventId, input('Acme'), logo, made);
         const [sponsor] = (await listServerSponsors(pool)).sponsors;
-        expect(readBmpSize(new Uint8Array(sponsor.gameLogo))).toEqual({ width: 96, height: 32 });
+        expect(readBmpInfo(new Uint8Array(sponsor.gameLogo))).toEqual({ width: 96, height: 32, bitsPerPixel: 32 });
+    });
+
+    it('stores a sponsor with no own game background as null', async () => {
+        const eventId = await createEvent(pool, lan);
+        await add(eventId, 'Acme', { gameBackground: null });
+        expect((await listSponsors(pool, eventId))[0].gameBackground).toBeNull();
+    });
+
+    it('keeps the sponsors from the game while the board is off, but not from the footer', async () => {
+        const eventId = await createEvent(pool, lan);
+        await setActiveEvent(pool, eventId);
+        const id = await add(eventId, 'Acme');
+        expect((await getEvent(pool, eventId))?.gameBoard).toBe('off');
+        expect(await listServerSponsors(pool)).toEqual({ eventId, gameBoard: 'off', sponsors: [] });
+        expect((await listShownSponsors(pool)).map((s) => s.id)).toEqual([id]);
+
+        expect(await setGameBoard(pool, eventId, 'printed')).toBe(true);
+        expect(await listServerSponsors(pool)).toMatchObject({ eventId, gameBoard: 'printed', sponsors: [{ sponsorId: id, name: 'Acme' }] });
+        expect(await setGameBoard(pool, eventId, 'off')).toBe(true);
+        expect((await listServerSponsors(pool)).sponsors).toEqual([]);
+        expect(await setGameBoard(pool, 999, 'led')).toBe(false);
+    });
+
+    it('refuses a board style the game does not know', async () => {
+        const eventId = await createEvent(pool, lan);
+        await expect(pool.query("UPDATE events SET game_board = 'neon' WHERE id = $1", [eventId])).rejects.toThrow(/events_game_board_check/);
+    });
+});
+
+describe('game logos from before the alpha channel', () => {
+    /** A 24-bit BMP as the site stored it before, all one colour. */
+    function oldBmp(width: number): Buffer {
+        const stride = Math.ceil((width * 3) / 4) * 4;
+        const bmp = Buffer.alloc(54 + stride * 32, 0xee);
+        bmp.write('BM', 0, 'latin1');
+        bmp.writeUInt32LE(bmp.length, 2);
+        bmp.writeUInt32LE(54, 10);
+        bmp.writeUInt32LE(40, 14);
+        bmp.writeInt32LE(width, 18);
+        bmp.writeInt32LE(32, 22);
+        bmp.writeUInt16LE(1, 26);
+        bmp.writeUInt16LE(24, 28);
+        bmp.writeUInt32LE(0, 30);
+        return bmp;
+    }
+
+    async function migrateFromBefore(): Promise<number> {
+        await pool.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public');
+        const dir = mkdtempSync(join(tmpdir(), 'bvt-migrations-'));
+        try {
+            for (const { name } of readMigrations().filter((m) => m.name < '0010')) copyFileSync(join(MIGRATIONS_DIR, name), join(dir, name));
+            await migrate(pool, dir);
+        } finally {
+            rmSync(dir, { recursive: true, force: true });
+        }
+        // Plain inserts, since the store functions write columns that later migrations add.
+        const eventId = (
+            await pool.query<{ id: number }>(
+                `INSERT INTO events (name, starts_on, ends_on, code, starting_foza, daily_foza, is_active) VALUES ('LAN 2026', '2026-11-20', '2026-11-22', 'LAN-2026', 0, 0, true) RETURNING id`,
+            )
+        ).rows[0].id;
+        const clear = await checked('#000000', 4);
+        for (const [position, background] of [
+            [1, '#ffffff'],
+            [2, '#ff0000'],
+        ] as const) {
+            await pool.query(
+                `INSERT INTO sponsors (event_id, name, position, logo, logo_type, logo_width, logo_height, game_background, game_logo) VALUES ($1, $2, $3, $4, 'image/png', 60, 20, $5, $6)`,
+                [eventId, `S${position}`, position, Buffer.from(clear.bytes), background, oldBmp(96)],
+            );
+        }
+        expect(await migrate(pool)).toContain('0010_game_board.sql');
+        return eventId;
+    }
+
+    it('turns the old white default into no own background, and keeps another colour', async () => {
+        const eventId = await migrateFromBefore();
+        expect((await listSponsors(pool, eventId)).map((s) => s.gameBackground)).toEqual([null, '#ff0000']);
+        expect((await getEvent(pool, eventId))?.gameBoard).toBe('off');
+    });
+
+    it('are made again once from the stored logos, transparent or on the own colour', async () => {
+        const eventId = await migrateFromBefore();
+        await setGameBoard(pool, eventId, 'led');
+        const before = (await listServerSponsors(pool)).sponsors.map((s) => readBmpInfo(new Uint8Array(s.gameLogo))?.bitsPerPixel);
+        expect(before).toEqual([24, 24]);
+        expect(await upgradeGameLogos(pool, makeGameLogo)).toBe(2);
+        const after = (await listServerSponsors(pool)).sponsors.map((s) => new Uint8Array(s.gameLogo));
+        expect(after.map((bmp) => readBmpInfo(bmp))).toEqual([
+            { width: 96, height: 32, bitsPerPixel: 32 },
+            { width: 96, height: 32, bitsPerPixel: 32 },
+        ]);
+        // Blue, green, red, alpha of the first pixel.
+        expect(Array.from(after[0].slice(BMP_HEADER_BYTES, BMP_HEADER_BYTES + 4))).toEqual([0, 0, 0, 0]);
+        expect(Array.from(after[1].slice(BMP_HEADER_BYTES, BMP_HEADER_BYTES + 4))).toEqual([0, 0, 255, 255]);
+        expect(await upgradeGameLogos(pool, makeGameLogo)).toBe(0);
+    });
+
+    it('leaves a logo that cannot be made as it is', async () => {
+        await migrateFromBefore();
+        expect(
+            await upgradeGameLogos(pool, async () => {
+                throw new Error('broken');
+            }),
+        ).toBe(0);
+        expect(await upgradeGameLogos(pool, makeGameLogo)).toBe(2);
+    });
+});
+
+describe('the game logo size', () => {
+    it('allows a 160 by 32 BMP with alpha and nothing larger', async () => {
+        const eventId = await createEvent(pool, lan);
+        const id = await add(eventId, 'Acme');
+        const widest = encodeBmp32(new Uint8Array(160 * 32 * 4), 160, 32);
+        expect(widest.length).toBe(20602);
+        await pool.query('UPDATE sponsors SET game_logo = $2 WHERE id = $1', [id, Buffer.from(widest)]);
+        await expect(pool.query('UPDATE sponsors SET game_logo = $2 WHERE id = $1', [id, Buffer.alloc(20603)])).rejects.toThrow(/sponsors_game_logo_check/);
     });
 });
 
@@ -162,7 +285,7 @@ describe('the sponsors table', () => {
         await expect(insert(eventId, { link: 'javascript:alert(1)' })).rejects.toThrow(/sponsors_link_check/);
         await expect(insert(eventId, { game_background: 'white' })).rejects.toThrow(/sponsors_game_background_check/);
         await expect(insert(eventId, { name: ' ' })).rejects.toThrow(/sponsors_name_check/);
-        await expect(insert(eventId, { game_logo: Buffer.alloc(15415) })).rejects.toThrow(/sponsors_game_logo_check/);
+        await expect(insert(eventId, { game_logo: Buffer.alloc(20603) })).rejects.toThrow(/sponsors_game_logo_check/);
         await expect(insert(eventId, { logo: Buffer.alloc(1048577) })).rejects.toThrow(/sponsors_logo_check/);
     });
 

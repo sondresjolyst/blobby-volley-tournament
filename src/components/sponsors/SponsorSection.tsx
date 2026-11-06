@@ -1,4 +1,4 @@
-import { MAX_LINK_LENGTH, MAX_NAME_LENGTH } from '@/lib/sponsors/input';
+import { GAME_BOARDS, MAX_LINK_LENGTH, MAX_NAME_LENGTH, type GameBoard } from '@/lib/sponsors/input';
 import { GAME_LOGO_HEIGHT, GAME_LOGO_MAX_WIDTH, MAX_LOGO_SIDE } from '@/lib/sponsors/logo';
 import { MAX_SPONSORS, type SponsorRow } from '@/lib/store/sponsors';
 
@@ -21,6 +21,15 @@ export function sponsorErrorMessage(code: string | string[] | undefined): string
 
 const ACCEPT = 'image/png,image/jpeg,image/webp';
 
+const BOARD_LABELS: Record<GameBoard, string> = {
+    off: 'Off',
+    led: 'Dark LED with metal frame',
+    printed: 'White printed panels',
+    wood: 'Wooden beach bar',
+    slim: 'Slim glossy LED',
+    padded: 'Padded rounded board',
+};
+
 /** The name, link, game background and on or off fields, shared by the add and edit forms. */
 function SponsorFields({ sponsor, subject }: { sponsor?: SponsorRow; subject: string }) {
     return (
@@ -30,6 +39,9 @@ function SponsorFields({ sponsor, subject }: { sponsor?: SponsorRow; subject: st
             </label>{' '}
             <label>
                 Link of {subject} <input name="link" type="url" maxLength={MAX_LINK_LENGTH} defaultValue={sponsor?.link ?? ''} placeholder="https://" autoComplete="off" />
+            </label>{' '}
+            <label>
+                <input name="ownBackground" type="checkbox" defaultChecked={sponsor ? sponsor.gameBackground !== null : false} /> Own game background for {subject}
             </label>{' '}
             <label>
                 Game background of {subject} <input name="gameBackground" type="color" defaultValue={sponsor?.gameBackground ?? '#ffffff'} />
@@ -42,14 +54,28 @@ function SponsorFields({ sponsor, subject }: { sponsor?: SponsorRow; subject: st
 }
 
 /** The sponsor list of an event on /admin/events/[id], with forms to add, edit, move and delete. */
-export function SponsorSection({ eventId, sponsors }: { eventId: number; sponsors: SponsorRow[] }) {
+export function SponsorSection({ eventId, gameBoard, sponsors }: { eventId: number; gameBoard: GameBoard; sponsors: SponsorRow[] }) {
     return (
         <section aria-labelledby="sponsors">
             <h2 id="sponsors">Sponsors</h2>
             <p>
                 The footer and the game show the sponsors that are on, in this order. A logo is a PNG, JPEG or WebP file of at most 1 MB and {MAX_LOGO_SIDE} pixels a side. The game gets a
-                copy {GAME_LOGO_HEIGHT} pixels high and at most {GAME_LOGO_MAX_WIDTH} wide, with the game background behind transparent parts.
+                copy {GAME_LOGO_HEIGHT} pixels high and at most {GAME_LOGO_MAX_WIDTH} wide. Transparent parts stay transparent, so the board shows through, unless the sponsor has its own game background.
             </p>
+            <form method="post" action={`/api/admin/events/${eventId}/game-board`}>
+                <label>
+                    Sponsor board in the game{' '}
+                    <select name="gameBoard" defaultValue={gameBoard}>
+                        {GAME_BOARDS.map((board) => (
+                            <option key={board} value={board}>
+                                {BOARD_LABELS[board]}
+                            </option>
+                        ))}
+                    </select>
+                </label>{' '}
+                <button type="submit">Change board</button>
+            </form>
+            <p>When the board is off, the game shows no sponsors. The footer is not affected.</p>
             {sponsors.length === 0 ? (
                 <p>No sponsors yet.</p>
             ) : (

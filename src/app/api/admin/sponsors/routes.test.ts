@@ -1,6 +1,6 @@
 import sharp from 'sharp';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { readBmpSize } from '@/lib/sponsors/bmp';
+import { BMP_HEADER_BYTES, readBmpInfo } from '@/lib/sponsors/bmp';
 
 const requireAdminApi = vi.fn();
 const createSponsor = vi.fn();
@@ -8,6 +8,7 @@ const updateSponsor = vi.fn();
 const moveSponsor = vi.fn();
 const deleteSponsor = vi.fn();
 const getSponsorLogo = vi.fn();
+const setGameBoard = vi.fn();
 
 vi.mock('@/lib/auth/options', () => ({ requireAdminApi: (...args: unknown[]) => requireAdminApi(...args) }));
 vi.mock('@/lib/db', () => ({ getPool: () => ({}) }));
@@ -18,7 +19,9 @@ vi.mock('@/lib/store/sponsors', () => ({
     deleteSponsor: (...args: unknown[]) => deleteSponsor(...args),
     getSponsorLogo: (...args: unknown[]) => getSponsorLogo(...args),
 }));
+vi.mock('@/lib/store/events', () => ({ setGameBoard: (...args: unknown[]) => setGameBoard(...args) }));
 
+import { POST as gameBoard } from '../events/[id]/game-board/route';
 import { POST as create } from '../events/[id]/sponsors/route';
 import { POST as remove } from './[id]/delete/route';
 import { GET as adminLogo } from './[id]/logo/route';
@@ -34,7 +37,7 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
-    for (const mock of [requireAdminApi, createSponsor, updateSponsor, moveSponsor, deleteSponsor, getSponsorLogo]) mock.mockReset();
+    for (const mock of [requireAdminApi, createSponsor, updateSponsor, moveSponsor, deleteSponsor, getSponsorLogo, setGameBoard]) mock.mockReset();
     requireAdminApi.mockResolvedValue({ githubId: '1' });
 });
 
@@ -55,13 +58,13 @@ async function upload(path: string, body: FormData): Promise<Request> {
     const encoded = new Response(body);
     return new Request(`https://bvt.example.test${path}`, { method: 'POST', body: await encoded.arrayBuffer(), headers: { 'content-type': encoded.headers.get('content-type')! } });
 }
-const fields = { name: 'Acme', link: 'https://acme.example.test', gameBackground: '#000000', enabled: 'on' };
+const fields = { name: 'Acme', link: 'https://acme.example.test', ownBackground: 'on', gameBackground: '#000000', enabled: 'on' };
 const stored = () => ({ bytes: logo, type: 'image/png', hash: 'f'.repeat(64), width: 300, height: 100, eventId: 3, enabled: true, eventActive: true });
 
 describe('POST /api/admin/events/{id}/sponsors', () => {
     const add = async (body: FormData) => create(await upload('/api/admin/events/3/sponsors', body), params('3'));
 
-    it('stores the logo and a 96 by 32 game logo, and goes back to the event', async () => {
+    it('stores the logo and a 96 by 32 game logo with alpha, and goes back to the event', async () => {
         createSponsor.mockResolvedValue({ ok: true, id: 9 });
         const res = await add(form(fields, { bytes: logo, type: 'image/png', name: 'acme.png' }));
         expect(res.status).toBe(303);
@@ -70,7 +73,16 @@ describe('POST /api/admin/events/{id}/sponsors', () => {
         expect(eventId).toBe(3);
         expect(input).toEqual({ name: 'Acme', link: 'https://acme.example.test/', enabled: true, gameBackground: '#000000' });
         expect(checked).toMatchObject({ type: 'image/png', width: 300, height: 100 });
-        expect(readBmpSize(gameLogo)).toEqual({ width: 96, height: 32 });
+        expect(readBmpInfo(gameLogo)).toEqual({ width: 96, height: 32, bitsPerPixel: 32 });
+    });
+
+    it('keeps the game logo transparent when the own background box is not checked', async () => {
+        createSponsor.mockResolvedValue({ ok: true, id: 9 });
+        await add(form({ ...fields, ownBackground: '' }, { bytes: logo, type: 'image/png', name: 'acme.png' }));
+        const [, , input, , gameLogo] = createSponsor.mock.calls[0];
+        expect(input).toMatchObject({ gameBackground: null });
+        // The uploaded logo is fully transparent.
+        expect(gameLogo[BMP_HEADER_BYTES + 3]).toBe(0);
     });
 
     it.each([
@@ -99,14 +111,14 @@ describe('POST /api/admin/sponsors/{id}', () => {
     it('keeps the stored logo without a new file, and makes the game logo again for the new background', async () => {
         getSponsorLogo.mockResolvedValue(stored());
         updateSponsor.mockResolvedValue(3);
-        const res = await save(form({ name: 'Acme', gameBackground: '#ff0000' }));
+        const res = await save(form({ name: 'Acme', ownBackground: 'on', gameBackground: '#ff0000' }));
         expect(res.headers.get('location')).toBe('/admin/events/3?sponsor=9#sponsors');
         const [, id, input, newLogo, gameLogo] = updateSponsor.mock.calls[0];
         expect(id).toBe(9);
         expect(input).toEqual({ name: 'Acme', link: null, enabled: false, gameBackground: '#ff0000' });
         expect(newLogo).toBeNull();
-        // The stored logo is transparent, so the game logo is all background.
-        expect(Array.from(gameLogo.slice(54, 57))).toEqual([0, 0, 255]);
+        // The stored logo is transparent, so the game logo is all background, opaque.
+        expect(Array.from(gameLogo.slice(BMP_HEADER_BYTES, BMP_HEADER_BYTES + 4))).toEqual([0, 0, 255, 255]);
     });
 
     it('replaces the logo with a new file', async () => {
@@ -116,7 +128,7 @@ describe('POST /api/admin/sponsors/{id}', () => {
         await save(form(fields, { bytes: square, type: 'image/jpeg', name: 'new.jpg' }));
         const [, , , newLogo, gameLogo] = updateSponsor.mock.calls[0];
         expect(newLogo).toMatchObject({ type: 'image/jpeg', width: 50, height: 50 });
-        expect(readBmpSize(gameLogo)).toEqual({ width: 32, height: 32 });
+        expect(readBmpInfo(gameLogo)).toEqual({ width: 32, height: 32, bitsPerPixel: 32 });
     });
 
     it('sends a bad form back to the event of the sponsor, and answers 404 for no sponsor', async () => {
@@ -146,6 +158,27 @@ describe('POST /api/admin/sponsors/{id}/move and /delete', () => {
         deleteSponsor.mockResolvedValueOnce(3).mockResolvedValueOnce(null);
         expect((await remove(post('/api/admin/sponsors/9/delete', new URLSearchParams()), params('9'))).headers.get('location')).toBe('/admin/events/3?sponsorDeleted=1#sponsors');
         expect((await remove(post('/api/admin/sponsors/9/delete', new URLSearchParams()), params('9'))).status).toBe(404);
+    });
+});
+
+describe('POST /api/admin/events/{id}/game-board', () => {
+    const save = (board: string, id = '3') => gameBoard(post(`/api/admin/events/${id}/game-board`, new URLSearchParams({ gameBoard: board })), params(id));
+
+    it.each(['off', 'led', 'printed', 'wood', 'slim', 'padded'])('stores %s and goes back to the sponsors', async (board) => {
+        setGameBoard.mockResolvedValue(true);
+        const res = await save(board);
+        expect(res.status).toBe(303);
+        expect(res.headers.get('location')).toBe('/admin/events/3?boardSaved=1#sponsors');
+        expect(setGameBoard).toHaveBeenCalledWith({}, 3, board);
+    });
+
+    it('answers 400 for another style and 404 for no event', async () => {
+        expect((await save('neon')).status).toBe(400);
+        expect((await gameBoard(post('/api/admin/events/3/game-board', new URLSearchParams()), params('3'))).status).toBe(400);
+        expect(setGameBoard).not.toHaveBeenCalled();
+        setGameBoard.mockResolvedValue(false);
+        expect((await save('led')).status).toBe(404);
+        expect((await save('led', 'x')).status).toBe(404);
     });
 });
 

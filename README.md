@@ -90,9 +90,13 @@ An admin can add or take Foza from a player with a reason on the event page.
 
 An admin manages the sponsors of an event on its page under `/admin/events`. A sponsor has a name of at most 60 characters, an optional http or https link, a logo, a place in the order and an on or off switch. Up and Down move a sponsor one place. The footer of every page and the game server API list the sponsors of the active event that are on, in this order. An event has at most 50 sponsors.
 
+Each event also has a style for the sponsor board in the game, picked in a list above the sponsors. The styles are `off`, `led` (dark LED with a metal frame), `printed` (white printed panels), `wood` (a wooden beach bar), `slim` (slim glossy LED) and `padded` (a padded rounded board). A new event starts with `off`. While the board is off the game server gets no sponsors and the game shows no board. The footer and the logo routes are not affected.
+
 A logo is a PNG, JPEG or WebP file of at most 1 MB and at most 2000 pixels wide and high. The site checks the first bytes of the file and decodes the whole image before it stores it. The type the browser sends is ignored. SVG is refused, since an SVG file can hold scripts. The site then writes the logo again in its own format and stores that in the database. This drops EXIF, GPS and other metadata, turns the image upright and converts its colours to sRGB.
 
-For the game the site makes a 24-bit BMP 32 pixels high and at most 160 wide, with the aspect ratio kept. A wider logo is centred on a band 32 pixels high. The game has no transparency, so transparent parts get the game background colour of the sponsor, white unless the admin picks another. A changed colour makes the BMP again from the stored logo.
+For the game the site makes a 32-bit BMP with alpha, 32 pixels high and at most 160 wide, with the aspect ratio kept. It has a `BITMAPV4HEADER` with `BI_BITFIELDS` and the masks red `0x00FF0000`, green `0x0000FF00`, blue `0x000000FF` and alpha `0xFF000000`, and the rows are stored from the bottom up. Transparent parts stay transparent, so the board in the game shows through. A wider logo is centred on a transparent band 32 pixels high. An admin can give a sponsor its own game background for a logo that needs a backing. The logo is then put on that colour and every pixel is opaque. A changed colour makes the BMP again from the stored logo. The board style does not change the BMP.
+
+Game logos stored before the alpha channel are 24-bit. The site makes each of them again from the stored logo the first time the game server asks for the sponsors after the update. Sponsors that had the old white default lose it and keep their transparency. Another colour stays as their own game background.
 
 `GET /api/sponsors/<id>/logo` is public and returns the logo of a sponsor that is on in the active event, with its own content type and `X-Content-Type-Options: nosniff`. The footer adds `?v=<hash>`, the SHA-256 of the logo, and that address may be cached for a year. Without it the browser checks the ETag each time.
 
@@ -163,13 +167,14 @@ Everything the server needs: the active event, every player of it with the join 
 
 ### GET /api/server/sponsors
 
-The sponsors of the active event that are on, in the order the admin set. Each logo is a 24-bit BMP, 32 pixels high and at most 160 wide, sent as base64.
+The sponsor board style of the active event and its sponsors that are on, in the order the admin set. Each logo is a 32-bit BMP with alpha, 32 pixels high and at most 160 wide, sent as base64.
 
     curl -H "Authorization: Bearer $GAME_SERVER_TOKEN" https://<site>/api/server/sponsors
 
 ```json
 {
   "eventId": 1,
+  "gameBoard": "led",
   "sponsorsVersion": "9c1e44b07a2d3f58",
   "sponsors": [
     {
@@ -179,17 +184,20 @@ The sponsors of the active event that are on, in the order the admin set. Each l
         "format": "bmp",
         "width": 96,
         "height": 32,
+        "bitsPerPixel": 32,
         "hash": "<SHA-256 of the BMP bytes, 64 hex characters>",
-        "data": "Qk02JAAAAAAAADYAAAAoAAAAYAAAACAAAAABABgAAAAAAAAk..."
+        "data": "Qk16MAAAAAAAAHoAAABsAAAAYAAAACAAAAABACAAAwAAAAAw..."
       }
     }
   ]
 }
 ```
 
-- `sponsorsVersion` changes whenever the list, a name or a logo changes. When it is the same as last time, nothing changed.
+- `gameBoard` is the style of the board: `off`, `led`, `printed`, `wood`, `slim` or `padded`. When it is `off` the list is empty and the game shows no board.
+- `sponsorsVersion` changes whenever the board style, the list, a name or a logo changes. When it is the same as last time, nothing changed.
+- `bitsPerPixel` is 32. Transparent pixels have an alpha of 0, and a sponsor with its own game background has an alpha of 255 everywhere.
 - `hash` is the SHA-256 of the BMP. The server can keep logos by hash and skip one it already has.
-- `eventId` is `null` and the list is empty when no event is active.
+- `eventId` is `null`, `gameBoard` is `off` and the list is empty when no event is active.
 
 ### POST /api/server/matches/{id}/connected
 

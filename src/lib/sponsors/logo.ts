@@ -1,6 +1,6 @@
-// Checks uploaded sponsor logos and makes the small BMP the game shows. sharp does the decoding.
+// Checks uploaded sponsor logos and makes the small BMP with alpha the game shows. sharp does the decoding.
 import sharp, { type Metadata } from 'sharp';
-import { encodeBmp24 } from './bmp';
+import { encodeBmp32 } from './bmp';
 
 export type LogoType = 'image/png' | 'image/jpeg' | 'image/webp';
 
@@ -88,21 +88,25 @@ async function reencode(bytes: Uint8Array, type: LogoType): Promise<Uint8Array> 
     return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
 }
 
+const CLEAR = { r: 0, g: 0, b: 0, alpha: 0 };
+
 /**
- * Makes the game logo: a 24-bit BMP GAME_LOGO_HEIGHT pixels high and at most GAME_LOGO_MAX_WIDTH
- * wide with the aspect ratio kept. Transparent parts get the background colour, #rrggbb. A logo
- * wider than the game allows is centred on a band of the background colour.
+ * Makes the game logo: a 32-bit BMP with alpha, GAME_LOGO_HEIGHT pixels high and at most
+ * GAME_LOGO_MAX_WIDTH wide with the aspect ratio kept. With no background the transparent parts
+ * stay transparent, so the board in the game shows through. With a background, #rrggbb, the logo
+ * is put on it and every pixel is opaque. A logo wider than the game allows is centred on a band
+ * of the background, or of transparent pixels.
  */
-export async function makeGameLogo(logo: CheckedLogo, background: string): Promise<Uint8Array> {
+export async function makeGameLogo(logo: CheckedLogo, background: string | null): Promise<Uint8Array> {
     const width = gameLogoWidth(logo.width, logo.height);
-    const { data, info } = await decoder(logo.bytes)
-        .autoOrient()
-        .flatten({ background })
-        .resize({ width, height: GAME_LOGO_HEIGHT, fit: 'contain', background })
+    let image = decoder(logo.bytes).autoOrient();
+    if (background !== null) image = image.flatten({ background });
+    const { data, info } = await image
+        .resize({ width, height: GAME_LOGO_HEIGHT, fit: 'contain', background: background ?? CLEAR })
         .toColourspace('srgb')
-        .removeAlpha()
+        .ensureAlpha(1)
         .raw()
         .toBuffer({ resolveWithObject: true });
-    if (info.channels !== 3 || info.width !== width || info.height !== GAME_LOGO_HEIGHT) throw new Error('The game logo came out in the wrong form');
-    return encodeBmp24(new Uint8Array(data.buffer, data.byteOffset, data.byteLength), info.width, info.height);
+    if (info.channels !== 4 || info.width !== width || info.height !== GAME_LOGO_HEIGHT) throw new Error('The game logo came out in the wrong form');
+    return encodeBmp32(new Uint8Array(data.buffer, data.byteOffset, data.byteLength), info.width, info.height);
 }
