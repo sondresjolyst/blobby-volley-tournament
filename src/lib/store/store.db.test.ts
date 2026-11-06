@@ -165,7 +165,7 @@ describe('schema', () => {
 describe('events', () => {
     it('creates, reads and edits an event', async () => {
         const id = await createEvent(pool, lan);
-        expect(await getEvent(pool, id)).toEqual({ id, ...lan, isActive: false, serverHost: null, serverPort: null });
+        expect(await getEvent(pool, id)).toEqual({ id, ...lan, isActive: false, serverHost: null, serverPort: null, gameBoard: 'off' });
         expect(await updateEvent(pool, id, { ...lan, name: 'LAN 2026 B', dailyFoza: 150, serverHost: 'lan-pc.local', serverPort: 1234 })).toBe(true);
         expect(await getEvent(pool, id)).toMatchObject({ name: 'LAN 2026 B', dailyFoza: 150, serverHost: 'lan-pc.local', serverPort: 1234 });
         expect(await updateEvent(pool, id, { ...lan, serverHost: null, serverPort: null })).toBe(true);

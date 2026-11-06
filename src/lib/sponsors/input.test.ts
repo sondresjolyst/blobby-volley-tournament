@@ -1,15 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { parseDirection, parseSponsorInput } from './input';
+import { GAME_BOARDS, parseDirection, parseGameBoard, parseSponsorInput } from './input';
 
-const form = (change: Record<string, unknown> = {}) => ({ name: ' Acme ', link: '', gameBackground: '#FFFFFF', enabled: 'on', ...change });
+const form = (change: Record<string, unknown> = {}) => ({ name: ' Acme ', link: '', ownBackground: 'on', gameBackground: '#FFFFFF', enabled: 'on', ...change });
 
 describe('parseSponsorInput', () => {
     it('reads a sponsor with no link', () => {
         expect(parseSponsorInput(form())).toEqual({ ok: true, value: { name: 'Acme', link: null, enabled: true, gameBackground: '#ffffff' } });
     });
 
-    it('reads an unchecked box as off and a missing colour as white', () => {
-        expect(parseSponsorInput(form({ enabled: undefined, gameBackground: undefined }))).toEqual({ ok: true, value: { name: 'Acme', link: null, enabled: false, gameBackground: '#ffffff' } });
+    it('reads an unchecked box as off and no own background as null', () => {
+        expect(parseSponsorInput(form({ enabled: undefined, ownBackground: undefined }))).toEqual({ ok: true, value: { name: 'Acme', link: null, enabled: false, gameBackground: null } });
+        expect(parseSponsorInput(form({ ownBackground: undefined, gameBackground: 'red' }))).toMatchObject({ ok: true, value: { gameBackground: null } });
     });
 
     it('keeps an http or https link in its normal form', () => {
@@ -27,7 +28,7 @@ describe('parseSponsorInput', () => {
         expect(parseSponsorInput(form({ name: 'a'.repeat(60) })).ok).toBe(true);
     });
 
-    it.each(['red', '#fff', '#12345g', 'ffffff'])('refuses the colour %s', (gameBackground) => {
+    it.each(['red', '#fff', '#12345g', 'ffffff', undefined])('refuses the colour %s', (gameBackground) => {
         expect(parseSponsorInput(form({ gameBackground }))).toEqual({ ok: false, error: 'sponsor-background' });
     });
 });
@@ -38,5 +39,15 @@ describe('parseDirection', () => {
         expect(parseDirection('down')).toBe('down');
         expect(parseDirection('left')).toBeNull();
         expect(parseDirection(undefined)).toBeNull();
+    });
+});
+
+describe('parseGameBoard', () => {
+    it('reads the known board styles only', () => {
+        for (const board of GAME_BOARDS) expect(parseGameBoard(board)).toBe(board);
+        expect(GAME_BOARDS).toEqual(['off', 'led', 'printed', 'wood', 'slim', 'padded']);
+        expect(parseGameBoard('LED')).toBeNull();
+        expect(parseGameBoard('toString')).toBeNull();
+        expect(parseGameBoard(undefined)).toBeNull();
     });
 });

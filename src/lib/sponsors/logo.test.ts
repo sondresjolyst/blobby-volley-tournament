@@ -1,6 +1,6 @@
 import sharp, { type Sharp } from 'sharp';
 import { describe, expect, it } from 'vitest';
-import { BMP_HEADER_BYTES, readBmpSize } from './bmp';
+import { BMP_HEADER_BYTES, readBmpInfo } from './bmp';
 import { checkLogo, gameLogoWidth, makeGameLogo, MAX_LOGO_BYTES, sniffLogoType, type CheckedLogo } from './logo';
 
 type Rgba = { r: number; g: number; b: number; alpha: number };
@@ -15,13 +15,17 @@ async function checked(data: Uint8Array): Promise<CheckedLogo> {
     return result.value;
 }
 
-/** The colour of a pixel of a BMP, counted from the top left, as [r, g, b]. */
+/** The colour of a pixel of a 32-bit BMP, counted from the top left, as [r, g, b, alpha]. */
 function pixel(bmp: Uint8Array, x: number, y: number): number[] {
-    const { width, height } = readBmpSize(bmp)!;
-    const stride = Math.ceil((width * 3) / 4) * 4;
-    const at = BMP_HEADER_BYTES + (height - 1 - y) * stride + x * 3;
-    return [bmp[at + 2], bmp[at + 1], bmp[at]];
+    const { width, height } = readBmpInfo(bmp)!;
+    const at = BMP_HEADER_BYTES + (height - 1 - y) * width * 4 + x * 4;
+    return [bmp[at + 2], bmp[at + 1], bmp[at], bmp[at + 3]];
 }
+
+const size = (bmp: Uint8Array) => {
+    const info = readBmpInfo(bmp);
+    return info && { width: info.width, height: info.height };
+};
 
 const SVG = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><script>alert(1)</script></svg>');
 
@@ -127,36 +131,50 @@ describe('gameLogoWidth', () => {
 });
 
 describe('makeGameLogo', () => {
-    it('makes a 24-bit BMP 32 pixels high with the aspect ratio kept', async () => {
-        const bmp = await makeGameLogo(await checked(await png(300, 100)), '#ffffff');
+    it('makes a 32-bit BMP with alpha 32 pixels high with the aspect ratio kept', async () => {
+        const bmp = await makeGameLogo(await checked(await png(300, 100)), null);
         expect(String.fromCharCode(bmp[0], bmp[1])).toBe('BM');
-        expect(readBmpSize(bmp)).toEqual({ width: 96, height: 32 });
-        expect(new DataView(bmp.buffer).getUint16(28, true)).toBe(24);
-        expect(bmp.length).toBe(BMP_HEADER_BYTES + 96 * 3 * 32);
-        expect(pixel(bmp, 50, 16)).toEqual([200, 0, 0]);
+        expect(readBmpInfo(bmp)).toEqual({ width: 96, height: 32, bitsPerPixel: 32 });
+        expect(bmp.length).toBe(BMP_HEADER_BYTES + 96 * 4 * 32);
+        expect(pixel(bmp, 50, 16)).toEqual([200, 0, 0, 255]);
     });
 
-    it('caps the width at 160 and centres a wide logo on the background colour', async () => {
-        const bmp = await makeGameLogo(await checked(await png(1000, 50)), '#00ff00');
-        expect(readBmpSize(bmp)).toEqual({ width: 160, height: 32 });
-        expect(pixel(bmp, 80, 0)).toEqual([0, 255, 0]);
-        expect(pixel(bmp, 80, 16)).toEqual([200, 0, 0]);
-        expect(pixel(bmp, 80, 31)).toEqual([0, 255, 0]);
-    });
-
-    it('puts transparent parts on the background colour, white or another', async () => {
+    it('keeps transparent parts transparent without a background', async () => {
         const clear = await checked(await png(64, 64, { r: 0, g: 0, b: 0, alpha: 0 }));
-        expect(pixel(await makeGameLogo(clear, '#ffffff'), 10, 10)).toEqual([255, 255, 255]);
-        expect(pixel(await makeGameLogo(clear, '#102030'), 10, 10)).toEqual([16, 32, 48]);
+        expect(pixel(await makeGameLogo(clear, null), 10, 10)[3]).toBe(0);
+        const half = await checked(await png(64, 64, { r: 0, g: 0, b: 255, alpha: 0.5 }));
+        const [, , blue, alpha] = pixel(await makeGameLogo(half, null), 10, 10);
+        expect(blue).toBe(255);
+        expect(alpha).toBeGreaterThan(120);
+        expect(alpha).toBeLessThan(136);
+    });
+
+    it('caps the width at 160 and centres a wide logo on a transparent band', async () => {
+        const bmp = await makeGameLogo(await checked(await png(1000, 50)), null);
+        expect(size(bmp)).toEqual({ width: 160, height: 32 });
+        expect(pixel(bmp, 80, 0)[3]).toBe(0);
+        expect(pixel(bmp, 80, 16)).toEqual([200, 0, 0, 255]);
+        expect(pixel(bmp, 80, 31)[3]).toBe(0);
+    });
+
+    it('puts the logo on an own background, opaque everywhere', async () => {
+        const clear = await checked(await png(64, 64, { r: 0, g: 0, b: 0, alpha: 0 }));
+        expect(pixel(await makeGameLogo(clear, '#ffffff'), 10, 10)).toEqual([255, 255, 255, 255]);
+        expect(pixel(await makeGameLogo(clear, '#102030'), 10, 10)).toEqual([16, 32, 48, 255]);
+        const wide = await makeGameLogo(await checked(await png(1000, 50)), '#00ff00');
+        expect(pixel(wide, 80, 0)).toEqual([0, 255, 0, 255]);
+        expect(pixel(wide, 80, 16)).toEqual([200, 0, 0, 255]);
     });
 
     it('scales a small logo up and handles grey and JPEG input', async () => {
         const grey = await bytes(image(8, 4).greyscale().png());
-        expect(readBmpSize(await makeGameLogo(await checked(grey), '#ffffff'))).toEqual({ width: 64, height: 32 });
-        expect(readBmpSize(await makeGameLogo(await checked(await bytes(image(40, 40).jpeg())), '#ffffff'))).toEqual({ width: 32, height: 32 });
+        expect(size(await makeGameLogo(await checked(grey), null))).toEqual({ width: 64, height: 32 });
+        const jpeg = await makeGameLogo(await checked(await bytes(image(40, 40).jpeg())), null);
+        expect(size(jpeg)).toEqual({ width: 32, height: 32 });
+        expect(pixel(jpeg, 10, 10)[3]).toBe(255);
     });
 
     it('never decodes SVG, even when the check is skipped', async () => {
-        await expect(makeGameLogo({ bytes: SVG, type: 'image/png', width: 10, height: 10 }, '#ffffff')).rejects.toThrow();
+        await expect(makeGameLogo({ bytes: SVG, type: 'image/png', width: 10, height: 10 }, null)).rejects.toThrow();
     });
 });

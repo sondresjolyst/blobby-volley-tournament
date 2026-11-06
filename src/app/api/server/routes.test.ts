@@ -10,6 +10,7 @@ const getLiveScore = vi.fn();
 const reportPlayersConnected = vi.fn();
 const reportServerGame = vi.fn();
 const listServerSponsors = vi.fn();
+const upgradeGameLogos = vi.fn();
 
 vi.mock('@/lib/db', () => ({ getPool: () => getPool() }));
 vi.mock('@/lib/store/game-server', () => ({
@@ -19,6 +20,7 @@ vi.mock('@/lib/store/game-server', () => ({
 }));
 vi.mock('@/lib/store/sponsors', () => ({
     listServerSponsors: (...args: unknown[]) => listServerSponsors(...args),
+    upgradeGameLogos: (...args: unknown[]) => upgradeGameLogos(...args),
 }));
 vi.mock('@/lib/store/matches', () => ({
     reportPlayersConnected: (...args: unknown[]) => reportPlayersConnected(...args),
@@ -31,7 +33,8 @@ import { POST as live } from './live/route';
 import { POST as connected } from './matches/[id]/connected/route';
 import { GET as sponsors } from './sponsors/route';
 import { GET as sync } from './sync/route';
-import { encodeBmp24 } from '@/lib/sponsors/bmp';
+import { encodeBmp32 } from '@/lib/sponsors/bmp';
+import { makeGameLogo } from '@/lib/sponsors/logo';
 
 // A placeholder, not a real token.
 const TOKEN = 'test-placeholder-token';
@@ -76,7 +79,7 @@ const liveBody = { matchId: 7, game: 2, points: [{ playerId: 12, points: 3 }, { 
 
 beforeEach(() => {
     vi.stubEnv('GAME_SERVER_TOKEN', TOKEN);
-    for (const mock of [getPool, getServerSync, updateLiveScore, getLiveScore, reportPlayersConnected, reportServerGame, listServerSponsors]) mock.mockClear();
+    for (const mock of [getPool, getServerSync, updateLiveScore, getLiveScore, reportPlayersConnected, reportServerGame, listServerSponsors, upgradeGameLogos]) mock.mockClear();
 });
 
 afterEach(() => {
@@ -128,11 +131,12 @@ describe('GET /api/server/sync', () => {
 });
 
 describe('GET /api/server/sponsors', () => {
-    const bmp = encodeBmp24(new Uint8Array(96 * 32 * 3).fill(255), 96, 32);
+    const bmp = encodeBmp32(new Uint8Array(96 * 32 * 4).fill(255), 96, 32);
 
     it('answers the sponsors in order with each game logo as base64 and its hash', async () => {
         listServerSponsors.mockResolvedValue({
             eventId: 1,
+            gameBoard: 'led',
             sponsors: [
                 { sponsorId: 4, name: 'Acme', gameLogo: bmp, gameLogoHash: 'a'.repeat(64) },
                 { sponsorId: 2, name: 'Beta', gameLogo: bmp, gameLogoHash: 'b'.repeat(64) },
@@ -144,18 +148,22 @@ describe('GET /api/server/sponsors', () => {
         const body = await res.json();
         expect(body).toEqual({
             eventId: 1,
+            gameBoard: 'led',
             sponsorsVersion: expect.stringMatching(/^[0-9a-f]{16}$/),
             sponsors: [
-                { sponsorId: 4, name: 'Acme', logo: { format: 'bmp', width: 96, height: 32, hash: 'a'.repeat(64), data: expect.any(String) } },
-                { sponsorId: 2, name: 'Beta', logo: { format: 'bmp', width: 96, height: 32, hash: 'b'.repeat(64), data: expect.any(String) } },
+                { sponsorId: 4, name: 'Acme', logo: { format: 'bmp', width: 96, height: 32, bitsPerPixel: 32, hash: 'a'.repeat(64), data: expect.any(String) } },
+                { sponsorId: 2, name: 'Beta', logo: { format: 'bmp', width: 96, height: 32, bitsPerPixel: 32, hash: 'b'.repeat(64), data: expect.any(String) } },
             ],
         });
         expect(new Uint8Array(Buffer.from(body.sponsors[0].logo.data, 'base64'))).toEqual(bmp);
         expect(listServerSponsors).toHaveBeenCalledWith({});
+        // Old 24-bit game logos are made again before the list is read.
+        expect(upgradeGameLogos).toHaveBeenCalledWith({}, makeGameLogo);
+        expect(upgradeGameLogos.mock.invocationCallOrder[0]).toBeLessThan(listServerSponsors.mock.invocationCallOrder[0]);
     });
 
     it('keeps the version while nothing changes and changes it with a logo', async () => {
-        const answer = (hash: string) => ({ eventId: 1, sponsors: [{ sponsorId: 4, name: 'Acme', gameLogo: bmp, gameLogoHash: hash }] });
+        const answer = (hash: string) => ({ eventId: 1, gameBoard: 'led', sponsors: [{ sponsorId: 4, name: 'Acme', gameLogo: bmp, gameLogoHash: hash }] });
         const version = async () => (await (await sponsors(request('sponsors'))).json()).sponsorsVersion;
         listServerSponsors.mockResolvedValue(answer('a'.repeat(64)));
         const first = await version();
@@ -164,9 +172,21 @@ describe('GET /api/server/sponsors', () => {
         expect(await version()).not.toBe(first);
     });
 
-    it('answers an empty list when no event is active', async () => {
-        listServerSponsors.mockResolvedValue({ eventId: null, sponsors: [] });
-        expect(await (await sponsors(request('sponsors'))).json()).toMatchObject({ eventId: null, sponsors: [] });
+    it('changes the version with the board style, even with no sponsors', async () => {
+        const version = async () => (await (await sponsors(request('sponsors'))).json()).sponsorsVersion;
+        const seen = new Set<string>();
+        for (const gameBoard of ['off', 'led', 'wood']) {
+            listServerSponsors.mockResolvedValue({ eventId: 1, gameBoard, sponsors: [] });
+            seen.add(await version());
+        }
+        expect(seen.size).toBe(3);
+    });
+
+    it('answers the board as off and an empty list when the board is off or no event is active', async () => {
+        listServerSponsors.mockResolvedValue({ eventId: 1, gameBoard: 'off', sponsors: [] });
+        expect(await (await sponsors(request('sponsors'))).json()).toMatchObject({ eventId: 1, gameBoard: 'off', sponsors: [] });
+        listServerSponsors.mockResolvedValue({ eventId: null, gameBoard: 'off', sponsors: [] });
+        expect(await (await sponsors(request('sponsors'))).json()).toMatchObject({ eventId: null, gameBoard: 'off', sponsors: [] });
     });
 });
 

@@ -1,9 +1,12 @@
 import type { Pool } from 'pg';
 import type { EventInput } from '@/lib/events/input';
+import type { GameBoard } from '@/lib/sponsors/input';
 
 export interface EventRow extends EventInput {
     id: number;
     isActive: boolean;
+    /** The style of the sponsor board in the game. Off shows no board. */
+    gameBoard: GameBoard;
 }
 
 interface EventRecord {
@@ -17,11 +20,12 @@ interface EventRecord {
     is_active: boolean;
     server_host: string | null;
     server_port: number | null;
+    game_board: GameBoard;
 }
 
 // Dates are read as text, so the time zone of the server cannot move them a day.
 const COLUMNS = `id, name, to_char(starts_on, 'YYYY-MM-DD') AS starts_on, to_char(ends_on, 'YYYY-MM-DD') AS ends_on,
-    code, starting_foza, daily_foza, is_active, server_host, server_port`;
+    code, starting_foza, daily_foza, is_active, server_host, server_port, game_board`;
 
 // Any number works, as long as only setActiveEvent uses it.
 const ACTIVE_LOCK_ID = 7_310_403;
@@ -38,6 +42,7 @@ function toEvent(row: EventRecord): EventRow {
         isActive: row.is_active,
         serverHost: row.server_host,
         serverPort: row.server_port,
+        gameBoard: row.game_board,
     };
 }
 
@@ -74,6 +79,12 @@ export async function updateEvent(pool: Pool, id: number, input: EventInput): Pr
          WHERE id = $1`,
         [id, input.name, input.startsOn, input.endsOn, input.code, input.startingFoza, input.dailyFoza, input.serverHost ?? null, input.serverPort ?? null],
     );
+    return rowCount === 1;
+}
+
+/** Sets the style of the sponsor board in the game. Returns false when the event does not exist. */
+export async function setGameBoard(pool: Pool, id: number, board: GameBoard): Promise<boolean> {
+    const { rowCount } = await pool.query('UPDATE events SET game_board = $2 WHERE id = $1', [id, board]);
     return rowCount === 1;
 }
 
