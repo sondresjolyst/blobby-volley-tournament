@@ -3,9 +3,12 @@
 Uses a small z-buffer rasteriser written with numpy, so the previews show
 correct hidden surfaces. Run after changing parameters in pizzakongen.py:
 
-    python render_previews.py
+    python render_previews.py                      # default palette navy_white
+    python render_previews.py --palette black_blob
+    python render_previews.py --palettes           # every alternate, to renders/palettes2/
 """
 
+import argparse
 import math
 import os
 
@@ -26,11 +29,41 @@ GREEN = (0.06, 0.30, 0.15)
 WHITE = (0.90, 0.90, 0.88)
 BED = (0.75, 0.76, 0.78)
 
-SCHEME = {"base": BLACK, "blob": BLUE, "crown_band": WHITE, "slices": WHITE,
-          "plaque": WHITE, "pin": WHITE}
-PRINT_COLOUR = {"blob": BLUE, "crown_band": WHITE, "slice": WHITE, "base": BLACK,
-                "plaque": WHITE, "pin": WHITE}
 GLOSS = {BLACK: 0.5, BLUE: 0.55, GREEN: 0.5, WHITE: 0.15}
+NAMES = {BLACK: "black", BLUE: "dark blue", GREEN: "dark green", WHITE: "white"}
+
+# Colour per part. "letters" is the raised text and frame on the plaque and
+# "toppings" the raised crust and pepperoni on the slices. Both are printed
+# after one filament change. Leave them out to print the part in one colour.
+PALETTES = {
+    "navy_white": dict(title="Navy blob and base, white crown, white plaque with navy letters",
+                       base=BLUE, blob=BLUE, crown_band=WHITE, slices=WHITE, plaque=WHITE,
+                       letters=BLUE, pin=WHITE),
+    "navy_mono": dict(title="All navy, white letters",
+                      base=BLUE, blob=BLUE, crown_band=BLUE, slices=BLUE, plaque=BLUE,
+                      letters=WHITE, pin=BLUE),
+    "black_blob": dict(title="Navy blob, black base, crown and plaque, white letters",
+                       base=BLACK, blob=BLUE, crown_band=BLACK, slices=BLACK, plaque=BLACK,
+                       letters=WHITE, pin=BLACK),
+    "white_base": dict(title="White base, navy blob, crown and plaque, white letters",
+                       base=WHITE, blob=BLUE, crown_band=BLUE, slices=BLUE, plaque=BLUE,
+                       letters=WHITE, pin=BLUE),
+    "green_white": dict(title="Green blob and base, white crown, white plaque with green letters",
+                        base=GREEN, blob=GREEN, crown_band=WHITE, slices=WHITE, plaque=WHITE,
+                        letters=GREEN, pin=WHITE),
+}
+DEFAULT_PALETTE = "navy_white"
+ALTERNATES = ["navy_white", "navy_mono", "black_blob", "white_base", "green_white"]
+
+
+def scheme_of(pal):
+    """Colour for every assembled piece, including the relief pieces."""
+    sc = {k: v for k, v in pal.items() if k != "title"}
+    sc.setdefault("letters", sc["plaque"])
+    sc.setdefault("toppings", sc["slices"])
+    sc["plaque_top"] = sc["letters"]
+    sc["slice_tops"] = sc["toppings"]
+    return sc
 
 
 def prep(m, color, gloss=0.6):
@@ -164,47 +197,201 @@ def bed_under(m, margin=8.0):
     return Manifold.cube([w, d, 0.8]).translate([b[0] - margin, b[1] - margin, -0.8])
 
 
-def main():
-    os.makedirs(OUT, exist_ok=True)
+SPLIT_GAP = 0.02   # mm, render only. Keeps the two colours of a part off one plane
+
+
+def split_scene(asm, info):
+    """Split the plaque and the slices into plate and relief for the renders.
+
+    The cut runs SPLIT_GAP above the plate top, so the relief mesh never
+    shares a face with the plate mesh. The STL parts are not touched.
+    """
+    asm = dict(asm)
+    if not P.STENCIL:
+        front = -P.BOX_W / 2 + P.PLAQUE_POCKET - P.PLAQUE_T
+        asm["plaque_top"], asm["plaque"] = asm["plaque"].split_by_plane(
+            [0, -1, 0], -front + SPLIT_GAP)
+    low, top = P.split_relief(P.make_slice(), P.relief_z("slice") + SPLIT_GAP)
+    zc = info["base"]["cheese_z"]
+    place = [P.slice_world_transform(info["g"], k).tolist() for k in range(P.NUM_SLICES)]
+    asm["slices"] = P.union(low.transform(t).translate([0, 0, zc]) for t in place)
+    asm["slice_tops"] = P.union(top.transform(t).translate([0, 0, zc]) for t in place)
+    return asm
+
+
+def scene(asm, scheme):
+    return [prep(m, scheme[name], GLOSS[scheme[name]])
+            for name, m in asm.items() if name != "pin"]
+
+
+PLAQUE_LIGHTS = [((-0.6, -0.5, 0.6), 1.0), ((0.4, -0.8, 0.2), 0.25)]
+
+
+def render_plaque(asm, scheme, path):
+    """Straight on close up of the plaque with a raking light from the upper left."""
+    crop = (P.mesh_arrays(asm["plaque"])[0], 5.0)
+    names = [n for n in ("base", "plaque", "plaque_top") if n in asm]
+    items = [prep(asm[n], scheme[n], GLOSS[scheme[n]]) for n in names]
+    render(items, path, az=0, el=12, size=(1400, 380), crop=crop, lights=PLAQUE_LIGHTS,
+           title=None)
+
+
+def palette_grams(parts, sc):
+    """Filament per colour in grams for one scheme, with every slice counted."""
+    count = {"slice": P.NUM_SLICES}
+    key = {"slice": ("slices", "toppings"), "plaque": ("plaque", "letters")}
+    grams = {}
+
+    def add(m, col, n):
+        r = P.check_part("x", m)
+        grams[NAMES[col]] = grams.get(NAMES[col], 0.0) + n * P.filament_grams(
+            r["volume_cm3"], r["area_cm2"])
+
+    for name, m in parts.items():
+        n = count.get(name, 1)
+        z = P.relief_z(name)
+        if z is not None and sc[key[name][0]] != sc[key[name][1]]:
+            low, top = P.split_relief(m, z)
+            add(low, sc[key[name][0]], n)
+            add(top, sc[key[name][1]], n)
+        else:
+            add(m, sc[key.get(name, (name,))[0]], n)
+    return grams
+
+
+def render_palettes():
+    """Angle view and plaque close up per palette, plus a labelled comparison."""
+    from PIL import Image, ImageDraw, ImageFont
+    out = os.path.join(OUT, "palettes2")
+    os.makedirs(out, exist_ok=True)
     parts, asm, info = P.build()
+    asm = split_scene(asm, info)
+    font = os.path.join(os.path.dirname(matplotlib.__file__), "mpl-data", "fonts", "ttf")
+    big = ImageFont.truetype(os.path.join(font, "DejaVuSans-Bold.ttf"), 30)
+    small = ImageFont.truetype(os.path.join(font, "DejaVuSans.ttf"), 22)
+    tiles = []
+    for name in ALTERNATES:
+        pal = PALETTES[name]
+        sc = scheme_of(pal)
+        angle = os.path.join(out, f"{name}_angle.png")
+        plaque = os.path.join(out, f"{name}_plaque.png")
+        render(scene(asm, sc), angle, az=35, el=24, size=(1000, 1000), title=pal["title"])
+        render_plaque(asm, sc, plaque)
+        grams = palette_grams(parts, sc)
+        print(name, ", ".join(f"{c} {g:.0f} g" for c, g in grams.items()))
+        tiles.append((name, pal, angle, plaque, grams))
 
-    def scene(scheme):
-        return [prep(m, scheme[name], GLOSS[scheme[name]])
-                for name, m in asm.items() if name != "pin"]
+    tw = 700
+    th_img, th_pl = tw, int(tw * 380 / 1400)
+    th_txt = 260
+    sheet = Image.new("RGB", (tw * len(tiles), th_img + th_pl + th_txt), (246, 247, 249))
+    draw = ImageDraw.Draw(sheet)
+    for i, (name, pal, angle, plaque, grams) in enumerate(tiles):
+        x = i * tw
+        a = Image.open(angle).convert("RGB")
+        # paint over the title of the single render, the label goes below
+        ImageDraw.Draw(a).rectangle((0, 0, a.width, 48), fill=a.getpixel((4, 50)))
+        a = a.resize((tw, tw), Image.LANCZOS)
+        sheet.paste(a, (x, 0))
+        sheet.paste(Image.open(plaque).convert("RGB").resize((tw, th_pl), Image.LANCZOS),
+                    (x, th_img))
+        y = th_img + th_pl + 16
+        draw.text((x + 22, y), f"{i + 1}. {name}", font=big, fill=(25, 25, 30))
+        y += 44
+        lines = [f"Blob: {NAMES[pal['blob']]}", f"Base: {NAMES[pal['base']]}",
+                 f"Crown band: {NAMES[pal['crown_band']]}, slices: {NAMES[pal['slices']]}"]
+        lines.append(f"Plaque: {NAMES[pal['plaque']]}, raised letters: {NAMES[pal['letters']]}")
+        fil = [f"{c} {g:.0f} g" for c, g in grams.items()]
+        lines.append("Filament: " + ", ".join(fil[:2]))
+        if fil[2:]:
+            lines.append("    " + ", ".join(fil[2:]))
+        for line in lines:
+            draw.text((x + 22, y), line, font=small, fill=(55, 55, 62))
+            y += 31
+        if i:
+            draw.line([(x, 0), (x, sheet.height)], fill=(200, 202, 208), width=2)
+    path = os.path.join(out, "compare.png")
+    sheet.save(path)
+    print("wrote", path)
 
-    items = scene(SCHEME)
+
+def crown_crop(asm):
+    v = np.vstack([P.mesh_arrays(asm[n])[0] for n in ("crown_band", "slices", "slice_tops")])
+    return v, 4.0
+
+
+def render_slice_options(asm, sc, path):
+    """Crown close ups side by side: plain slices, and toppings in the letter colour."""
+    from PIL import Image, ImageDraw
+    opts = [("Plain white slices, one colour", sc),
+            (f"Toppings and crust in {NAMES[sc['letters']]}, one switch",
+             dict(sc, slice_tops=sc["letters"]))]
+    tiles = []
+    for k, (label, s2) in enumerate(opts):
+        tmp = path.replace(".png", f"_{k}.png")
+        render(scene(asm, s2), tmp, az=20, el=14, size=(900, 700), crop=crown_crop(asm),
+               title=label)
+        tiles.append(Image.open(tmp).convert("RGB"))
+        os.remove(tmp)
+    sheet = Image.new("RGB", (sum(t.width for t in tiles), tiles[0].height), (255, 255, 255))
+    x = 0
+    for t in tiles:
+        sheet.paste(t, (x, 0))
+        x += t.width
+    ImageDraw.Draw(sheet).line([(tiles[0].width, 0), (tiles[0].width, sheet.height)],
+                               fill=(200, 202, 208), width=2)
+    sheet.save(path)
+    print("wrote", path)
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description="Render Pizzakongen previews")
+    ap.add_argument("--palette", default=DEFAULT_PALETTE, choices=list(PALETTES),
+                    help="colours for the assembled renders")
+    ap.add_argument("--palettes", action="store_true",
+                    help="render every alternate palette to renders/palettes2/ and stop")
+    a = ap.parse_args(argv)
+    if a.palettes:
+        render_palettes()
+        return
+    os.makedirs(OUT, exist_ok=True)
+    pal = PALETTES[a.palette]
+    parts, asm, info = P.build()
+    asm = split_scene(asm, info)
+    scheme = scheme_of(pal)
+
+    items = scene(asm, scheme)
     render(items, os.path.join(OUT, "assembled_front.png"), az=0, el=6,
-           title="Pizzakongen, front. Blue blob, black base, white crown and plaque")
+           title="Pizzakongen, front. " + pal["title"])
     render(items, os.path.join(OUT, "assembled_angle.png"), az=35, el=24,
            title="Pizzakongen, front left")
-    green = dict(SCHEME, slices=GREEN)
-    render(scene(green), os.path.join(OUT, "alt_green_slices.png"), az=35, el=24,
-           title="Alternative: dark green pizza slices")
+    render_slice_options(asm, scheme, os.path.join(OUT, "slice_options.png"))
 
-    # close ups of the plaque, straight on with a raking light from the upper left
-    crop = (P.mesh_arrays(asm["plaque"])[0], 5.0)
-    rake = [((-0.6, -0.5, 0.6), 1.0), ((0.4, -0.8, 0.2), 0.25)]
-    base_items = [prep(asm["base"], BLACK, GLOSS[BLACK])]
-    render(base_items + [prep(asm["plaque"], WHITE, GLOSS[WHITE])],
-           os.path.join(OUT, "plaque_closeup.png"), az=0, el=12, size=(1400, 380), crop=crop,
-           lights=rake, title=None)
+    render_plaque(asm, scheme, os.path.join(OUT, "plaque_closeup.png"))
     stencil = P.STENCIL
-    P.STENCIL = False
-    raised, _ = P.make_plaque()
+    P.STENCIL = True
+    _, asm_st, info_st = P.build()
+    asm_st = split_scene(asm_st, info_st)
     P.STENCIL = stencil
-    render(base_items + [prep(P.place_plaque(raised), WHITE, GLOSS[WHITE])],
-           os.path.join(OUT, "plaque_closeup_raised.png"), az=0, el=12, size=(1400, 380),
-           crop=crop, lights=rake, title=None)
+    render_plaque(asm_st, scheme, os.path.join(OUT, "plaque_closeup_stencil.png"))
 
     labels = {"blob": "Blob, upright, flat foot on the bed",
               "crown_band": "Crown band, upright",
               "slice": "Pizza slice (print 5), flat, back on the bed",
               "base": "Base, upright",
-              "plaque": "Plaque, flat, front facing up",
+              "plaque": "Plaque, flat, front facing up. Letters after the switch",
               "pin": "Pin, lying on its flat side"}
+    tops = {"plaque": "letters", "slice": "toppings"}
     for name, m in parts.items():
-        col = PRINT_COLOUR[name]
-        render([prep(m, col, GLOSS[col]), prep(bed_under(m), BED, 0.0)],
+        col = scheme["slices" if name == "slice" else name]
+        z = P.relief_z(name)
+        if z is not None and scheme[tops[name]] != col:
+            low, top = P.split_relief(m, z + SPLIT_GAP)
+            pieces = [prep(low, col, GLOSS[col]),
+                      prep(top, scheme[tops[name]], GLOSS[scheme[tops[name]]])]
+        else:
+            pieces = [prep(m, col, GLOSS[col])]
+        render(pieces + [prep(bed_under(m), BED, 0.0)],
                os.path.join(OUT, f"print_{name}.png"), az=30, el=32, size=(900, 900),
                title=labels[name])
 

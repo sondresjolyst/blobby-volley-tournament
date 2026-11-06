@@ -6,6 +6,7 @@ print the printability checks:
     python pizzakongen.py                    # all parts
     python pizzakongen.py --part plaque      # one part
     python pizzakongen.py --year 2027 --tolerance 0.4
+    python pizzakongen.py --stencil          # one colour stencil plaque
 
 Every value below can be changed here or from the command line.
 """
@@ -48,8 +49,9 @@ PLAQUE_T = 3.0                   # plate thickness without the text
 PLAQUE_POCKET = 1.6              # pocket depth in the box front
 PLAQUE_Z = 3.0                   # bottom of the plaque above the bed
 TEXT_RELIEF = 1.2                # raised text and frame height
-STENCIL = True                   # True cuts the text through the plaque, so the base shows
-                                 # through the letters. False gives raised text.
+STENCIL = False                  # False gives raised text and frame, printed in a second
+                                 # colour after one filament change. True cuts the text
+                                 # through the plaque, so the base shows through the letters.
 BRIDGE_W = 1.2                   # mm, stencil bridges that hold the inside of closed letters
 FONT_FILE = None                 # None uses matplotlib's bundled DejaVu Sans Bold
 
@@ -72,6 +74,7 @@ PIN_D = 10.0                     # D-shaped pin diameter
 PIN_FLAT = 2.5                   # distance from the centre to the flat side
 PIN_DEPTH = 10.0                 # depth into each part
 
+LAYER_H = 0.2                    # mm, layer height and first layer height in the slicer
 SEGMENTS = 160                   # facets on round parts
 BED = (256.0, 256.0, 256.0)      # Bambu Lab P1S
 
@@ -86,6 +89,12 @@ SPRITE_ROW_WIDTHS = [
 ]
 
 PARTS = ["blob", "crown_band", "slice", "base", "plaque", "pin"]
+
+# Default filament per part (palette navy_white). The plaque and the slices are
+# printed flat, so their raised relief can take a second colour after one
+# filament change at the height from relief_z().
+COLOURS = {"blob": "dark blue", "base": "dark blue", "crown_band": "white",
+           "slice": "white", "plaque": "white", "plaque_top": "dark blue", "pin": "white"}
 HERE = os.path.dirname(os.path.abspath(__file__))
 ADD = OpType.Add
 
@@ -566,6 +575,33 @@ def place_plaque(plaque):
     return pl.translate([0, -BOX_W / 2 + PLAQUE_POCKET - pb[4], PLAQUE_Z - pb[2]])
 
 
+def relief_z(name):
+    """Height in the print orientation where the raised relief of a flat part
+    starts, or None if the part has no relief that can take a second colour."""
+    if name == "plaque" and not STENCIL:
+        return PLAQUE_T
+    if name == "slice":
+        return SLICE_T
+    return None
+
+
+def switch_layer(z):
+    """Layer number, start Z and slider height for a filament change at height z.
+
+    Every layer, the first one included, is LAYER_H thick. Layer n is printed
+    from (n - 1) * LAYER_H to n * LAYER_H, so pause before layer n starts.
+    Bambu Studio shows each layer by its top height.
+    """
+    n = int(round(z / LAYER_H)) + 1
+    return n, (n - 1) * LAYER_H, n * LAYER_H
+
+
+def split_relief(m, z):
+    """Split a flat part at height z into (plate, relief)."""
+    top, low = m.split_by_plane([0, 0, 1], z)
+    return low, top
+
+
 def mesh_arrays(m):
     mesh = m.to_mesh()
     v = np.asarray(mesh.vert_properties)[:, :3].astype(float)
@@ -644,6 +680,12 @@ def run_checks(parts, asm, info):
         gaps = t.offset(0.4).offset(-0.4).area() / t.area() - 1
         print(f"  {label}: {bb[2] - bb[0]:.1f} x {bb[3] - bb[1]:.1f} mm. Area lost by a 0.8 mm "
               f"opening {thin * 100:.2f}%, area filled by a 0.8 mm closing {gaps * 100:.2f}%")
+    for name in ("plaque", "slice"):
+        z = relief_z(name)
+        if z is not None:
+            n, start, top = switch_layer(z)
+            print(f"{name} colour switch: pause at layer {n} (Z {start:.1f} mm), "
+                  f"Bambu Studio slider shows {top:.2f}")
     total = union(asm.values())
     bb = total.bounding_box()
     info["overall"] = (bb[3] - bb[0], bb[4] - bb[1], bb[5] - bb[2])
@@ -669,8 +711,8 @@ def main(argv=None):
     ap.add_argument("--height", type=float, default=OVERALL_HEIGHT)
     ap.add_argument("--tolerance", type=float, default=TOLERANCE)
     ap.add_argument("--part", default=PART, choices=["all"] + PARTS)
-    ap.add_argument("--raised-text", action="store_true",
-                    help="raised text on the plaque instead of stencil text cut through it")
+    ap.add_argument("--stencil", action="store_true",
+                    help="stencil text cut through the plaque instead of raised text")
     ap.add_argument("--out", default=os.path.join(HERE, "stl"))
     ap.add_argument("--from-sprite", help="print the row widths of a blobbym*.bmp and exit")
     a = ap.parse_args(argv)
@@ -679,7 +721,7 @@ def main(argv=None):
         return None
     YEAR, TEXT, OVERALL_HEIGHT, TOLERANCE, PART = a.year, a.text, a.height, a.tolerance, a.part
     global STENCIL
-    STENCIL = not a.raised_text
+    STENCIL = a.stencil
     if not 150 <= OVERALL_HEIGHT <= 200:
         raise SystemExit("OVERALL_HEIGHT must be between 150 and 200 mm")
 
