@@ -45,7 +45,7 @@ Form posts must come from the site itself. The browser must send `Sec-Fetch-Site
 
 An admin builds tournaments for the active event under `/admin/tournaments`. A tournament has a name, a format, 2 to 32 players from the event and a list of rounds. The formats are single elimination and double elimination. In double elimination a player who loses in the winners bracket drops to the losers bracket, and the two bracket champions meet once in a grand final.
 
-When the player count is not a power of two, the top seeds get byes and go straight to round two. Seeding is random by default. The admin can seed by hand or by Elo rating instead. Elo ratings come later, so for now every player counts as 1000. The random seed is shown on the form and stored with the tournament, and the same seed and players always give the same bracket.
+When the player count is not a power of two, the top seeds get byes and go straight to round two. Seeding is random by default. The admin can seed by hand or by Elo rating instead. Elo seeding puts the highest rating first and uses the ratings at the moment the tournament is saved. Equal ratings go in sign-up order. The random seed is shown on the form and stored with the tournament, and the same seed and players always give the same bracket.
 
 Each round has a best-of of 1, 3, 5 or 7 and a rule file, `default.lua` unless the admin names another. The tournament sets the points that win a game, 1 to 99 and 15 by default, and the game speed in frames per second, 30 to 120 and 75 by default. Every match of the tournament gets them. A 1v1 match has its own. Press Preview to see the bracket and Save tournament to store it. After a change to the players or the format, press Preview again before you save. Each stored match records the match its winner and its loser move on to.
 
@@ -85,6 +85,24 @@ The two GET routes answer 401 when nobody is signed in. A signed out bet post is
 - `GET /api/matches/<id>/pool` is public and returns the pool of a match and the payout multiplier for each player.
 
 An admin can add or take Foza from a player with a reason on the event page.
+
+## Leaderboards and stats
+
+`/leaderboard` shows the leaderboards of the active event, for the whole event or one tournament. `?event=<id>` shows a past event, which keeps its own numbers. There are three boards:
+
+- Foza ranks bettors by correct bets, then hit rate, then Foza won net. The balance does not count.
+- Sigra ranks players by matches won, then win rate, then games won minus games lost.
+- Elo ranks players by rating and shows the change during the event or the tournament.
+
+Below the boards the page lists every number: bets, correct bets, hit rate, Foza won and lost, biggest win and best odds hit for bettors, and matches, games, win rate, points scored and conceded and the longest win streak for players. `/leaderboard/players/<id>` shows one player with tournament places and head to head records.
+
+Only finished matches that were played out count for player stats and Elo. A no-show, a cancel or a reset match does not. Settled bets count for betting stats. A refunded bet does not. A returned stake, when nobody backed the winner, counts as a wrong bet. When a series score is set by hand, the points of the games it replaces no longer count.
+
+Nothing here is stored. Every number is worked out from the stored results, bets and places when a page is read, so a correction shows up at once. The logic is in `src/lib/stats` and the queries in `src/lib/store/stats.ts`.
+
+### Elo
+
+Every player starts at 1000. After each finished match, not each game, the winner gains `32 * (1 - E)` and the loser loses the same, where `E = 1 / (1 + 10^((loser - winner) / 400))` is the chance the winner had. Ratings are played through in order: events by start date, then matches by when they started. A corrected match keeps its start time, so it keeps its place, and every later rating follows. Ratings carry over between events. Each event has its own player rows, so a player is known across events by the nickname, ignoring case.
 
 ## Sponsors
 

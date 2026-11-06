@@ -13,6 +13,9 @@ export default function Home() {
                 <li>
                     <Link href="/me">My page</Link>
                 </li>
+                <li>
+                    <Link href="/leaderboard">Toppliste</Link>
+                </li>
             </ul>
         </main>
     );
