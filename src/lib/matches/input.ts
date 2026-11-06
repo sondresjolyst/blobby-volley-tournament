@@ -81,9 +81,12 @@ export function parseChallengeForm(form: Record<string, string>): ChallengeForm 
     return { opponentId, bestOf, scoreToWin, speed };
 }
 
-/** Reads the answer of the asked player: accept or decline. Null for anything else. */
-export function parseChallengeAnswer(form: Record<string, string>): 'accept' | 'decline' | null {
-    return form.answer === 'accept' || form.answer === 'decline' ? form.answer : null;
+export const CHALLENGE_ANSWERS = ['accept', 'decline', 'withdraw'] as const;
+export type ChallengeAnswer = (typeof CHALLENGE_ANSWERS)[number];
+
+/** Reads an answer to a 1v1 match: accept or decline from the asked player, withdraw from the asker. Null for anything else. */
+export function parseChallengeAnswer(form: Record<string, string>): ChallengeAnswer | null {
+    return (CHALLENGE_ANSWERS as readonly string[]).includes(form.answer) ? (form.answer as ChallengeAnswer) : null;
 }
 
 export const STATE_LABELS: Record<MatchState, string> = {

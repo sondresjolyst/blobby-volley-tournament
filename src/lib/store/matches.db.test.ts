@@ -26,6 +26,7 @@ import {
     resetMatch,
     restartCurrentGame,
     setSeriesScore,
+    withdrawChallenge,
     withMatchForBet,
 } from './matches';
 import { getTournament, saveTournament } from './tournaments';
@@ -519,6 +520,33 @@ describe('1v1 matches', () => {
         expect(await getMatch(pool, created.matchId)).toMatchObject({ state: 'cancelled', cancelReason: 'declined' });
         expect(await acceptChallenge(pool, created.matchId, players[1])).toEqual({ ok: false, error: 'state' });
         expect(await createChallenge(pool, players[1], players[0])).toMatchObject({ ok: true });
+    });
+
+    it('lets only the asker withdraw a 1v1 match, and only before it is accepted', async () => {
+        const { players } = await activeEvent(3);
+        const created = await createChallenge(pool, players[0], players[1]);
+        if (!created.ok) throw new Error(created.error);
+        expect(await withdrawChallenge(pool, created.matchId, players[1])).toEqual({ ok: false, error: 'not-allowed' });
+        expect(await withdrawChallenge(pool, created.matchId, players[2])).toEqual({ ok: false, error: 'not-allowed' });
+        handled.calls = [];
+        const cancelled = { type: 'cancelled', matchId: created.matchId, reason: 'withdrawn' };
+        expect(await withdrawChallenge(pool, created.matchId, players[0])).toMatchObject({ ok: true, events: [cancelled] });
+        expect(handled.calls).toEqual([[cancelled]]);
+        expect(await getMatch(pool, created.matchId)).toMatchObject({ state: 'cancelled', cancelReason: 'withdrawn' });
+        expect(await withdrawChallenge(pool, created.matchId, players[0])).toEqual({ ok: false, error: 'state' });
+        expect(await acceptChallenge(pool, created.matchId, players[1])).toEqual({ ok: false, error: 'state' });
+
+        // An accepted match can no longer be withdrawn, and a tournament match never.
+        const accepted = await createChallenge(pool, players[0], players[1]);
+        if (!accepted.ok) throw new Error(accepted.error);
+        await acceptChallenge(pool, accepted.matchId, players[1]);
+        expect(await withdrawChallenge(pool, accepted.matchId, players[0])).toEqual({ ok: false, error: 'state' });
+        expect(await withdrawChallenge(pool, 999999, players[0])).toEqual({ ok: false, error: 'not-found' });
+    });
+
+    it('refuses a withdraw of a tournament match', async () => {
+        const t = await tournament('single_elimination', 2);
+        expect(await withdrawChallenge(pool, t.ids[0], t.players[0])).toEqual({ ok: false, error: 'not-allowed' });
     });
 
     it('lets an admin cancel an accepted 1v1 match', async () => {

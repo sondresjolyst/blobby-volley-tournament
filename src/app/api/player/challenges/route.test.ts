@@ -4,6 +4,7 @@ const getActivePlayer = vi.fn();
 const createChallenge = vi.fn();
 const acceptChallenge = vi.fn();
 const declineChallenge = vi.fn();
+const withdrawChallenge = vi.fn();
 
 vi.mock('@/lib/players/current', () => ({ getActivePlayer: () => getActivePlayer() }));
 vi.mock('@/lib/db', () => ({ getPool: () => ({}) }));
@@ -11,6 +12,7 @@ vi.mock('@/lib/store/matches', () => ({
     createChallenge: (...args: unknown[]) => createChallenge(...args),
     acceptChallenge: (...args: unknown[]) => acceptChallenge(...args),
     declineChallenge: (...args: unknown[]) => declineChallenge(...args),
+    withdrawChallenge: (...args: unknown[]) => withdrawChallenge(...args),
 }));
 
 import { POST as answer } from './[id]/route';
@@ -22,7 +24,7 @@ const sameSite = { 'sec-fetch-site': 'same-origin' };
 const params = (id: string) => ({ params: Promise.resolve({ id }) });
 
 beforeEach(() => {
-    for (const fn of [getActivePlayer, createChallenge, acceptChallenge, declineChallenge]) fn.mockReset();
+    for (const fn of [getActivePlayer, createChallenge, acceptChallenge, declineChallenge, withdrawChallenge]) fn.mockReset();
 });
 
 describe('POST /api/player/challenges', () => {
@@ -85,6 +87,18 @@ describe('POST /api/player/challenges/[id]', () => {
         expect(declineChallenge).toHaveBeenCalledWith({}, 9, 5);
     });
 
+    it('withdraws as the signed in player and passes refusals on', async () => {
+        getActivePlayer.mockResolvedValue({ id: 5 });
+        withdrawChallenge.mockResolvedValueOnce({ ok: true, events: [] }).mockResolvedValueOnce({ ok: false, error: 'state' });
+        const withdrawn = await answer(post('/api/player/challenges/9', sameSite, { answer: 'withdraw' }), params('9'));
+        expect(withdrawn.headers.get('location')).toBe('/me?challenge=withdrawn#utfordringa');
+        expect(withdrawChallenge).toHaveBeenCalledWith({}, 9, 5);
+        const late = await answer(post('/api/player/challenges/9', sameSite, { answer: 'withdraw' }), params('9'));
+        expect(late.headers.get('location')).toBe('/me?challengeError=state#utfordringa');
+        expect(acceptChallenge).not.toHaveBeenCalled();
+        expect(declineChallenge).not.toHaveBeenCalled();
+    });
+
     it('refuses a bad id or answer without asking the store', async () => {
         getActivePlayer.mockResolvedValue({ id: 5 });
         for (const [id, form] of [
@@ -96,5 +110,6 @@ describe('POST /api/player/challenges/[id]', () => {
         }
         expect(acceptChallenge).not.toHaveBeenCalled();
         expect(declineChallenge).not.toHaveBeenCalled();
+        expect(withdrawChallenge).not.toHaveBeenCalled();
     });
 });

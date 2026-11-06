@@ -88,7 +88,7 @@ test('a player challenges another to a 1v1, the other accepts, and the called pl
     await asked.context.close();
 });
 
-test('the asked player declines a 1v1, and the pair can try again', async ({ browser }) => {
+test('the asked player declines a 1v1, the asker withdraws the next one, and the pair can try again', async ({ browser }) => {
     const tag = randomBytes(2).toString('hex');
     const asker = await signUp(browser, `Da${tag}`);
     const asked = await signUp(browser, `Db${tag}`);
@@ -107,6 +107,18 @@ test('the asked player declines a 1v1, and the pair can try again', async ({ bro
 
     await asker.page.goto('/me');
     await expect(asker.page.getByText(`Du venta på svar frå Db${tag}`)).toHaveCount(0);
+    await form.getByLabel('Motstandar').selectOption({ label: `Db${tag}` });
+    await form.getByRole('button', { name: 'Send utfordring' }).click();
+    await expect(asker.page.getByRole('status')).toHaveText('Utfordringå e sendt. No e det opp te motstandaren.');
+
+    // The asker takes the new request back before it is answered.
+    const outgoing = asker.page.getByRole('list', { name: 'Utfordringa frå deg' }).getByRole('listitem').filter({ hasText: `Du venta på svar frå Db${tag}` });
+    await outgoing.getByRole('button', { name: 'Trekk tilbake' }).click();
+    await expect(asker.page.getByRole('status')).toHaveText('Du trakk utfordringå tilbake.');
+    await expect(asker.page.getByText(`Du venta på svar frå Db${tag}`)).toHaveCount(0);
+    await asked.page.goto('/me');
+    await expect(asked.page.getByRole('listitem').filter({ hasText: `Da${tag} utfordre deg!` })).toHaveCount(0);
+
     await form.getByLabel('Motstandar').selectOption({ label: `Db${tag}` });
     await form.getByRole('button', { name: 'Send utfordring' }).click();
     await expect(asker.page.getByRole('status')).toHaveText('Utfordringå e sendt. No e det opp te motstandaren.');

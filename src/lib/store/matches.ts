@@ -21,7 +21,7 @@ export type MatchError =
     | 'player-busy'
     /** A 1v1 match that player 2 has not accepted yet. */
     | 'not-accepted'
-    /** Only player 2 of a 1v1 match may accept or decline it. */
+    /** Only player 2 of a 1v1 match may accept or decline it, and only player 1 may withdraw it. */
     | 'not-allowed'
     /** The game number is not a game of the match or the next one. */
     | 'game'
@@ -85,7 +85,7 @@ export interface MatchSummary {
     score2: number;
     winnerId: number | null;
     result: 'played' | 'forfeit' | null;
-    cancelReason: 'admin' | 'declined' | null;
+    cancelReason: 'admin' | 'declined' | 'withdrawn' | null;
 }
 
 export interface BracketRound {
@@ -132,7 +132,7 @@ interface MatchRow {
     game_base: number;
     winner_id: number | null;
     result: 'played' | 'forfeit' | null;
-    cancel_reason: 'admin' | 'declined' | null;
+    cancel_reason: 'admin' | 'declined' | 'withdrawn' | null;
     called_at: Date | null;
     started_at: Date | null;
     finished_at: Date | null;
@@ -776,6 +776,21 @@ export async function declineChallenge(pool: Pool, matchId: number, playerId: nu
         await requireOpenChallenge(tx, playerId);
         await tx.transition('cancel', { cancel_reason: 'declined' });
         tx.emit({ type: 'cancelled', matchId: tx.match.id, reason: 'declined' });
+        return {};
+    });
+}
+
+/**
+ * Player 1 takes back a 1v1 match that player 2 has not answered yet. It is cancelled. Bets open
+ * only once a 1v1 match is accepted, so none can exist here, but the cancel still goes to betting
+ * like any other.
+ */
+export async function withdrawChallenge(pool: Pool, matchId: number, playerId: number): Promise<MatchResult> {
+    return withMatch(pool, matchId, async (tx) => {
+        if (tx.match.tournament_id !== null || tx.match.player1_id !== playerId) throw new Refused('not-allowed');
+        if (tx.match.state !== 'upcoming' || tx.match.accepted_at !== null) throw new Refused('state');
+        await tx.transition('cancel', { cancel_reason: 'withdrawn' });
+        tx.emit({ type: 'cancelled', matchId: tx.match.id, reason: 'withdrawn' });
         return {};
     });
 }

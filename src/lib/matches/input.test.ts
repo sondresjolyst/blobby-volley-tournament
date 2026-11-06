@@ -56,9 +56,10 @@ describe('parseChallengeForm', () => {
 });
 
 describe('parseChallengeAnswer', () => {
-    it('reads accept and decline only', () => {
+    it('reads accept, decline and withdraw only', () => {
         expect(parseChallengeAnswer({ answer: 'accept' })).toBe('accept');
         expect(parseChallengeAnswer({ answer: 'decline' })).toBe('decline');
+        expect(parseChallengeAnswer({ answer: 'withdraw' })).toBe('withdraw');
         expect(parseChallengeAnswer({ answer: 'cancel' })).toBeNull();
         expect(parseChallengeAnswer({})).toBeNull();
     });

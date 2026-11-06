@@ -65,7 +65,7 @@ On the match page an admin can restart the current game, enter or correct a game
 
 The game server sends each game result with a report id that is unique across all matches, a UUID. It reads the next game number again before each game. A report that comes again changes nothing. A report for a game that already has a result, such as one an admin entered, is kept but ignored. See [Game server API](#game-server-api).
 
-A player can ask another player of the active event for a 1v1 match. It can be called once the other player accepts.
+A player can ask another player of the active event for a 1v1 match. It can be called once the other player accepts. The asker can withdraw it until then.
 
 Every match change is in `src/lib/store/matches.ts`. Each change runs in one transaction and passes what happened to `handleMatchEvents` in `src/lib/store/match-events.ts` before it commits. A bet must lock the match first with `withMatchForBet` in the same transaction.
 
@@ -76,10 +76,10 @@ The player pages are written in Norwegian, in the jokey Rogaland dialect of the 
 - `/me` shows the Foza balance, the matches still to play with their pools and bet forms, the player's bets and the 1v1 matches. The player's own matches are marked. When the player's match is called or started, the page shows the join link, as long as the event has a game server host and port.
 - `/bracket` shows the bracket of each tournament of the event, with the state and series score of every match. `?t=<id>` picks a tournament. The newest is shown by default.
 
-On `/me` a player asks another player of the event for a 1v1 match, with a best-of, the points that win a game and the game speed. They default to 1, 15 and 75 and follow the same limits as a tournament. The asked player accepts or declines on their own `/me`.
+On `/me` a player asks another player of the event for a 1v1 match, with a best-of, the points that win a game and the game speed. They default to 1, 15 and 75 and follow the same limits as a tournament. The asked player accepts or declines on their own `/me`. Until then the asker can take the request back with Trekk tilbake. No bets exist on a 1v1 match before it is accepted, so a withdraw refunds nothing.
 
 - `POST /api/player/challenges` asks for a 1v1 match from the form on `/me`.
-- `POST /api/player/challenges/<id>` accepts or declines one, with `answer` set to `accept` or `decline`.
+- `POST /api/player/challenges/<id>` answers one, with `answer` set to `accept` or `decline` by the asked player, or `withdraw` by the asker.
 
 Both send a signed out browser to `/login`.
 

@@ -209,6 +209,12 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                                 <li key={m.id} className={styles.challenge}>
                                     <strong>Du venta på svar frå {m.players[1]?.nickname}</strong>
                                     <span className={styles.meta}>{matchSettings(m)}</span>
+                                    <form method="post" action={`/api/player/challenges/${m.id}`}>
+                                        <input type="hidden" name="answer" value="withdraw" />
+                                        <button type="submit" className={styles.buttonQuiet}>
+                                            Trekk tilbake
+                                        </button>
+                                    </form>
                                 </li>
                             ))}
                         </ul>
