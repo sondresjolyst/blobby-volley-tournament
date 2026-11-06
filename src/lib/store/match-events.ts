@@ -1,4 +1,5 @@
 import type { PoolClient } from 'pg';
+import { refundBets, reverseSettlement, settleBets } from './bet-settlement';
 
 /**
  * What a match change did. Every change in src/lib/store/matches.ts passes its events to
@@ -31,6 +32,27 @@ export type MatchEvent =
  * hooks settlement and refunds in here. If it throws, the whole change is rolled back.
  */
 export async function handleMatchEvents(client: PoolClient, events: readonly MatchEvent[]): Promise<void> {
-    void client;
-    void events;
+    for (const event of events) {
+        switch (event.type) {
+            case 'started':
+                // The match lock already closed bets. Open bets wait for the result.
+                break;
+            case 'finished':
+                if (event.result === 'played') await settleBets(client, event.matchId, event.winnerId);
+                else await refundBets(client, event.matchId);
+                break;
+            case 'reopened':
+                await reverseSettlement(client, event.matchId);
+                break;
+            case 'cancelled':
+            case 'players-changed':
+                await refundBets(client, event.matchId);
+                break;
+            case 'reset':
+                if (event.previousResult === 'played') await reverseSettlement(client, event.matchId);
+                // After a forfeit nothing is open, so this does nothing.
+                await refundBets(client, event.matchId);
+                break;
+        }
+    }
 }

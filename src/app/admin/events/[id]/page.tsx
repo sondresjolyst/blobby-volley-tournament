@@ -1,13 +1,14 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { EventForm, eventErrorMessage } from '@/components/events/EventForm';
+import { adjustErrorMessage } from '@/lib/betting/input';
 import { requireAdmin } from '@/lib/auth/options';
 import { getPool } from '@/lib/db';
 import { parseId } from '@/lib/http';
 import { getEvent } from '@/lib/store/events';
 import { listPlayers } from '@/lib/store/players';
 
-type Search = { error?: string | string[]; saved?: string | string[]; reset?: string | string[] };
+type Search = { error?: string | string[]; saved?: string | string[]; reset?: string | string[]; adjusted?: string | string[] };
 
 export default async function EditEvent({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Search> }) {
     await requireAdmin();
@@ -18,9 +19,11 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
     if (!event) notFound();
     const players = await listPlayers(pool, id);
     const search = await searchParams;
-    const message = eventErrorMessage(search.error);
+    const message = eventErrorMessage(search.error) ?? adjustErrorMessage(search.error);
     const resetId = typeof search.reset === 'string' ? parseId(search.reset) : null;
     const resetPlayer = players.find((player) => player.id === resetId);
+    const adjustedId = typeof search.adjusted === 'string' ? parseId(search.adjusted) : null;
+    const adjustedPlayer = players.find((player) => player.id === adjustedId);
     const now = new Date();
     return (
         <main>
@@ -37,6 +40,11 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
             {message && <p role="alert">{message}</p>}
             {search.saved === '1' && <p role="status">Saved.</p>}
             {resetPlayer && <p role="status">The PIN for {resetPlayer.nickname} is reset.</p>}
+            {adjustedPlayer && (
+                <p role="status">
+                    The Foza of {adjustedPlayer.nickname} is now {adjustedPlayer.fozaBalance}.
+                </p>
+            )}
 
             <h2>Edit event</h2>
             <EventForm action={`/api/admin/events/${event.id}`} event={event} submitLabel="Save" />
@@ -52,6 +60,7 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
                             <th>Foza</th>
                             <th>Locked</th>
                             <th>Reset PIN</th>
+                            <th>Adjust Foza</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -68,6 +77,19 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
                                             <input name="pin" type="password" required inputMode="numeric" pattern="[0-9]{4}" minLength={4} maxLength={4} autoComplete="off" />
                                         </label>{' '}
                                         <button type="submit">Reset PIN</button>
+                                    </form>
+                                </td>
+                                <td>
+                                    <form method="post" action={`/api/admin/players/${player.id}/foza`}>
+                                        <input type="hidden" name="eventId" value={event.id} />
+                                        <label>
+                                            Foza change for {player.nickname}{' '}
+                                            <input name="amount" type="text" required inputMode="numeric" pattern="[+\-]?[1-9][0-9]{0,6}" autoComplete="off" />
+                                        </label>{' '}
+                                        <label>
+                                            Reason for {player.nickname} <input name="reason" type="text" required minLength={1} maxLength={200} autoComplete="off" />
+                                        </label>{' '}
+                                        <button type="submit">Adjust Foza</button>
                                     </form>
                                 </td>
                             </tr>

@@ -4,6 +4,7 @@ import { isLocked, lockDurationMs, MAX_WRONG_PINS } from '@/lib/players/lockout'
 import { DUMMY_PIN_HASH, hashPin, verifyPin, type PinHash } from '@/lib/players/pin';
 import { hashSessionToken, isSessionExpired, newSessionToken, sessionExpiresAt } from '@/lib/players/session';
 import { bumpAttempts, claimAttempts, releaseAttempt } from './attempts';
+import { addLedger } from './foza';
 
 const UNIQUE_VIOLATION = '23505';
 
@@ -68,15 +69,19 @@ export async function signUpPlayer(pool: Pool, input: SignUpInput, client: strin
     await releaseAttempt(pool, client, now);
     const pin = await hashPin(input.pin);
     try {
-        const { rows } = await pool.query<{ id: number }>(
-            `INSERT INTO players (event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance)
-             SELECT id, $2, $3, $4, $5, starting_foza FROM events WHERE id = $1 AND is_active AND code = $6
-             RETURNING id`,
-            [event.id, input.nickname, input.nicknameKey, pin.hash, pin.salt, event.code],
-        );
-        // The event was changed between the two queries.
-        if (!rows[0]) return { ok: false, error: 'code' };
-        return { ok: true, playerId: rows[0].id };
+        return await inTransaction(pool, async (tx) => {
+            const { rows } = await tx.query<{ id: number; starting_foza: number }>(
+                `INSERT INTO players (event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance)
+                 SELECT id, $2, $3, $4, $5, 0 FROM events WHERE id = $1 AND is_active AND code = $6
+                 RETURNING id, (SELECT starting_foza FROM events WHERE id = $1) AS starting_foza`,
+                [event.id, input.nickname, input.nicknameKey, pin.hash, pin.salt, event.code],
+            );
+            // The event was changed between the two queries.
+            if (!rows[0]) return { ok: false as const, error: 'code' as const };
+            // The starting Foza is the first ledger row. The ledger trigger adds it to the balance.
+            await addLedger(tx, [{ playerId: rows[0].id, type: 'starting', amount: rows[0].starting_foza }]);
+            return { ok: true as const, playerId: rows[0].id };
+        });
     } catch (error) {
         if ((error as { code?: unknown }).code === UNIQUE_VIOLATION) return { ok: false, error: 'taken' };
         throw error;
