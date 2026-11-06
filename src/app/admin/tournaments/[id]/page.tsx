@@ -5,6 +5,7 @@ import { requireAdmin } from '@/lib/auth/options';
 import { FORMATS } from '@/lib/bracket';
 import { getPool } from '@/lib/db';
 import { parseId } from '@/lib/http';
+import { getPlacings } from '@/lib/store/matches';
 import { getTournament } from '@/lib/store/tournaments';
 import { SEEDING_LABELS } from '@/lib/tournaments/input';
 import { describeBracket } from '@/lib/tournaments/view';
@@ -13,8 +14,10 @@ export default async function TournamentPage({ params, searchParams }: { params:
     await requireAdmin();
     const id = parseId((await params).id);
     if (id === null) notFound();
-    const tournament = await getTournament(getPool(), id);
+    const pool = getPool();
+    const tournament = await getTournament(pool, id);
     if (!tournament) notFound();
+    const placings = await getPlacings(pool, id);
     const { saved } = await searchParams;
     const nickname = new Map(tournament.players.map((p) => [p.playerId, p.nickname]));
     return (
@@ -36,6 +39,18 @@ export default async function TournamentPage({ params, searchParams }: { params:
                     <li key={p.playerId}>{p.nickname}</li>
                 ))}
             </ol>
+            <h2>Placings</h2>
+            {placings.length === 0 ? (
+                <p>No places decided yet.</p>
+            ) : (
+                <ul aria-label="Placings">
+                    {placings.map((p) => (
+                        <li key={p.playerId}>
+                            {p.place}. {nickname.get(p.playerId) ?? `Player ${p.playerId}`}
+                        </li>
+                    ))}
+                </ul>
+            )}
             <h2>Bracket</h2>
             <BracketView rounds={describeBracket(tournament.format, tournament.matches, (playerId) => nickname.get(playerId) ?? `Player ${playerId}`)} />
         </main>

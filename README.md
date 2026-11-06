@@ -53,6 +53,20 @@ In double elimination the losers of each winners round drop into the losers brac
 
 The bracket logic is in `src/lib/bracket`. It has no database access. A new format implements `BracketFormat` and is added to `FORMATS`.
 
+## Matches
+
+Each tournament match and each 1v1 match is a row in the `matches` table. A match is upcoming, called, started, finished or cancelled. People can bet on an upcoming or called match once both players are known. An admin calls one or several matches under `/admin/matches` when the players should join. A match starts when the game server reports both players connected, and bets close then.
+
+A match is best of 1, 3, 5 or 7. Each game is stored with its own result, and the series score is stored with the match. A game that ends without a winner, such as on a disconnect, is abandoned and does not count. The admin then restarts it from 0-0 or awards it.
+
+On the match page an admin can restart the current game, enter or correct a game result, set the series score by hand, record a no-show and cancel the match. A no-show gives the other player the win. When a series is decided, the winner and the loser move on to their next matches and the tournament places are updated. A correction works out the series and the bracket again. It is refused when it would move a player out of a later match that is already called, started or finished.
+
+The game server sends each game result with a unique report id. A report that comes again changes nothing. A report for a game that already has a result, such as one an admin entered, is kept but ignored.
+
+A player can ask another player of the active event for a 1v1 match. It can be called once the other player accepts. The pages for this come later.
+
+Every match change is in `src/lib/store/matches.ts`. Each change runs in one transaction and passes what happened to `handleMatchEvents` in `src/lib/store/match-events.ts` before it commits.
+
 ## Admin login
 
 Pages under `/admin` and routes under `/api/admin` need a GitHub login. All other pages are public. Set these in `.env.local`, see `.env.example`.
