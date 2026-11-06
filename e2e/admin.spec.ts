@@ -6,7 +6,7 @@ test('admin page redirects to sign-in without a session', async ({ page }) => {
     await expect(page.getByRole('button', { name: 'Sign in with GitHub' })).toBeVisible();
 });
 
-for (const path of ['/admin/events', '/admin/events/new', '/admin/events/1']) {
+for (const path of ['/admin/events', '/admin/events/new', '/admin/events/1', '/admin/tournaments', '/admin/tournaments/new', '/admin/tournaments/1']) {
     test(`${path} redirects to sign-in without a session`, async ({ page }) => {
         await page.goto(path);
         await expect(page).toHaveURL(/\/signin\?/);
@@ -15,10 +15,28 @@ for (const path of ['/admin/events', '/admin/events/new', '/admin/events/1']) {
     });
 }
 
-for (const path of ['/api/admin/events', '/api/admin/events/1', '/api/admin/events/1/activate', '/api/admin/events/deactivate', '/api/admin/players/1/pin']) {
+for (const path of ['/api/admin/events', '/api/admin/events/1', '/api/admin/events/1/activate', '/api/admin/events/deactivate', '/api/admin/players/1/pin', '/api/admin/tournaments']) {
     test(`POST ${path} answers 401 without a session`, async ({ request }) => {
         const res = await request.post(path, { form: { name: 'x' } });
         expect(res.status()).toBe(401);
+    });
+}
+
+for (const [path, heading] of [
+    ['/admin/tournaments', 'Tournaments'],
+    ['/admin/tournaments/new', 'New tournament'],
+]) {
+    test(`${path} needs a login and opens for an admin`, async ({ page, context, baseURL }) => {
+        await page.goto(path);
+        await expect(page).toHaveURL(/\/signin\?/);
+        await expect(page.getByRole('heading', { level: 1, name: heading })).toHaveCount(0);
+
+        await context.addCookies([
+            { name: '__Secure-next-auth.session-token', value: process.env.E2E_ADMIN_TOKEN ?? '', domain: new URL(baseURL!).hostname, path: '/', secure: true, httpOnly: true, sameSite: 'Lax' },
+        ]);
+        await page.goto(path);
+        await expect(page).toHaveURL(new RegExp(`${path}$`));
+        await expect(page.getByRole('heading', { level: 1, name: heading, exact: true })).toBeVisible();
     });
 }
 

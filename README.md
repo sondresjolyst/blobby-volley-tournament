@@ -39,6 +39,20 @@ Sign-in has these limits:
 
 Form posts must come from the site itself. The browser must send `Sec-Fetch-Site` as `same-origin` or `none`, or an `Origin` that matches `NEXTAUTH_URL`.
 
+## Tournaments
+
+An admin builds tournaments for the active event under `/admin/tournaments`. A tournament has a name, a format, 2 to 32 players from the event and a list of rounds. The formats are single elimination and double elimination. In double elimination a player who loses in the winners bracket drops to the losers bracket, and the two bracket champions meet once in a grand final.
+
+When the player count is not a power of two, the top seeds get byes and go straight to round two. Seeding is random by default. The admin can seed by hand or by Elo rating instead. Elo ratings come later, so for now every player counts as 1000. The random seed is shown on the form and stored with the tournament, and the same seed and players always give the same bracket.
+
+Each round has a best-of of 1, 3, 5 or 7 and a rule file, `default.lua` unless the admin names another. Press Preview to see the bracket and Save tournament to store it. After a change to the players or the format, press Preview again before you save. Each stored match records the match its winner and its loser move on to.
+
+Final places: 1st is the winner of the final and 2nd its loser. In double elimination 3rd is the loser of the losers final. There is no reset match. A single elimination tournament can have a third place match between the two semifinal losers, off by default. Without it both semifinal losers share 3rd.
+
+In double elimination the losers of each winners round drop into the losers bracket in an order that keeps rematches as late as possible. From 5 players on, two players who met in the winners bracket can still meet again in the last rounds of the losers bracket. No order avoids that.
+
+The bracket logic is in `src/lib/bracket`. It has no database access. A new format implements `BracketFormat` and is added to `FORMATS`.
+
 ## Admin login
 
 Pages under `/admin` and routes under `/api/admin` need a GitHub login. All other pages are public. Set these in `.env.local`, see `.env.example`.

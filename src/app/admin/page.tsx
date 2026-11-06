@@ -9,7 +9,7 @@ export default async function Admin() {
             <h1>Admin</h1>
             <p>Signed in as {session.user?.name ?? 'admin'}.</p>
             <p>
-                <Link href="/admin/events">Events</Link>
+                <Link href="/admin/events">Events</Link> | <Link href="/admin/tournaments">Tournaments</Link>
             </p>
             <SignOutButton />
         </main>
