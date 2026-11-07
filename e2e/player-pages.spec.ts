@@ -62,7 +62,8 @@ test('a player challenges another to a 1v1, the other accepts, and the called pl
     await expect(card).toContainText('Din kamp');
 
     // An admin calls the match, and only now does the join link show.
-    await expect(asker.page.getByRole('link', { name: 'Bli med i kampen' })).toHaveCount(0);
+    await expect(asker.page.getByRole('button', { name: 'Kopier lenkjå' })).toHaveCount(0);
+    await expect(asker.page.getByRole('link', { name: 'opne lenkjå direkte' })).toHaveCount(0);
     const admin = await adminContext(browser, baseURL!);
     const adminPage = await admin.newPage();
     await adminPage.goto('/admin/matches');
@@ -78,9 +79,29 @@ test('a player challenges another to a 1v1, the other accepts, and the called pl
         [asker, `Ua${tag}`, `Ub${tag}`],
         [asked, `Ub${tag}`, `Ua${tag}`],
     ] as const) {
+        const link = `blobby://join?server=e2e-server.lan:1234&code=${codeOf(own)}`;
+        await player.context.grantPermissions(['clipboard-read', 'clipboard-write']);
         await player.page.goto('/me');
-        await expect(player.page.getByRole('heading', { name: 'Kampen din e ropt opp!' })).toBeVisible();
-        await expect(player.page.getByRole('link', { name: 'Bli med i kampen' })).toHaveAttribute('href', `blobby://join?server=e2e-server.lan:1234&code=${codeOf(own)}`);
+        const hero = player.page.getByRole('region', { name: 'Kampen din e ropt opp!' });
+        await expect(hero.getByRole('heading', { name: 'Kampen din e ropt opp!' })).toBeVisible();
+        // The main button puts the exact link on the clipboard.
+        await player.page.evaluate(() => navigator.clipboard.writeText(''));
+        await expect(hero.getByText('Kopiert!')).toHaveCount(0);
+        await hero.getByRole('button', { name: 'Kopier lenkjå' }).click();
+        await expect(hero.getByText('Kopiert!')).toBeVisible();
+        expect(await player.page.evaluate(() => navigator.clipboard.readText())).toBe(link);
+        // The link still opens the game where the link type is registered.
+        await expect(hero.getByRole('link', { name: 'opne lenkjå direkte' })).toHaveAttribute('href', link);
+        await expect(hero.getByRole('list', { name: 'Sånn kjem du inn' }).getByRole('listitem')).toHaveText([
+            'Kopier lenkjå med knappen.',
+            'Opne Blobby Volley.',
+            'Trykk på "join link" øvst i hovudmenyen.',
+            'Svar Yes.',
+        ]);
+        // The server and the own code, for typing in by hand.
+        await expect(hero).toContainText('"online game" eller "lan game", så "direct connect"');
+        await expect(hero.getByRole('definition').filter({ hasText: 'e2e-server.lan:1234' })).toBeVisible();
+        await expect(hero.getByRole('definition').filter({ hasText: codeOf(own) })).toHaveText(codeOf(own));
         // A player never sees the code of the other player.
         expect(await player.page.content()).not.toContain(codeOf(other));
     }

@@ -29,7 +29,7 @@ An admin creates an event for each LAN under `/admin/events`, with a name, dates
 
 Players sign up at `/join` with the event code, a nickname and a 4 digit PIN, and sign in at `/login`. A nickname is at most 15 bytes in UTF-8, so æ, ø and å count as 2. Nicknames are unique per event, ignoring case. An event code is 8 to 32 characters. An admin can reset a player's PIN on the event page.
 
-An event can also have the host and port of the game server at the LAN. The site builds join links from them. Each player gets a secret join code at sign-up, 10 characters from `ABCDEFGHJKMNPQRSTUVWXYZ23456789`, so 0, O, 1, I and L are never used. Codes are drawn from a cryptographic random source and are unique per event. On the event page an admin can give a player a new code, which stops the old one at the next sync of the game server. The admin page does not show codes. A player sees their own code only in the join link, `blobby://join?server=<host>:<port>&code=<code>`.
+An event can also have the host and port of the game server at the LAN. The site builds join links from them. Each player gets a secret join code at sign-up, 10 characters from `ABCDEFGHJKMNPQRSTUVWXYZ23456789`, so 0, O, 1, I and L are never used. Codes are drawn from a cryptographic random source and are unique per event. On the event page an admin can give a player a new code, which stops the old one at the next sync of the game server. The admin page does not show codes. A player sees their own code only on their own `/me`, in the join link `blobby://join?server=<host>:<port>&code=<code>` and as text.
 
 Sign-in has these limits:
 
@@ -73,7 +73,7 @@ Every match change is in `src/lib/store/matches.ts`. Each change runs in one tra
 
 The player pages are written in Norwegian, in the jokey Rogaland dialect of the LAN. Both need a signed in player of the active event.
 
-- `/me` shows the Foza balance, the matches still to play with their pools and bet forms, the player's bets and the 1v1 matches. The player's own matches are marked. When the player's match is called or started, the page shows the join link, as long as the event has a game server host and port.
+- `/me` shows the Foza balance, the matches still to play with their pools and bet forms, the player's bets and the 1v1 matches. The player's own matches are marked. When the player's match is called or started, the page shows how to join, as long as the event has a game server host and port. The main button copies the join link. A short guide says to paste it with "join link" in the main menu of the game and answer Yes. The page also shows the server and the join code for typing in by hand, and the link can be opened directly where the link type is registered.
 - `/bracket` shows the bracket of each tournament of the event, with the state and series score of every match. `?t=<id>` picks a tournament. The newest is shown by default.
 
 On `/me` a player asks another player of the event for a 1v1 match, with a best-of, the points that win a game and the game speed. They default to 1, 15 and 75 and follow the same limits as a tournament. The asked player accepts or declines on their own `/me`. Until then the asker can take the request back with Trekk tilbake. No bets exist on a 1v1 match before it is accepted, so a withdraw refunds nothing.
@@ -196,6 +196,8 @@ Everything the server needs: the active event, every player of it with the join 
       "scoreToWin": 15,
       "speed": 75,
       "awaitingDecision": false,
+      "wins1": 0,
+      "wins2": 0,
       "players": [
         { "playerId": 12, "code": "K7QM2XPR4T" },
         { "playerId": 17, "code": "B9HNZ3WD6F" }
@@ -210,6 +212,7 @@ Everything the server needs: the active event, every player of it with the join 
 - `state` is `called` until both players connect, then `started`. A finished, cancelled or reset match leaves the list.
 - `nextGame` is the number the next game must be reported with. An admin restart or reset moves it on, so read it again before each game.
 - `awaitingDecision` is `true` when the last game was abandoned and the admin has not restarted or awarded it yet. The server should wait.
+- `wins1` and `wins2` are the games player 1 and player 2 have won in the series so far. They are the stored series score, so they include results an admin entered or corrected and a score set by hand. An abandoned game does not count. After a restart the server continues the series from them. The site decides when a series is over, and a decided match leaves the list.
 - `speed` is in frames per second. `scoreToWin` is the points that win one game.
 
 ### GET /api/server/sponsors
