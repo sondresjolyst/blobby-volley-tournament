@@ -480,6 +480,63 @@
     gap: 8px 10px;
 }
 
+/* A field whose label has an i button. The help text opens between the label and the input. */
+.main :global(.admin-field) {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-width: 100%;
+}
+
+.main :global(.admin-field-label) {
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    justify-items: start;
+    align-items: center;
+    gap: 6px 8px;
+}
+
+.main button:global(.admin-info) {
+    display: inline-grid;
+    place-items: center;
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    min-height: 32px;
+    padding: 0;
+    border: 2px solid var(--red);
+    border-radius: 50%;
+    background: var(--white);
+    color: var(--red);
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 16px;
+    font-style: italic;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.main button:global(.admin-info):hover,
+.main button:global(.admin-info)[aria-expanded='true'] {
+    background: var(--red);
+    color: var(--white);
+}
+
+.main :global(.admin-info-text) {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 60ch;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--chip);
+    font-size: 14px;
+}
+
+.main :global(.admin-info-text)[hidden] {
+    display: none;
+}
+
 /* Tables scroll inside their card, never the page. */
 .main :global(.admin-table) {
     width: 100%;

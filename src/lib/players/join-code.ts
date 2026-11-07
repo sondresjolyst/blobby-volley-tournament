@@ -1,7 +1,7 @@
 import { randomInt } from 'node:crypto';
+import { READABLE_ALPHABET } from '@/lib/readable';
 
-/** Upper case letters and digits without 0, O, 1, I and L, so a code is easy to read out. */
-export const JOIN_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+export const JOIN_CODE_ALPHABET = READABLE_ALPHABET;
 export const JOIN_CODE_LENGTH = 10;
 
 const JOIN_CODE = new RegExp(`^[${JOIN_CODE_ALPHABET}]{${JOIN_CODE_LENGTH}}$`);

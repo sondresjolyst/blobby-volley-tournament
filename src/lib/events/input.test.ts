@@ -16,6 +16,14 @@ describe('parseEventInput', () => {
         expect(parseEventInput({ ...form, serverHost: '192.168.1.20', serverPort: '65535' })).toMatchObject({ ok: true, value: { serverHost: '192.168.1.20', serverPort: 65535 } });
     });
 
+    it('uses port 1234 when the host is set and the port is empty', () => {
+        expect(parseEventInput({ ...form, serverHost: '192.168.1.50', serverPort: '' })).toMatchObject({ ok: true, value: { serverHost: '192.168.1.50', serverPort: 1234 } });
+    });
+
+    it('allows a host name that starts with http', () => {
+        expect(parseEventInput({ ...form, serverHost: 'http-server', serverPort: '1234' })).toMatchObject({ ok: true, value: { serverHost: 'http-server' } });
+    });
+
     it('allows an event on one day', () => {
         expect(parseEventInput({ ...form, endsOn: form.startsOn }).ok).toBe(true);
     });
@@ -33,7 +41,6 @@ describe('parseEventInput', () => {
         ['foza', { dailyFoza: '1.5' }],
         ['foza', { dailyFoza: '1000001' }],
         ['foza', { startingFoza: '' }],
-        ['server', { serverHost: 'lan-pc', serverPort: '' }],
         ['server', { serverHost: '', serverPort: '1234' }],
         ['server', { serverHost: 'lan-pc', serverPort: '0' }],
         ['server', { serverHost: 'lan-pc', serverPort: '65536' }],
@@ -42,6 +49,13 @@ describe('parseEventInput', () => {
         ['server', { serverHost: 'lan pc', serverPort: '1234' }],
         ['server', { serverHost: 'lan-pc&code=X', serverPort: '1234' }],
         ['server', { serverHost: '-lan', serverPort: '1234' }],
+        ['server-host', { serverHost: 'localhost', serverPort: '1234' }],
+        ['server-host', { serverHost: 'LocalHost', serverPort: '' }],
+        ['server-host', { serverHost: 'pc.localhost', serverPort: '1234' }],
+        ['server-host', { serverHost: '127.0.0.1', serverPort: '1234' }],
+        ['server-host', { serverHost: '0.0.0.0', serverPort: '1234' }],
+        ['server-host', { serverHost: 'http://192.168.1.50', serverPort: '1234' }],
+        ['server-host', { serverHost: 'HTTPS://lan.example.com/', serverPort: '' }],
     ])('rejects a bad %s', (error, change) => {
         expect(parseEventInput({ ...form, ...change })).toEqual({ ok: false, error });
     });
