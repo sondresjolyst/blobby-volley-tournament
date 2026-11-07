@@ -318,11 +318,75 @@
     font-size: 24px;
     text-decoration: none;
     box-shadow: 0 4px 0 #8a4b1e;
+    border: 0;
+    cursor: pointer;
 }
 
 .shell .joinButton:hover {
     color: var(--ink);
     background: #ffd35c;
+}
+
+.copyRow {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+}
+
+.copyStatus {
+    font-family: var(--display);
+    font-size: 20px;
+    color: var(--yellow);
+}
+
+.joinSteps {
+    position: relative;
+    margin: 0;
+    padding-left: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.shell .heroLink {
+    color: var(--yellow);
+}
+
+.shell .heroLink:hover {
+    color: var(--white);
+}
+
+.joinManual {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.joinFacts {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 24px;
+}
+
+.joinFacts dt {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--chip);
+}
+
+.joinFacts dd {
+    margin: 0;
+    font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+    font-size: 20px;
+    overflow-wrap: anywhere;
 }
 
 .heroNote {
