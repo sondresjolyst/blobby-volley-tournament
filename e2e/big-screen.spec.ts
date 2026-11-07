@@ -7,8 +7,30 @@ const auth = () => ({ authorization: `Bearer ${process.env.E2E_GAME_SERVER_TOKEN
 // Set BIG_SCREEN_SHOTS to a folder to add sponsors and save screenshots there. Run the spec on its own
 // then, since the sponsors show under every page.
 const shots = process.env.BIG_SCREEN_SHOTS;
-const key = process.env.E2E_BIG_SCREEN_KEY ?? '';
 const code = process.env.E2E_EVENT_CODE ?? '';
+
+// The last test makes a new big screen key, so the tests of this file run one after another.
+test.describe.configure({ mode: 'default' });
+
+async function adminContext(browser: Browser, baseURL: string | undefined) {
+    const admin = await browser.newContext({ baseURL });
+    await admin.addCookies([
+        { name: '__Secure-next-auth.session-token', value: process.env.E2E_ADMIN_TOKEN ?? '', domain: new URL(baseURL!).hostname, path: '/', secure: true, httpOnly: true, sameSite: 'Lax' },
+    ]);
+    return admin;
+}
+
+/** The big screen key of the active event, from the link on /admin. */
+async function currentKey(browser: Browser, baseURL: string | undefined): Promise<string> {
+    const admin = await adminContext(browser, baseURL);
+    const page = await admin.newPage();
+    await page.goto('/admin');
+    const href = (await page.getByRole('link', { name: 'Big screen' }).getAttribute('href'))!;
+    await admin.close();
+    const key = new URL(href, 'https://localhost').searchParams.get('key');
+    expect(key).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    return key!;
+}
 
 async function signUp(browser: Browser, nickname: string) {
     const context = await browser.newContext({ baseURL: process.env.E2E_BASE_URL });
@@ -46,10 +68,7 @@ test('the big screen shows the live score, the odds, the bracket and the sign-up
     for (const nickname of nicknames) await (await signUp(browser, nickname)).close();
     const bettors = [await signUp(browser, `Tipp${tag}`), await signUp(browser, `Topp${tag}`)];
 
-    const admin = await browser.newContext({ baseURL });
-    await admin.addCookies([
-        { name: '__Secure-next-auth.session-token', value: process.env.E2E_ADMIN_TOKEN ?? '', domain: new URL(baseURL!).hostname, path: '/', secure: true, httpOnly: true, sameSite: 'Lax' },
-    ]);
+    const admin = await adminContext(browser, baseURL);
     const adminPage = await admin.newPage();
     await adminPage.goto('/admin/tournaments/new');
     const name = `Pizzacupen ${tag}`;
@@ -114,6 +133,7 @@ test('the big screen shows the live score, the odds, the bracket and the sign-up
     }
     await admin.close();
 
+    const key = await currentKey(browser, baseURL);
     const screen = await browser.newContext({ baseURL: process.env.E2E_BASE_URL, viewport: { width: 1920, height: 1080 } });
     const page = await screen.newPage();
     await page.goto(`/big?t=${tournamentId}&key=${key}`);
@@ -168,10 +188,7 @@ test('a double elimination bracket of 16 players fits the screen', async ({ brow
     const tag = randomBytes(2).toString('hex');
     const nicknames = Array.from({ length: 16 }, (_, i) => `D${i + 1}${tag}`);
     for (const nickname of nicknames) await (await signUp(browser, nickname)).close();
-    const admin = await browser.newContext({ baseURL });
-    await admin.addCookies([
-        { name: '__Secure-next-auth.session-token', value: process.env.E2E_ADMIN_TOKEN ?? '', domain: new URL(baseURL!).hostname, path: '/', secure: true, httpOnly: true, sameSite: 'Lax' },
-    ]);
+    const admin = await adminContext(browser, baseURL);
     const adminPage = await admin.newPage();
     await adminPage.goto('/admin/tournaments/new');
     await adminPage.getByLabel('Name').fill(`Storcupen ${tag}`);
@@ -183,6 +200,7 @@ test('a double elimination bracket of 16 players fits the screen', async ({ brow
     const tournamentId = adminPage.url().match(/\/admin\/tournaments\/(\d+)/)![1];
     await admin.close();
 
+    const key = await currentKey(browser, baseURL);
     const screen = await browser.newContext({ baseURL: process.env.E2E_BASE_URL, viewport: { width: 1920, height: 1080 } });
     const page = await screen.newPage();
     await page.goto(`/big?t=${tournamentId}&key=${key}`);
@@ -196,8 +214,8 @@ test('a double elimination bracket of 16 players fits the screen', async ({ brow
     await screen.close();
 });
 
-test('the big screen shows the event code and the QR code only with the right key', async ({ browser }) => {
-    expect(key).not.toBe('');
+test('the big screen shows the event code and the QR code only with the right key', async ({ browser, baseURL }) => {
+    const key = await currentKey(browser, baseURL);
     const screen = await browser.newContext({ baseURL: process.env.E2E_BASE_URL, viewport: { width: 1920, height: 1080 } });
     const page = await screen.newPage();
     for (const address of ['/big', '/big?key=e2e-placeholder-wrong', '/big?key=']) {
@@ -239,5 +257,40 @@ test('the big screen shows the event code and the QR code only with the right ke
     await expect(signUpBox).toContainText(code);
     await expect(signUpBox.getByRole('img', { name: 'QR-kode te https://localhost/join' })).toBeVisible();
     await expectFits(page);
+    await screen.close();
+});
+
+test('an admin sees the big screen address and makes a new key, and the old address stops showing the join card', async ({ browser, baseURL }) => {
+    const old = await currentKey(browser, baseURL);
+    const admin = await adminContext(browser, baseURL);
+    const adminPage = await admin.newPage();
+    await adminPage.goto('/admin/events');
+    await adminPage.getByRole('row', { name: /E2E LAN/ }).getByRole('link').click();
+    const address = adminPage.getByLabel('Big screen address');
+    await expect(address).toHaveValue(`https://localhost/big?key=${old}`);
+
+    // The box must be checked first.
+    await adminPage.getByRole('button', { name: 'New key' }).click();
+    await expect(address).toHaveValue(`https://localhost/big?key=${old}`);
+    await adminPage.getByLabel('The old address stops showing the join card').check();
+    await adminPage.getByRole('button', { name: 'New key' }).click();
+    await expect(adminPage.getByRole('status')).toHaveText('The big screen has a new key. The old address stops showing the join card.');
+    const fresh = new URL(await address.inputValue()).searchParams.get('key')!;
+    expect(fresh).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(fresh).not.toBe(old);
+    await admin.close();
+    expect(await currentKey(browser, baseURL)).toBe(fresh);
+
+    const screen = await browser.newContext({ baseURL: process.env.E2E_BASE_URL, viewport: { width: 1920, height: 1080 } });
+    const page = await screen.newPage();
+    await page.goto(`/big?key=${old}`);
+    await expect(page.getByRole('region', { name: 'Toppliste' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Bli med' })).toHaveCount(0);
+    expect(await page.content()).not.toContain(code);
+    expect((await (await page.request.get(`/api/big?key=${old}`)).json()).eventCode).toBeNull();
+
+    await page.goto(`/big?key=${fresh}`);
+    await expect(page.getByRole('region', { name: 'Bli med' })).toContainText(code);
+    expect((await (await page.request.get(`/api/big?key=${fresh}`)).json()).eventCode).toBe(code);
     await screen.close();
 });
