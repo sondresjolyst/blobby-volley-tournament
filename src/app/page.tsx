@@ -191,7 +191,7 @@ export default async function Home() {
                         <li>
                             <Link href="/big" className={s.linkCard}>
                                 <span className={s.linkTitle}>Storskjermen</span>
-                                <span className={s.linkText}>Det som vises på TV-en i lokalet, med live-stilling.</span>
+                                <span className={s.linkText}>Live-stilling og kampoppsett.</span>
                             </Link>
                         </li>
                     </ul>
