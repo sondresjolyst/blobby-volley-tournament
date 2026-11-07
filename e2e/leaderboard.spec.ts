@@ -45,7 +45,10 @@ test('a finished match shows on the leaderboards and the player stats', async ({
     await page.goto('/leaderboard');
     await expect(page.getByRole('heading', { level: 1, name: 'Toppliste' })).toBeVisible();
     await page.getByRole('navigation', { name: 'Kor mykje av LANet' }).getByRole('link', { name }).click();
+    // Wait for the tournament page, so the board links below belong to it.
+    await expect(page).toHaveURL(/[?&]tournament=\d+/);
     await page.getByRole('navigation', { name: 'Toppliste for' }).getByRole('link', { name: 'Sigra' }).click();
+    await expect(page).toHaveURL(/[?&]board=sigra/);
     const board = page.getByRole('region', { name: 'Toppliste Sigra' }).getByRole('listitem');
     await expect(board.first()).toContainText(nicknames[1]);
     await expect(board.first()).toContainText('1 vunne · 0 tapt · 100%');
