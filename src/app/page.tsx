@@ -179,7 +179,7 @@ export default async function Home() {
                         <li>
                             <Link href="/bracket" className={s.linkCard}>
                                 <span className={s.linkTitle}>Kampoppsett</span>
-                                <span className={s.linkText}>Heile turneringa, runde for runde. Du må vera logga inn.</span>
+                                <span className={s.linkText}>Heile turneringa, runde for runde.</span>
                             </Link>
                         </li>
                         <li>
