@@ -1,21 +1,9 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { EdgePizzas, HeaderPizzas } from '@/components/pizza/Decor';
+import { Pizza } from '@/components/pizza/Pizza';
 import styles from './player.module.css';
 import { foza } from './text';
-
-/** A plain pizza with pepperoni. It is drawn here, so no outside artwork is used. */
-export function Pizza({ size, className }: { size: number; className?: string }) {
-    return (
-        <svg width={size} height={size} viewBox="0 0 96 96" aria-hidden="true" className={className}>
-            <circle cx="48" cy="48" r="44" fill="#F6C445" stroke="#8A4B1E" strokeWidth="6" />
-            <circle cx="34" cy="36" r="7" fill="#A82A1A" />
-            <circle cx="60" cy="32" r="6" fill="#A82A1A" />
-            <circle cx="58" cy="60" r="8" fill="#A82A1A" />
-            <circle cx="32" cy="62" r="5" fill="#A82A1A" />
-            <path d="M44 46 l4 -3 l3 4" stroke="#3E7A2F" strokeWidth="3" fill="none" />
-        </svg>
-    );
-}
 
 export type PlayerPage = 'matches' | 'bracket';
 
@@ -32,8 +20,9 @@ export function PlayerShell({ page, eventName, nickname, balance, children }: Sh
     const current = (p: PlayerPage) => (p === page ? ('page' as const) : undefined);
     return (
         <div className={styles.shell} lang="nn">
+            <EdgePizzas />
             <header className={styles.header}>
-                <Pizza size={140} className={styles.headerPizza} />
+                <HeaderPizzas />
                 <div className={styles.headerInner}>
                     <Link href="/me" className={styles.brand}>
                         <Pizza size={48} />

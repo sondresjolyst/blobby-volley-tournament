@@ -6,7 +6,7 @@ import { getPool } from '@/lib/db';
 import { listAwaitingDecision } from '@/lib/store/matches';
 
 export default async function Admin() {
-    const session = await requireAdmin();
+    await requireAdmin();
     const waiting = await listAwaitingDecision(getPool());
     return (
         <AdminShell section="home">
@@ -32,10 +32,10 @@ export default async function Admin() {
                                 <tbody>
                                     {waiting.map((match) => (
                                         <tr key={match.id}>
-                                            <td>{match.eventName}</td>
-                                            <td>{matchTitle(match)}</td>
-                                            <td>{matchPlayers(match)}</td>
-                                            <td>{stoppedGame(match, match.game)}</td>
+                                            <td data-label="Event">{match.eventName}</td>
+                                            <td data-label="Match">{matchTitle(match)}</td>
+                                            <td data-label="Players">{matchPlayers(match)}</td>
+                                            <td data-label="Stopped">{stoppedGame(match, match.game)}</td>
                                             <td>
                                                 <Link href={`/admin/matches/${match.id}`}>Open match {match.id}</Link>
                                             </td>
@@ -47,7 +47,6 @@ export default async function Admin() {
                     </>
                 )}
             </section>
-            <p>Signed in as {session.user?.name ?? 'admin'}.</p>
         </AdminShell>
     );
 }

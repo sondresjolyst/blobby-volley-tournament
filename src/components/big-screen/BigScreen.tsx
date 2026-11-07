@@ -2,7 +2,7 @@
 // The big screen for the TV in the room. It reads the scores again every few seconds without a
 // page load, and the leaderboards take turns on a timer.
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
-import { Pizza } from '@/components/player/PlayerShell';
+import { Pizza } from '@/components/pizza/Pizza';
 import { foza, payout } from '@/components/player/text';
 import { currentBoard, nextBoard, REFRESH_MS, ROTATION_MS } from '@/lib/big-screen/rotation';
 import { BOARD_ROWS, type BigScreenData, type BoardKey, type ScreenBracket, type ScreenMatch, type ScreenSponsor } from '@/lib/big-screen/view';

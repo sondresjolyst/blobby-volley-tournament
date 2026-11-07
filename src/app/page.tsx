@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { connection } from 'next/server';
-import { Pizza } from '@/components/player/PlayerShell';
+import { Pizza } from '@/components/pizza/Pizza';
 import p from '@/components/player/player.module.css';
 import { foza, matchSettings, matchTitle, payout } from '@/components/player/text';
 import { SiteShell } from '@/components/site/SiteShell';

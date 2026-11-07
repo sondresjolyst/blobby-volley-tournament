@@ -60,13 +60,19 @@
 }
 
 .brand {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 10px;
     padding: 0 10px 16px;
     font-family: var(--display);
     font-size: 26px;
     line-height: 1.1;
     color: var(--yellow);
     overflow-wrap: anywhere;
+}
+
+.brandPizza {
+    flex: none;
 }
 
 .links {
@@ -106,6 +112,13 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+}
+
+.who {
+    margin: 0;
+    font-size: 14px;
+    color: var(--chip);
+    overflow-wrap: anywhere;
 }
 
 .admin a.siteLink {
@@ -186,6 +199,25 @@
 
 .main a:hover {
     color: #7e1f12;
+}
+
+/* A link that starts something, such as New event, looks like the main button. */
+.main a:global(.admin-button) {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 16px;
+    border-radius: 12px;
+    background: var(--red);
+    color: var(--white);
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.main a:global(.admin-button):hover {
+    background: var(--red-dark);
+    color: var(--white);
 }
 
 .main section {
@@ -384,6 +416,43 @@
     padding-left: 1.5em;
 }
 
+/* A numbered guide, with room between the steps and their commands. */
+.main :global(.admin-steps) {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    max-width: 75ch;
+}
+
+.main :global(.admin-steps) li::marker {
+    font-weight: 700;
+    color: var(--red-dark);
+}
+
+.main :global(.admin-steps) p,
+.main :global(.admin-steps) ul {
+    margin-top: 8px;
+}
+
+/* The copy buttons of the guide are quiet, like the buttons in tables. */
+.main :global(.admin-steps) button {
+    border: 2px solid var(--line);
+    background: var(--white);
+    color: var(--ink);
+}
+
+.main :global(.admin-steps) button:hover {
+    border-color: var(--red);
+    background: var(--white);
+}
+
+.main :global(.admin-steps) p:has(code) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 10px;
+}
+
 /* Tables scroll inside their card, never the page. */
 .main :global(.admin-table) {
     width: 100%;
@@ -422,6 +491,66 @@
 
 .main td form {
     flex-wrap: nowrap;
+}
+
+/* On phones each table row is a card. A cell with data-label shows as "Label: value". A cell without
+   one holds actions, which fill the width of the card. Empty cells are left out. */
+@media (max-width: 640px) {
+    .main :global(.admin-table) {
+        overflow: visible;
+        background: none;
+        border: 0;
+        border-radius: 0;
+    }
+
+    .main :global(.admin-table) :is(table, tbody, tr, td) {
+        display: block;
+    }
+
+    .main :global(.admin-table) thead {
+        display: none;
+    }
+
+    .main :global(.admin-table) tbody tr {
+        margin-bottom: 12px;
+        padding: 14px 16px;
+        border: 2px solid var(--line);
+        border-radius: 16px;
+        background: var(--white);
+    }
+
+    .main :global(.admin-table) td {
+        padding: 3px 0;
+    }
+
+    .main :global(.admin-table) td:empty {
+        display: none;
+    }
+
+    .main :global(.admin-table) td[data-label]::before {
+        content: attr(data-label) ': ';
+        font-weight: 700;
+    }
+
+    .main :global(.admin-table) td:not([data-label]) {
+        padding-top: 10px;
+    }
+
+    .main :global(.admin-table) td form {
+        flex-direction: column;
+        flex-wrap: nowrap;
+        align-items: stretch;
+    }
+
+    .main :global(.admin-table) td label {
+        display: flex;
+    }
+
+    .main :global(.admin-table) td:not([data-label]) button,
+    .main :global(.admin-table) td input:not([type='checkbox'], [type='radio'], [type='hidden']),
+    .main :global(.admin-table) td select {
+        width: 100%;
+    }
 }
 
 @media (max-width: 760px) {

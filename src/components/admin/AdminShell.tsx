@@ -1,6 +1,9 @@
+import { getServerSession } from 'next-auth';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { SignOutButton } from '@/components/auth/SignOutButton';
+import { Pizza } from '@/components/pizza/Pizza';
+import { authOptions } from '@/lib/auth/options';
 import { bigScreenHref } from '@/lib/big-screen/key';
 import { getPool } from '@/lib/db';
 import { getActiveBigScreenKey, getActiveEvent } from '@/lib/store/events';
@@ -22,11 +25,14 @@ const LINKS: { section: AdminSection; href: string; label: string }[] = [
  */
 export async function AdminShell({ section, children }: { section: AdminSection; children: ReactNode }) {
     const pool = getPool();
-    const [event, key] = await Promise.all([getActiveEvent(pool), getActiveBigScreenKey(pool)]);
+    const [event, key, session] = await Promise.all([getActiveEvent(pool), getActiveBigScreenKey(pool), getServerSession(authOptions)]);
     return (
         <div className={styles.admin} lang="en">
             <nav aria-label="Admin" className={styles.side}>
-                <span className={styles.brand}>{event ? `${event.name} admin` : 'Blobby admin'}</span>
+                <span className={styles.brand}>
+                    <Pizza size={32} className={styles.brandPizza} />
+                    {event ? `${event.name} admin` : 'Blobby admin'}
+                </span>
                 <ul className={styles.links}>
                     {LINKS.map((link) => (
                         <li key={link.section}>
@@ -43,6 +49,7 @@ export async function AdminShell({ section, children }: { section: AdminSection;
                     </li>
                 </ul>
                 <div className={styles.sideFoot}>
+                    <p className={styles.who}>Signed in as {session?.user?.name ?? 'admin'}</p>
                     <Link href="/" className={styles.siteLink}>
                         To the site
                     </Link>

@@ -91,12 +91,12 @@ export default async function AdminMatch({ params, searchParams }: { params: Pro
                         <tbody>
                             {match.games.map((g) => (
                                 <tr key={g.number}>
-                                    <td>{g.number}</td>
-                                    <td>{g.winnerSlot !== null ? `${name(g.winnerSlot)} won` : g.leftSlot !== null ? `Abandoned, ${name(g.leftSlot)} left` : 'Abandoned'}</td>
-                                    <td>
+                                    <td data-label="Game">{g.number}</td>
+                                    <td data-label="Result">{g.winnerSlot !== null ? `${name(g.winnerSlot)} won` : g.leftSlot !== null ? `Abandoned, ${name(g.leftSlot)} left` : 'Abandoned'}</td>
+                                    <td data-label="Points">
                                         {g.points1}-{g.points2}
                                     </td>
-                                    <td>{g.source === 'admin' ? 'Admin' : 'Game server'}</td>
+                                    <td data-label="Entered by">{g.source === 'admin' ? 'Admin' : 'Game server'}</td>
                                 </tr>
                             ))}
                         </tbody>

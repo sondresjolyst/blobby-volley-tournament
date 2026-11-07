@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { Pizza } from '@/components/player/PlayerShell';
+import { EdgePizzas, HeaderPizzas } from '@/components/pizza/Decor';
+import { Pizza } from '@/components/pizza/Pizza';
 import p from '@/components/player/player.module.css';
 import { foza } from '@/components/player/text';
 import s from './site.module.css';
@@ -26,8 +27,9 @@ export function AdminLink() {
 export function SiteShell({ eventName, player, children }: ShellProps) {
     return (
         <div className={`${p.shell} ${s.site}`}>
+            <EdgePizzas />
             <header className={p.header}>
-                <Pizza size={140} className={p.headerPizza} />
+                <HeaderPizzas />
                 <div className={p.headerInner}>
                     <Link href="/" className={p.brand}>
                         <Pizza size={48} />

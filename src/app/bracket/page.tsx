@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { BracketBoard } from '@/components/player/BracketBoard';
-import { Pizza, PlayerShell } from '@/components/player/PlayerShell';
+import { Pizza } from '@/components/pizza/Pizza';
+import { PlayerShell } from '@/components/player/PlayerShell';
 import styles from '@/components/player/player.module.css';
 import type { FormatId, SeedingMethod } from '@/lib/bracket';
 import { getPool } from '@/lib/db';
@@ -46,7 +47,7 @@ export default async function BracketPage({ searchParams }: { searchParams: Prom
         <PlayerShell {...shell}>
             <div className={styles.wide}>
                 <div className={styles.banner}>
-                    <Pizza size={140} className={styles.bannerPizza} />
+                    <Pizza size={140} variant="taco" className={styles.bannerPizza} />
                     <div className={styles.bannerText}>
                         <h1 className={styles.h1}>{chosen.name}</h1>
                         {tournament && (

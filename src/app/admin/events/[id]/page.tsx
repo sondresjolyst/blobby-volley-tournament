@@ -90,9 +90,9 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
                         <tbody>
                             {players.map((player) => (
                                 <tr key={player.id}>
-                                    <td>{player.nickname}</td>
-                                    <td>{player.fozaBalance}</td>
-                                    <td>{player.lockedUntil && player.lockedUntil > now ? `Until ${player.lockedUntil.toISOString()}` : ''}</td>
+                                    <td data-label="Nickname">{player.nickname}</td>
+                                    <td data-label="Foza">{player.fozaBalance}</td>
+                                    <td data-label="Locked">{player.lockedUntil && player.lockedUntil > now ? `Until ${player.lockedUntil.toISOString()}` : ''}</td>
                                     <td>
                                         <form method="post" action={`/api/admin/players/${player.id}/pin`}>
                                             <input type="hidden" name="eventId" value={event.id} />

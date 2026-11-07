@@ -1,0 +1,150 @@
+/* Decorative pizzas. They never take clicks and sit behind the content. */
+
+.pizza {
+    position: absolute;
+    pointer-events: none;
+}
+
+/* The header. Multiply only darkens the red under the pizzas, so white text keeps its contrast. */
+
+.header {
+    /* Where the content of the header starts and ends, so the pizzas stay clear of the menu. */
+    --inset: max(32px, calc((100vw - 1280px) / 2 + 32px));
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    mix-blend-mode: multiply;
+}
+
+/* Behind the logo at the left edge. */
+.headerA {
+    left: calc(var(--inset) - 150px);
+    top: -110px;
+    transform: rotate(18deg);
+}
+
+/* In the gap between the name and the menu, on wide screens only. */
+.headerB {
+    display: none;
+    left: calc(var(--inset) + 260px);
+    top: -44px;
+    transform: rotate(-12deg);
+}
+
+@media (min-width: 1300px) {
+    .headerB {
+        display: block;
+    }
+}
+
+/* In the margin right of the menu. */
+.headerC {
+    right: calc(var(--inset) - 8px - 220px);
+    top: -90px;
+    transform: rotate(8deg);
+}
+
+/* The page edges. The layer sits under the content of the shell, which isolates it. */
+
+.edges,
+.auth {
+    --peek: min(100px, calc((100vw - 1280px) / 2 + 8px));
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+/* Cream pages only get the pizzas where the margin beside the content is wide enough. */
+.edges {
+    display: none;
+    opacity: 0.6;
+}
+
+@media (min-width: 1360px) {
+    .edges {
+        display: block;
+    }
+}
+
+.edgeA {
+    left: calc(var(--peek) - 220px);
+    top: 300px;
+    transform: rotate(20deg);
+}
+
+.edgeB {
+    right: calc(var(--peek) - 170px);
+    top: 560px;
+    transform: rotate(-15deg);
+}
+
+.edgeC {
+    left: calc(var(--peek) - 250px);
+    top: 1020px;
+    transform: rotate(-8deg);
+}
+
+.edgeD {
+    right: calc(var(--peek) - 190px);
+    top: 1280px;
+    transform: rotate(28deg);
+}
+
+/* The red sign-up and sign-in pages have a narrow column, so the pizzas have room at every width. */
+
+.authA {
+    left: -90px;
+    top: 120px;
+    transform: rotate(18deg);
+}
+
+.authB {
+    right: -50px;
+    bottom: 40px;
+    transform: rotate(-20deg);
+}
+
+.authC {
+    right: -40px;
+    top: 56px;
+    transform: rotate(12deg);
+}
+
+.authD {
+    left: -80px;
+    bottom: -60px;
+    transform: rotate(-14deg);
+}
+
+@media (max-width: 760px) {
+    .headerA {
+        left: 34%;
+        top: -150px;
+    }
+
+    .headerB {
+        display: none;
+    }
+
+    .headerC {
+        right: -90px;
+        top: -110px;
+    }
+
+    .authA {
+        left: -70px;
+        top: 20px;
+        width: 120px;
+        height: 120px;
+        opacity: 0.5;
+    }
+
+    .authB,
+    .authC,
+    .authD {
+        display: none;
+    }
+}
