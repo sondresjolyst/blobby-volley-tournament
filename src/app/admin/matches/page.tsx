@@ -11,7 +11,10 @@ import { toSearchParams } from '@/lib/tournaments/input';
 
 type Search = Record<string, string | string[] | undefined>;
 
-/** An upcoming match can be called once both players are known and a 1v1 match is accepted. */
+/**
+ * An upcoming match can be called once both players are known and a 1v1 match is accepted. An
+ * accepted 1v1 match is called by itself when both players are free, so this is rarely needed for one.
+ */
 const canCall = (m: MatchSummary) => m.players[0] !== null && m.players[1] !== null && (m.tournamentId !== null || m.acceptedAt !== null);
 
 export default async function AdminMatches({ searchParams }: { searchParams: Promise<Search> }) {

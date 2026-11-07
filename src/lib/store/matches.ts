@@ -199,15 +199,24 @@ class MatchTx {
     }
 }
 
+// Any number works, as long as only lockMatch uses it with an event id.
+const EVENT_MATCHES_LOCK = 7_310_404;
+
 /**
  * Locks one match in an open transaction. A tournament match also locks its tournament, so changes
  * to matches of the same tournament run one after the other. The tournament is always locked
  * before the match, so two changes cannot wait on each other. Returns null when there is no match.
+ *
+ * A change also takes a lock for the whole event first, so the changes to the matches of one event
+ * run one after the other. A change that frees players and one that accepts a 1v1 match then always
+ * see each other, so a waiting 1v1 match is never left uncalled and a player is never called twice.
+ * Bets do not take it, so they never wait for a change to another match.
  */
-async function lockMatch(client: PoolClient, matchId: number): Promise<MatchRow | null> {
-    const found = await client.query<{ tournament_id: number | null }>('SELECT tournament_id FROM matches WHERE id = $1', [matchId]);
+async function lockMatch(client: PoolClient, matchId: number, change: boolean): Promise<MatchRow | null> {
+    const found = await client.query<{ tournament_id: number | null; event_id: number }>('SELECT tournament_id, event_id FROM matches WHERE id = $1', [matchId]);
     if (found.rowCount !== 1) return null;
     const tournamentId = found.rows[0].tournament_id;
+    if (change) await client.query('SELECT pg_advisory_xact_lock($1, $2)', [EVENT_MATCHES_LOCK, found.rows[0].event_id]);
     if (tournamentId !== null) await client.query('SELECT 1 FROM tournaments WHERE id = $1 FOR NO KEY UPDATE', [tournamentId]);
     const { rows } = await client.query<MatchRow>(`SELECT ${MATCH_COLUMNS} FROM matches WHERE id = $1 FOR UPDATE`, [matchId]);
     return rows[0] ?? null;
@@ -217,10 +226,13 @@ async function lockMatch(client: PoolClient, matchId: number): Promise<MatchRow 
 async function withMatch<T extends object>(pool: Pool, matchId: number, work: (tx: MatchTx) => Promise<T>): Promise<MatchResult<T>> {
     try {
         return await inTransaction(pool, async (client) => {
-            const match = await lockMatch(client, matchId);
+            const match = await lockMatch(client, matchId, true);
             if (!match) throw new Refused('not-found');
             const tx = new MatchTx(client, match);
             const value = await work(tx);
+            // A change that frees the players, or a reset, may let a waiting 1v1 match be called. It runs
+            // before the bettors are locked, so the waiting matches are locked before any player.
+            if (freesPlayers(match.state, tx.match.state)) await callWaitingChallenges(client, [match.player1_id, match.player2_id]);
             if (tx.events.length > 0) await handleMatchEvents(client, tx.events);
             return { ok: true as const, events: tx.events, ...value };
         });
@@ -246,7 +258,7 @@ export interface BetMatch {
  * since handleMatchEvents runs while the change already holds the lock.
  */
 export async function withMatchForBet(client: PoolClient, matchId: number): Promise<{ ok: true; match: BetMatch } | { ok: false; error: 'not-found' | 'closed' }> {
-    const row = await lockMatch(client, matchId);
+    const row = await lockMatch(client, matchId, false);
     if (!row) return { ok: false, error: 'not-found' };
     const players: [number | null, number | null] = [row.player1_id, row.player2_id];
     if (!isOpenForBets({ state: row.state, tournamentId: row.tournament_id, acceptedAt: row.accepted_at, players })) return { ok: false, error: 'closed' };
@@ -402,21 +414,55 @@ export async function createBracketMatches(client: PoolClient, tournamentId: num
 
 // Admin tools
 
+/** A player of a called or started match is busy. */
+const isPlaying = (state: MatchState) => state === 'called' || state === 'started';
+
+/** True when a change leaves the players of the match free, or sends it back to upcoming. */
+const freesPlayers = (from: MatchState, to: MatchState) => !isPlaying(to) && (isPlaying(from) || (to === 'upcoming' && from !== 'upcoming'));
+
+/** Calls the locked upcoming match when both players are free. Returns false and changes nothing when one is busy. */
+async function callIfFree(tx: MatchTx): Promise<boolean> {
+    const players = bothPlayers(tx.match);
+    // Two calls of different matches with a shared player wait here, so only one sees the player free.
+    await tx.client.query('SELECT 1 FROM players WHERE id = ANY($1::int[]) ORDER BY id FOR NO KEY UPDATE', [players]);
+    const busy = await tx.client.query(
+        `SELECT 1 FROM matches WHERE id <> $1 AND state IN ('called', 'started')
+         AND (player1_id = ANY($2::int[]) OR player2_id = ANY($2::int[])) LIMIT 1`,
+        [tx.match.id, players],
+    );
+    if (busy.rowCount) return false;
+    await tx.transition('call');
+    return true;
+}
+
+/**
+ * Calls the accepted 1v1 matches of the players that wait for a busy player, the one accepted
+ * first first. Runs in the change that freed the players. A tournament match is never called
+ * here, since an admin calls those.
+ */
+async function callWaitingChallenges(client: PoolClient, playerIds: readonly (number | null)[]) {
+    const ids = playerIds.filter((id): id is number => id !== null);
+    if (ids.length === 0) return;
+    // Locked in id order, so two changes cannot wait on each other.
+    const { rows } = await client.query<MatchRow>(
+        `SELECT ${MATCH_COLUMNS} FROM matches m
+         WHERE tournament_id IS NULL AND state = 'upcoming' AND accepted_at IS NOT NULL
+         AND (player1_id = ANY($1::int[]) OR player2_id = ANY($1::int[]))
+         AND EXISTS (SELECT 1 FROM events e WHERE e.id = m.event_id AND e.is_active)
+         ORDER BY id FOR UPDATE OF m`,
+        [ids],
+    );
+    rows.sort((a, b) => a.accepted_at!.getTime() - b.accepted_at!.getTime() || a.id - b.id);
+    for (const row of rows) await callIfFree(new MatchTx(client, row));
+}
+
 /** Tells the players to join. Both players must be known and free, and a 1v1 match must be accepted. */
 export async function callMatch(pool: Pool, matchId: number): Promise<MatchResult> {
     return withMatch(pool, matchId, async (tx) => {
         if (tx.match.state !== 'upcoming') throw new Refused('state');
-        const players = bothPlayers(tx.match);
+        bothPlayers(tx.match);
         if (tx.match.tournament_id === null && tx.match.accepted_at === null) throw new Refused('not-accepted');
-        // Two calls of different matches with a shared player wait here, so only one sees the player free.
-        await tx.client.query('SELECT 1 FROM players WHERE id = ANY($1::int[]) ORDER BY id FOR NO KEY UPDATE', [players]);
-        const busy = await tx.client.query(
-            `SELECT 1 FROM matches WHERE id <> $1 AND state IN ('called', 'started')
-             AND (player1_id = ANY($2::int[]) OR player2_id = ANY($2::int[])) LIMIT 1`,
-            [tx.match.id, players],
-        );
-        if (busy.rowCount) throw new Refused('player-busy');
-        await tx.transition('call');
+        if (!(await callIfFree(tx))) throw new Refused('player-busy');
         return {};
     });
 }
@@ -736,8 +782,8 @@ export interface ChallengeOptions {
 }
 
 /**
- * A signed in player asks another player of the same active event for a 1v1 match. It can only be
- * called after the other player accepts. Two players can have one open 1v1 match at a time.
+ * A signed in player asks another player of the same active event for a 1v1 match. It is called
+ * when the other player accepts. Two players can have one open 1v1 match at a time.
  */
 export async function createChallenge(pool: Pool, challengerId: number, opponentId: number, options: ChallengeOptions = {}): Promise<{ ok: true; matchId: number } | { ok: false; error: MatchError }> {
     const bestOf = options.bestOf ?? 1;
@@ -777,13 +823,31 @@ async function requireOpenChallenge(tx: MatchTx, playerId: number) {
     if (active.rowCount !== 1) throw new Refused('no-event');
 }
 
-/** Player 2 accepts a 1v1 match. It stays upcoming until an admin calls it. */
-export async function acceptChallenge(pool: Pool, matchId: number, playerId: number): Promise<MatchResult> {
+/**
+ * Player 2 accepts a 1v1 match, and it is called at once when both players are free. Otherwise it
+ * stays upcoming, and the change that frees the busy player calls it. called says which.
+ */
+export async function acceptChallenge(pool: Pool, matchId: number, playerId: number): Promise<MatchResult<{ called: boolean }>> {
     return withMatch(pool, matchId, async (tx) => {
         await requireOpenChallenge(tx, playerId);
-        await tx.client.query('UPDATE matches SET accepted_at = now() WHERE id = $1', [tx.match.id]);
-        return {};
+        const { rows } = await tx.client.query<MatchRow>(`UPDATE matches SET accepted_at = now() WHERE id = $1 RETURNING ${MATCH_COLUMNS}`, [tx.match.id]);
+        tx.match = rows[0];
+        return { called: await callIfFree(tx) };
     });
+}
+
+/**
+ * A short text that changes whenever a match of the player changes in a way /me shows: a new 1v1
+ * match, an answer to one, a call, a start, a score, an end. /me reads it often and loads again
+ * only when it changes, so it must stay one small query.
+ */
+export async function playerMatchesStamp(pool: Pool, playerId: number): Promise<string> {
+    const { rows } = await pool.query<{ stamp: string | null }>(
+        `SELECT string_agg(concat_ws(':', id, state, accepted_at IS NOT NULL, score1, score2), ',' ORDER BY id) AS stamp
+         FROM matches WHERE player1_id = $1 OR player2_id = $1`,
+        [playerId],
+    );
+    return rows[0]?.stamp ?? '';
 }
 
 /** Player 2 declines a 1v1 match. It is cancelled. */

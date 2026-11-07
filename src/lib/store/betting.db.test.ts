@@ -93,7 +93,7 @@ async function tournament(eventId: number, players: number[], bestOf: BestOf = 1
     return matches.map((m) => m.id);
 }
 
-/** An accepted 1v1 match. */
+/** An accepted 1v1 match. Accepting calls it when both players are free. */
 async function oneVsOne(a: number, b: number): Promise<number> {
     const created = await createChallenge(pool, a, b, { bestOf: 1 });
     if (!created.ok) throw new Error(created.error);
@@ -107,7 +107,8 @@ const report = (matchId: number, game: number, winnerSlot: 1 | 2) =>
     reportGameResult(pool, { reportId: nextId(), matchId, game, winnerSlot, points1: winnerSlot === 1 ? 15 : 7, points2: winnerSlot === 2 ? 15 : 7 });
 
 async function start(matchId: number) {
-    expect(await callMatch(pool, matchId)).toMatchObject({ ok: true });
+    // An accepted 1v1 match is called when it is accepted, so only a tournament match is called here.
+    if ((await getMatch(pool, matchId))!.state === 'upcoming') expect(await callMatch(pool, matchId)).toMatchObject({ ok: true });
     expect(await reportPlayersConnected(pool, matchId)).toMatchObject({ ok: true, started: true });
 }
 
@@ -165,6 +166,25 @@ describe('placing a bet', () => {
         expect(await bet(s.X, created.matchId, s.A, 10)).toMatchObject({ ok: true });
         await cancelMatch(pool, created.matchId);
         expect(await bet(s.Y, created.matchId, s.A, 10)).toEqual({ ok: false, error: 'closed' });
+    });
+
+    it('is open from the accept until both players connect, also while the accepted match waits for a busy player', async () => {
+        const s = await setup();
+        const busy = await oneVsOne(s.A, s.B);
+        expect(await getMatch(pool, busy)).toMatchObject({ state: 'called' });
+        expect(await bet(s.X, busy, s.A, 10)).toMatchObject({ ok: true });
+        await reportPlayersConnected(pool, busy);
+        expect(await bet(s.Y, busy, s.A, 10)).toEqual({ ok: false, error: 'closed' });
+
+        const created = await createChallenge(pool, s.A, s.C);
+        if (!created.ok) throw new Error(created.error);
+        expect(await acceptChallenge(pool, created.matchId, s.C)).toMatchObject({ ok: true, called: false });
+        expect(await bet(s.X, created.matchId, s.C, 10)).toMatchObject({ ok: true });
+        await playTo(busy, 1);
+        expect(await getMatch(pool, created.matchId)).toMatchObject({ state: 'called' });
+        expect(await bet(s.Y, created.matchId, s.A, 10)).toMatchObject({ ok: true });
+        await reportPlayersConnected(pool, created.matchId);
+        expect(await bet(s.Z, created.matchId, s.A, 10)).toEqual({ ok: false, error: 'closed' });
     });
 
     it('takes no bet before a 1v1 match is accepted, so a withdraw has nothing to refund', async () => {
