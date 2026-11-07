@@ -75,7 +75,8 @@ async function main() {
         process.exitCode = 1;
         return;
     }
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // A short timeout makes the init container fail fast when the database cannot be reached.
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis: 10_000 });
     try {
         const applied = await migrate(pool);
         console.log(applied.length ? `Applied ${applied.join(', ')}.` : 'The database is up to date.');
