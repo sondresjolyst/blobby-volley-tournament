@@ -2,7 +2,7 @@ import { firewallCommand, START_SCRIPTS } from '@/lib/game-server/commands';
 import { CopyButton } from './CopyButton';
 
 const DOCKER = 'https://www.docker.com/products/docker-desktop/';
-const RELEASES = 'https://github.com/sondresjolyst/blobbyvolley2/releases';
+const RELEASES = 'https://github.com/sondresjolyst/blobbyvolley2/releases/latest';
 
 /** The steps that start the game server on the computer at the LAN. The token form follows below it. */
 export function SetupGuide({ siteUrl, port }: { siteUrl: string | null; port: number }) {
@@ -26,7 +26,11 @@ export function SetupGuide({ siteUrl, port }: { siteUrl: string | null; port: nu
                     <ul>
                         {START_SCRIPTS.map((script) => (
                             <li key={script.system}>
-                                <a href={script.href}>Start script for {script.system}</a>, then run this.
+                                <a href={script.href}>Start script for {script.system}</a>. Download it here or with this command.
+                                <p>
+                                    <code>{script.download}</code> <CopyButton text={script.download} label={`Copy ${script.system} download`} />
+                                </p>
+                                Then start it.
                                 <p>
                                     <code>{script.command}</code> <CopyButton text={script.command} label={`Copy ${script.system} command`} />
                                 </p>
@@ -45,7 +49,7 @@ export function SetupGuide({ siteUrl, port }: { siteUrl: string | null; port: nu
                 </li>
                 <li>Reload this page. Last used shows a time from the last few seconds once the game server talks to the site. Then players can join with the join link.</li>
                 <li>
-                    Players need the game itself. The Windows download is on the <a href={RELEASES}>releases page</a>.
+                    Players need the game itself. The Windows download is in the <a href={RELEASES}>latest release</a>.
                 </li>
             </ol>
         </section>

@@ -48,6 +48,10 @@ describe('START_SCRIPTS', () => {
             'https://raw.githubusercontent.com/sondresjolyst/blobbyvolley2/main/scripts/tournament-server.ps1',
             'https://raw.githubusercontent.com/sondresjolyst/blobbyvolley2/main/scripts/tournament-server.sh',
         ]);
+        expect(START_SCRIPTS.map((s) => s.download)).toEqual([
+            'iwr https://raw.githubusercontent.com/sondresjolyst/blobbyvolley2/main/scripts/tournament-server.ps1 -OutFile tournament-server.ps1',
+            'curl -fsSLO https://raw.githubusercontent.com/sondresjolyst/blobbyvolley2/main/scripts/tournament-server.sh',
+        ]);
         expect(START_SCRIPTS.map((s) => s.command)).toEqual(['powershell -ExecutionPolicy Bypass -File .\\tournament-server.ps1 start', 'bash tournament-server.sh start']);
     });
 });

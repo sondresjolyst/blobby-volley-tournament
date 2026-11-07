@@ -59,7 +59,12 @@ export function firewallCommand(port: number): string {
 const SCRIPTS = 'https://raw.githubusercontent.com/sondresjolyst/blobbyvolley2/main/scripts';
 
 /** The start scripts in the game repository. They ask for the site address and the token. */
-export const START_SCRIPTS: { system: string; href: string; command: string }[] = [
-    { system: 'Windows', href: `${SCRIPTS}/tournament-server.ps1`, command: 'powershell -ExecutionPolicy Bypass -File .\\tournament-server.ps1 start' },
-    { system: 'Linux', href: `${SCRIPTS}/tournament-server.sh`, command: 'bash tournament-server.sh start' },
+export const START_SCRIPTS: { system: string; href: string; download: string; command: string }[] = [
+    {
+        system: 'Windows',
+        href: `${SCRIPTS}/tournament-server.ps1`,
+        download: `iwr ${SCRIPTS}/tournament-server.ps1 -OutFile tournament-server.ps1`,
+        command: 'powershell -ExecutionPolicy Bypass -File .\\tournament-server.ps1 start',
+    },
+    { system: 'Linux', href: `${SCRIPTS}/tournament-server.sh`, download: `curl -fsSLO ${SCRIPTS}/tournament-server.sh`, command: 'bash tournament-server.sh start' },
 ];
