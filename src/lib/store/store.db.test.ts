@@ -181,6 +181,14 @@ describe('events', () => {
         expect(await getEvent(pool, id + 100)).toBeNull();
     });
 
+    it('moves the game server of the active event at once', async () => {
+        const id = await createEvent(pool, { ...lan, serverHost: '192.168.1.50', serverPort: 1234 });
+        await setActiveEvent(pool, id);
+        expect(await getActiveEvent(pool)).toMatchObject({ id, serverHost: '192.168.1.50', serverPort: 1234 });
+        expect(await updateEvent(pool, id, { ...lan, serverHost: '192.168.1.77', serverPort: 1240 })).toBe(true);
+        expect(await getActiveEvent(pool)).toMatchObject({ id, isActive: true, serverHost: '192.168.1.77', serverPort: 1240 });
+    });
+
     it('lists events with the newest first and keeps past events', async () => {
         const old = await createEvent(pool, lastYear);
         const current = await createEvent(pool, lan);
