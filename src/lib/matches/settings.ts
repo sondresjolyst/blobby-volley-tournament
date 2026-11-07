@@ -13,6 +13,21 @@ export const DEFAULT_NEXT_GAME_DELAY = 10;
 export const MIN_NEXT_GAME_DELAY = 3;
 export const MAX_NEXT_GAME_DELAY = 120;
 
+/** The most points one player can have in a game. Far above any real game, so a report is never refused for it. */
+export const MAX_POINTS = 1000;
+
+export const isPoints = (n: unknown): n is number => Number.isInteger(n) && (n as number) >= 0 && (n as number) <= MAX_POINTS;
+
+/**
+ * The winner of a game must have more points than the loser and at least the points to win. An
+ * abandoned game has no winner.
+ */
+export function isWinningScore(winnerSlot: 1 | 2 | null, points1: number, points2: number, scoreToWin: number): boolean {
+    if (winnerSlot === null) return true;
+    const [winner, loser] = winnerSlot === 1 ? [points1, points2] : [points2, points1];
+    return winner > loser && winner >= scoreToWin;
+}
+
 export const isScoreToWin = (n: unknown): n is number => Number.isInteger(n) && (n as number) >= MIN_SCORE_TO_WIN && (n as number) <= MAX_SCORE_TO_WIN;
 
 export const isGameSpeed = (n: unknown): n is number => Number.isInteger(n) && (n as number) >= MIN_GAME_SPEED && (n as number) <= MAX_GAME_SPEED;

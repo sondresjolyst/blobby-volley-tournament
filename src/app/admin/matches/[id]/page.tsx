@@ -56,8 +56,8 @@ export default async function AdminMatch({ params, searchParams }: { params: Pro
                 </p>
             )}
             {done && <p role="status">{done}</p>}
-            <p>{matchTitle(match)}</p>
-            <p>{matchPlayers(match)}</p>
+            <p>{matchTitle(match, 'admin')}</p>
+            <p>{matchPlayers(match, 'admin')}</p>
             <p>State: {STATE_LABELS[match.state]}</p>
             <p>
                 Best of {match.bestOf}, first to {winsNeeded(match.bestOf)}. Rules: {match.ruleFile}

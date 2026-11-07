@@ -1,4 +1,4 @@
-import { requireAdminApi } from '@/lib/auth/options';
+import { requireAdminPost } from '@/lib/auth/options';
 import { parseAdjustmentForm } from '@/lib/betting/input';
 import { getPool } from '@/lib/db';
 import { parseId, readForm, seeOther } from '@/lib/http';
@@ -6,7 +6,7 @@ import { adjustBalance } from '@/lib/store/foza';
 
 /** Adds or takes Foza from a player with a reason, from the player list on /admin/events/[id]. */
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
-    const admin = await requireAdminApi(req);
+    const admin = await requireAdminPost(req);
     if (admin instanceof Response) return admin;
     const id = parseId((await ctx.params).id);
     if (id === null) return Response.json({ error: 'not found' }, { status: 404 });

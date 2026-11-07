@@ -1,4 +1,4 @@
-import { CopyAddress } from './CopyAddress';
+import { CopyButton } from '../CopyButton';
 
 /** Messages for the `?error=` codes of the big screen key form. */
 export function bigScreenErrorMessage(code: string | string[] | undefined): string | null {
@@ -21,7 +21,7 @@ export function BigScreenSection({ eventId, address, isActive }: { eventId: numb
                 <label>
                     Big screen address <input type="text" readOnly value={address} size={80} autoComplete="off" spellCheck={false} />
                 </label>{' '}
-                <CopyAddress text={address} label="Copy address" />
+                <CopyButton text={address} label="Copy address" noun="address" />
             </p>
             <form method="post" action={`/api/admin/events/${eventId}/big-screen-key`}>
                 <label>

@@ -1,10 +1,11 @@
 import type { EventInput } from '@/lib/events/input';
+import { MAX_FOZA } from '@/lib/foza';
 
 const EVENT_ERRORS: Record<string, string> = {
     name: 'The name must be 1 to 100 characters.',
     dates: 'Give a valid start and end date. The end cannot be before the start.',
     code: 'The event code must be 8 to 32 letters A to Z, digits or hyphens.',
-    foza: 'Foza amounts must be whole numbers from 0 to 1000000.',
+    foza: `Foza amounts must be whole numbers from 0 to ${MAX_FOZA}.`,
     pin: 'The PIN must be 4 digits.',
     server: 'Give both a game server host and a port from 1 to 65535, or leave both empty. The host is a name or an IPv4 address.',
 };
@@ -40,12 +41,12 @@ export function EventForm({ action, event, submitLabel }: { action: string; even
             </p>
             <p>
                 <label>
-                    Starting Foza <input name="startingFoza" type="number" min={0} max={1000000} step={1} required defaultValue={event?.startingFoza} />
+                    Starting Foza <input name="startingFoza" type="number" min={0} max={MAX_FOZA} step={1} required defaultValue={event?.startingFoza} />
                 </label>
             </p>
             <p>
                 <label>
-                    Daily Foza <input name="dailyFoza" type="number" min={0} max={1000000} step={1} required defaultValue={event?.dailyFoza} />
+                    Daily Foza <input name="dailyFoza" type="number" min={0} max={MAX_FOZA} step={1} required defaultValue={event?.dailyFoza} />
                 </label>
             </p>
             <p>

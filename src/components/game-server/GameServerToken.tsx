@@ -2,8 +2,8 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
-import { serverRunCommand, SERVER_HELP, type Shell } from '@/lib/game-server/commands';
-import { CopyButton } from './CopyButton';
+import { serverRunCommand, SERVER_HELP, START_SCRIPTS, type Shell } from '@/lib/game-server/commands';
+import { CopyButton } from '../CopyButton';
 
 const SHELLS: { shell: Shell; label: string }[] = [
     { shell: 'powershell', label: 'PowerShell' },
@@ -66,12 +66,13 @@ export function GameServerToken({ hasToken, siteUrl, port }: { hasToken: boolean
                         <label>
                             Game server token <input type="text" readOnly value={token} size={50} autoComplete="off" spellCheck={false} />
                         </label>{' '}
-                        <CopyButton text={token} label="Copy token" />
+                        <CopyButton text={token} label="Copy token" noun="token" />
                     </p>
                     <h3>Start the game server</h3>
+                    <p>The start script is the easy way. Paste the token when it asks. The steps are above.</p>
                     <p>
-                        Run this on the computer for the game server, with Docker installed. It starts the server in tournament mode with this site and the token, on UDP port {port}, the game
-                        server port of the active event.
+                        The alternative is this one line. Run it on the computer for the game server, with Docker installed. It starts the server in tournament mode with this site and the
+                        token, on UDP port {port}, the game server port of the active event. The token ends up in the shell history, so the start script is the better choice.
                     </p>
                     <div role="tablist" aria-label="Shell">
                         {SHELLS.map((s) => (
@@ -85,20 +86,39 @@ export function GameServerToken({ hasToken, siteUrl, port }: { hasToken: boolean
                             <label>
                                 Start command <input type="text" readOnly value={run} size={100} autoComplete="off" spellCheck={false} />
                             </label>{' '}
-                            <CopyButton text={run} label="Copy command" />
+                            <CopyButton text={run} label="Copy command" noun="command" />
                         </p>
                     </div>
-                    <p>The alternative is the start script in the game repository, which asks for the token.</p>
                 </section>
             )}
             <h3>Run the game server</h3>
             <ul>
-                {SERVER_HELP.map((help) => (
-                    <li key={help.label}>
-                        {help.label}: <code>{help.command}</code>
-                        {help.label === 'Update' && <>, then make a new token here and run the start command it shows.</>}
-                    </li>
-                ))}
+                {SERVER_HELP.map((help) =>
+                    help.label === 'Update' ? (
+                        <li key={help.label}>
+                            Update: the easy way is the start script with <code>update</code>, which gets the newest server and starts it with the saved token.
+                            <ul>
+                                {START_SCRIPTS.map((script) => (
+                                    <li key={script.system}>
+                                        {script.system}: <code>{script.update}</code>
+                                    </li>
+                                ))}
+                            </ul>
+                            Without the script, run{' '}
+                            {help.commands.map((command, i) => (
+                                <span key={command}>
+                                    {i > 0 && ', then '}
+                                    <code>{command}</code>
+                                </span>
+                            ))}
+                            , then make a new token here and run the start command it shows.
+                        </li>
+                    ) : (
+                        <li key={help.label}>
+                            {help.label}: <code>{help.commands.join(' ')}</code>
+                        </li>
+                    ),
+                )}
             </ul>
         </>
     );

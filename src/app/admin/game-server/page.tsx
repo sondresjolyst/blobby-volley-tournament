@@ -1,4 +1,5 @@
 import { AdminShell } from '@/components/admin/AdminShell';
+import { adminTime } from '@/components/admin/time';
 import { GameServerToken } from '@/components/game-server/GameServerToken';
 import { SetupGuide } from '@/components/game-server/SetupGuide';
 import { requireAdmin } from '@/lib/auth/options';
@@ -7,7 +8,7 @@ import { CONTAINER_PORT, siteUrl } from '@/lib/game-server/commands';
 import { getActiveEvent } from '@/lib/store/events';
 import { getGameServerTokenInfo } from '@/lib/store/game-server-token';
 
-const time = (value: Date | null) => (value ? value.toISOString() : 'Never');
+const time = (value: Date | null) => (value ? adminTime(value) : 'Never');
 
 /** The game server token. Admins make it here. Only its hash is stored, so the page never shows an old token. */
 export default async function GameServer() {

@@ -10,6 +10,8 @@ const MESSAGES: Record<string, string> = {
     wrong: 'Feil kallenavn eller PIN-kode.',
     locked: 'For mange feil PIN-koda. Kontoen din e låst ei stund. Prøv igjen seinare, eller be ein admin om å nullstilla PIN-koden.',
     busy: 'For mange feilforsøk frå dette nettverket. Prøv igjen seinare.',
+    pins: 'For mange feil PIN-koda frå dette nettverket. Vent ein time og prøv igjen.',
+    'sign-ups': 'For mange nye spelarar frå dette nettverket. Vent ein time og prøv igjen.',
     form: 'Nokke gjekk gale. Prøv igjen.',
 };
 

@@ -4,8 +4,8 @@ import type { GameBoard, SponsorInput } from '@/lib/sponsors/input';
 import type { CheckedLogo, LogoType } from '@/lib/sponsors/logo';
 import { inTransaction } from './transaction';
 
-/** The most sponsors one event can have, so the game server list stays small. */
-export const MAX_SPONSORS = 50;
+/** The most sponsors one event can have. The game shows at most this many. */
+export const MAX_SPONSORS = 32;
 
 export interface SponsorRow {
     id: number;
@@ -104,28 +104,69 @@ export type GameLogoMaker = (logo: CheckedLogo, background: string | null) => Pr
 /**
  * Makes again, from the stored logos, the game logos that are still 24-bit BMPs from before the
  * alpha channel. Byte 28 of a BMP is its bits per pixel. A row locked by another caller is
- * skipped, since that caller makes it. A logo that fails stays as it is and is tried next time.
- * Returns how many were made again.
+ * skipped, since that caller makes it. Sponsors in `skip` are left out. A logo that fails stays
+ * as it is. Returns how many were made again and the ids that failed.
  */
-export async function upgradeGameLogos(pool: Pool, make: GameLogoMaker): Promise<number> {
+export async function upgradeGameLogos(pool: Pool, make: GameLogoMaker, skip: readonly number[] = []): Promise<{ made: number; failed: number[] }> {
     return inTransaction(pool, async (client) => {
         const { rows } = await client.query<{ id: number; logo: Buffer; logo_type: LogoType; logo_width: number; logo_height: number; game_background: string | null }>(
             `SELECT id, logo, logo_type, logo_width, logo_height, game_background FROM sponsors
-             WHERE get_byte(game_logo, 28) <> 32 ORDER BY id FOR UPDATE SKIP LOCKED`,
+             WHERE get_byte(game_logo, 28) <> 32 AND NOT (id = ANY($1::int[])) ORDER BY id FOR UPDATE SKIP LOCKED`,
+            [skip],
         );
         let made = 0;
+        const failed: number[] = [];
         for (const row of rows) {
             let gameLogo: Uint8Array;
             try {
                 gameLogo = await make({ bytes: new Uint8Array(row.logo), type: row.logo_type, width: row.logo_width, height: row.logo_height }, row.game_background);
             } catch {
+                failed.push(row.id);
                 continue;
             }
             await client.query('UPDATE sponsors SET game_logo = $2 WHERE id = $1', [row.id, Buffer.from(gameLogo)]);
             made++;
         }
-        return made;
+        return { made, failed };
     });
+}
+
+/** A logo that fails this many times is left as it is until the site restarts. */
+export const LOGO_UPGRADE_TRIES = 3;
+
+export interface LogoUpgradeState {
+    done: boolean;
+    /** Failed tries per sponsor id. */
+    failures: Map<number, number>;
+    running: Promise<void> | null;
+}
+
+export const newLogoUpgradeState = (): LogoUpgradeState => ({ done: false, failures: new Map(), running: null });
+
+const processUpgrade = newLogoUpgradeState();
+
+/**
+ * Runs upgradeGameLogos until nothing is left to make, and then never again in this process. Every
+ * new logo is stored with alpha, so nothing old can come back. Calls at the same time share one
+ * run. A logo that fails LOGO_UPGRADE_TRIES times is given up with a log line.
+ */
+export async function upgradeGameLogosOnce(pool: Pool, make: GameLogoMaker, state: LogoUpgradeState = processUpgrade): Promise<void> {
+    if (state.done) return;
+    state.running ??= (async () => {
+        try {
+            const given = [...state.failures].filter(([, tries]) => tries >= LOGO_UPGRADE_TRIES).map(([id]) => id);
+            const { failed } = await upgradeGameLogos(pool, make, given);
+            for (const id of failed) {
+                const tries = (state.failures.get(id) ?? 0) + 1;
+                state.failures.set(id, tries);
+                if (tries === LOGO_UPGRADE_TRIES) console.warn(`The game logo of sponsor ${id} could not be made again after ${tries} tries. It stays as it is.`);
+            }
+            if (failed.every((id) => (state.failures.get(id) ?? 0) >= LOGO_UPGRADE_TRIES)) state.done = true;
+        } finally {
+            state.running = null;
+        }
+    })();
+    await state.running;
 }
 
 export interface StoredLogo extends CheckedLogo {

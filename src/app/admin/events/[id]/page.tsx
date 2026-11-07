@@ -1,4 +1,5 @@
 import { AdminShell } from '@/components/admin/AdminShell';
+import { adminTime } from '@/components/admin/time';
 import { notFound } from 'next/navigation';
 import { BigScreenSection, bigScreenErrorMessage } from '@/components/events/BigScreenSection';
 import { EventForm, eventErrorMessage } from '@/components/events/EventForm';
@@ -92,7 +93,7 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
                                 <tr key={player.id}>
                                     <td data-label="Nickname">{player.nickname}</td>
                                     <td data-label="Foza">{player.fozaBalance}</td>
-                                    <td data-label="Locked">{player.lockedUntil && player.lockedUntil > now ? `Until ${player.lockedUntil.toISOString()}` : ''}</td>
+                                    <td data-label="Locked">{player.lockedUntil && player.lockedUntil > now ? `Until ${adminTime(player.lockedUntil)}` : ''}</td>
                                     <td>
                                         <form method="post" action={`/api/admin/players/${player.id}/pin`}>
                                             <input type="hidden" name="eventId" value={event.id} />

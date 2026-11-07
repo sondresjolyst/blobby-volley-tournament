@@ -13,14 +13,18 @@ import { bumpAttempts, claimAttempts, readAttempts, windowStart } from './attemp
 import {
     claimPinAttempt,
     CLIENT_FAILURES_PER_HOUR,
+    CLIENT_SIGN_UPS_PER_HOUR,
+    CLIENT_WRONG_PINS_PER_HOUR,
     createSession,
     deleteSession,
     EVENT_FAILURES_PER_HOUR,
     eventBucket,
     getSessionPlayer,
     listPlayers,
+    pinBucket,
     resetPlayerPin,
     signInPlayer,
+    signUpBucket,
     signUpPlayer,
     type SignUpInput,
 } from './players';
@@ -492,6 +496,63 @@ describe('sign-in limits', () => {
         expect(await signIn('ola', '1234')).toMatchObject({ ok: false, error: 'locked' });
     });
 
+    it('refuses every PIN from a client over its wrong PIN limit until the hour is over, without a PIN check', async () => {
+        await activeEventWithPlayer('Ola', '1234');
+        await setAttempts(pinBucket(client), CLIENT_WRONG_PINS_PER_HOUR - 1);
+        expect(await signIn('ola', '0000')).toEqual({ ok: false, error: 'wrong' });
+        const checks: number[] = [];
+        verifyHook.run = () => checks.push(1);
+        try {
+            expect(await signIn('ola', '1234')).toEqual({ ok: false, error: 'pins' });
+        } finally {
+            verifyHook.run = null;
+        }
+        expect(checks).toEqual([]);
+        expect(await readAttempts(pool, pinBucket(client), now)).toBe(CLIENT_WRONG_PINS_PER_HOUR);
+        expect((await signIn('ola', '1234', now, 'ip:192.0.2.99')).ok).toBe(true);
+        expect((await signIn('ola', '1234', new Date(now.getTime() + 60 * MINUTE))).ok).toBe(true);
+    });
+
+    it('counts wrong PINs across players against the client, and takes back right PINs and tries on a locked player', async () => {
+        await activeEventWithPlayer('Ola', '1234');
+        await signUp({ code: lan.code, nickname: 'Kari', nicknameKey: 'kari', pin: '1111' }, 'ip:192.0.2.50');
+        await signIn('ola', '0000');
+        await signIn('kari', '0000');
+        expect(await readAttempts(pool, pinBucket(client), now)).toBe(2);
+        expect((await signIn('kari', '1111')).ok).toBe(true);
+        expect(await readAttempts(pool, pinBucket(client), now)).toBe(2);
+        for (let i = 0; i < 4; i++) await signIn('ola', '0000');
+        expect(await readAttempts(pool, pinBucket(client), now)).toBe(6);
+        expect(await signIn('ola', '0000')).toMatchObject({ ok: false, error: 'locked' });
+        expect(await readAttempts(pool, pinBucket(client), now)).toBe(6);
+    });
+
+    it('lets no more wrong PINs through than the client limit when many arrive at the same time', async () => {
+        await activeEventWithPlayer('Ola', '1234');
+        const nicknames = Array.from({ length: 12 }, (_, i) => `p${i}`);
+        for (const nickname of nicknames) await signUp({ code: lan.code, nickname, nicknameKey: nickname, pin: '1111' }, `ip:192.0.2.${100 + Number(nickname.slice(1))}`);
+        await setAttempts(pinBucket(client), CLIENT_WRONG_PINS_PER_HOUR - 3);
+        const results = await Promise.all(nicknames.map((nickname) => signIn(nickname, '0000')));
+        expect(results.filter((r) => !r.ok && r.error === 'wrong')).toHaveLength(3);
+        expect(results.filter((r) => !r.ok && r.error === 'pins')).toHaveLength(9);
+    });
+
+    it('forgets wrong PINs when the last one is more than a day old', async () => {
+        await activeEventWithPlayer('Ola', '1234');
+        for (let i = 0; i < 4; i++) await signIn('ola', '0000', now, `ip:192.0.2.${i}`);
+        const later = new Date(now.getTime() + 24 * 60 * MINUTE + 1);
+        expect(await signIn('ola', '0000', later)).toEqual({ ok: false, error: 'wrong' });
+        const { rows } = await pool.query("SELECT failed_pin_attempts, locked_until, last_failed_pin_at FROM players WHERE nickname_key = 'ola'");
+        expect(rows[0]).toEqual({ failed_pin_attempts: 1, locked_until: null, last_failed_pin_at: later });
+    });
+
+    it('keeps wrong PINs within a day of the last one', async () => {
+        await activeEventWithPlayer('Ola', '1234');
+        for (let i = 0; i < 4; i++) await signIn('ola', '0000', new Date(now.getTime() + i * 20 * 60 * MINUTE), `ip:192.0.2.${i}`);
+        const fifth = new Date(now.getTime() + 80 * 60 * MINUTE);
+        expect(await signIn('ola', '0000', fifth)).toEqual({ ok: false, error: 'locked', until: new Date(fifth.getTime() + 15 * MINUTE) });
+    });
+
     it('does not hold a database connection while scrypt runs, for a real or an unknown nickname', async () => {
         await activeEventWithPlayer('Ola', '1234');
         const busy: number[] = [];
@@ -514,6 +575,24 @@ describe('sign-up limits', () => {
         expect(await signUp({ ...input, code: 'WRONG-CODE' })).toEqual({ ok: false, error: 'code' });
         expect((await signUp(input)).ok).toBe(true);
         expect(await readAttempts(pool, client, now)).toBe(1);
+    });
+
+    it('refuses new players from a client over its sign-up limit until the hour is over', async () => {
+        await setActiveEvent(pool, await createEvent(pool, lan));
+        await setAttempts(signUpBucket(client), CLIENT_SIGN_UPS_PER_HOUR - 1);
+        expect((await signUp(input)).ok).toBe(true);
+        expect(await signUp({ ...input, nickname: 'Kari', nicknameKey: 'kari' })).toEqual({ ok: false, error: 'sign-ups' });
+        expect(await readAttempts(pool, signUpBucket(client), now)).toBe(CLIENT_SIGN_UPS_PER_HOUR);
+        expect((await signUp({ ...input, nickname: 'Kari', nicknameKey: 'kari' }, 'ip:192.0.2.99')).ok).toBe(true);
+        expect((await signUp({ ...input, nickname: 'Per', nicknameKey: 'per' }, client, new Date(now.getTime() + 60 * MINUTE))).ok).toBe(true);
+    });
+
+    it('counts only new players against the sign-up limit', async () => {
+        await setActiveEvent(pool, await createEvent(pool, lan));
+        expect((await signUp(input)).ok).toBe(true);
+        expect(await signUp(input)).toEqual({ ok: false, error: 'taken' });
+        expect(await signUp({ ...input, code: 'WRONG-CODE' })).toEqual({ ok: false, error: 'code' });
+        expect(await readAttempts(pool, signUpBucket(client), now)).toBe(1);
     });
 
     it('refuses a client over its limit, even with the right code', async () => {

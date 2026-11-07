@@ -1,6 +1,7 @@
 // The Foza ledger. Every change to a balance is a row in foza_ledger, and a trigger adds it to the
 // balance on the player row. Nothing else may change foza_balance.
 import type { Pool, PoolClient } from 'pg';
+import { MAX_FOZA } from '@/lib/foza';
 import { inTransaction } from './transaction';
 
 export const LEDGER_TYPES = ['starting', 'daily', 'bet', 'payout', 'refund', 'reversal', 'admin_adjustment'] as const;
@@ -69,13 +70,11 @@ export async function getBalance(pool: Pool, playerId: number, now: Date): Promi
     });
 }
 
-export const MAX_ADJUSTMENT = 1_000_000;
-
 export type AdjustResult = { ok: true; eventId: number; balance: number } | { ok: false; error: 'not-found' | 'amount' | 'reason' | 'balance' };
 
 /** Adds or takes Foza from a player by hand, with a reason. The balance cannot go below 0. */
 export async function adjustBalance(pool: Pool, playerId: number, amount: number, reason: string, adminId: string | null): Promise<AdjustResult> {
-    if (!Number.isInteger(amount) || amount === 0 || Math.abs(amount) > MAX_ADJUSTMENT) return { ok: false, error: 'amount' };
+    if (!Number.isInteger(amount) || amount === 0 || Math.abs(amount) > MAX_FOZA) return { ok: false, error: 'amount' };
     const why = reason.trim();
     if (why.length < 1 || why.length > 200) return { ok: false, error: 'reason' };
     return inTransaction(pool, async (client) => {

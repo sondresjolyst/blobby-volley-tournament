@@ -1,4 +1,4 @@
-import { requireAdminApi } from '@/lib/auth/options';
+import { requireAdminPost } from '@/lib/auth/options';
 import { getPool } from '@/lib/db';
 import { seeOther } from '@/lib/http';
 import { getActiveEvent } from '@/lib/store/events';
@@ -8,7 +8,7 @@ import { fieldsOf, parseTournamentDraft, planTournament, roundsMatch } from '@/l
 
 /** Saves the tournament from the form on /admin/tournaments/new in the active event. */
 export async function POST(req: Request) {
-    const admin = await requireAdminApi(req);
+    const admin = await requireAdminPost(req);
     if (admin instanceof Response) return admin;
     let form: FormData;
     try {

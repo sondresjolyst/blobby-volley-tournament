@@ -1,7 +1,7 @@
 // The words of the player pages. They are written in the jokey Rogaland dialect of the LAN.
 import type { MatchSummary } from '@/lib/store/matches';
 import type { BetStatus } from '@/lib/store/bets';
-import { boardRoundName } from '@/lib/tournaments/board';
+import { odds } from '../stats/format';
 
 const NUMBER = new Intl.NumberFormat('nb-NO');
 
@@ -12,20 +12,7 @@ export function foza(amount: number): string {
 
 /** Such as `betale 1,60×`, or a note while nobody backs the player. */
 export function payout(multiplier: number | null): string {
-    return multiplier === null ? 'ingen spel enno' : `betale ${multiplier.toFixed(2).replace('.', ',')}×`;
-}
-
-/** Such as `Hovedcupen · Semifinala, kamp 1`, or `1v1-utfordring`. */
-export function matchTitle(match: MatchSummary): string {
-    const round = match.bracketRound;
-    if (match.tournamentName === null || round === null) return '1v1-utfordring';
-    return `${match.tournamentName} · ${boardRoundName(round.format, round.section, round.round, round.lastRound)}, kamp ${round.position}`;
-}
-
-/** Both players, with a placeholder for a slot that is not filled yet. */
-export function matchPlayers(match: MatchSummary): string {
-    const name = (slot: 0 | 1) => match.players[slot]?.nickname ?? 'Ikkje klart enno';
-    return `${name(0)} vs ${name(1)}`;
+    return multiplier === null ? 'ingen spel enno' : `betale ${odds(multiplier)}`;
 }
 
 /** Such as `Best av 3 · først te 15 · 75 fps`. */
