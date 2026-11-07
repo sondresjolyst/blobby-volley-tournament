@@ -1,12 +1,14 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { BigScreenSection, bigScreenErrorMessage } from '@/components/events/BigScreenSection';
 import { EventForm, eventErrorMessage } from '@/components/events/EventForm';
 import { SponsorSection, sponsorErrorMessage } from '@/components/sponsors/SponsorSection';
 import { adjustErrorMessage } from '@/lib/betting/input';
 import { requireAdmin } from '@/lib/auth/options';
+import { bigScreenUrl } from '@/lib/big-screen/key';
 import { getPool } from '@/lib/db';
 import { parseId } from '@/lib/http';
-import { getEvent } from '@/lib/store/events';
+import { getBigScreenKey, getEvent } from '@/lib/store/events';
 import { listPlayers } from '@/lib/store/players';
 import { listSponsors } from '@/lib/store/sponsors';
 
@@ -19,6 +21,7 @@ type Search = {
     sponsor?: string | string[];
     sponsorDeleted?: string | string[];
     boardSaved?: string | string[];
+    bigScreenKey?: string | string[];
 };
 
 export default async function EditEvent({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Search> }) {
@@ -30,8 +33,9 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
     if (!event) notFound();
     const players = await listPlayers(pool, id);
     const sponsors = await listSponsors(pool, id);
+    const bigScreenKey = await getBigScreenKey(pool, id);
     const search = await searchParams;
-    const message = eventErrorMessage(search.error) ?? adjustErrorMessage(search.error) ?? sponsorErrorMessage(search.error);
+    const message = eventErrorMessage(search.error) ?? adjustErrorMessage(search.error) ?? sponsorErrorMessage(search.error) ?? bigScreenErrorMessage(search.error);
     const resetId = typeof search.reset === 'string' ? parseId(search.reset) : null;
     const resetPlayer = players.find((player) => player.id === resetId);
     const adjustedId = typeof search.adjusted === 'string' ? parseId(search.adjusted) : null;
@@ -60,6 +64,7 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
             {savedSponsor && <p role="status">Saved the sponsor {savedSponsor.name}.</p>}
             {search.sponsorDeleted === '1' && <p role="status">The sponsor is deleted.</p>}
             {search.boardSaved === '1' && <p role="status">Saved the sponsor board.</p>}
+            {search.bigScreenKey === 'new' && <p role="status">The big screen has a new key. The old address stops showing the join card.</p>}
             {adjustedPlayer && (
                 <p role="status">
                     The Foza of {adjustedPlayer.nickname} is now {adjustedPlayer.fozaBalance}.
@@ -125,6 +130,8 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
                     </tbody>
                 </table>
             )}
+
+            {bigScreenKey && <BigScreenSection eventId={event.id} address={bigScreenUrl(bigScreenKey, process.env)} isActive={event.isActive} />}
 
             <SponsorSection eventId={event.id} gameBoard={event.gameBoard} sponsors={sponsors} />
         </main>

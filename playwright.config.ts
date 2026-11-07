@@ -11,4 +11,9 @@ export default defineConfig({
     use: {
         baseURL: process.env.E2E_BASE_URL,
     },
+    projects: [
+        { name: 'site', testIgnore: /game-server-token\.spec\.ts$/ },
+        // A new game server token stops the old one, which the other tests use. So it runs after them.
+        { name: 'game server token', testMatch: /game-server-token\.spec\.ts$/, dependencies: ['site'] },
+    ],
 });
