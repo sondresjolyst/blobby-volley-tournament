@@ -27,6 +27,7 @@ import {
     restartCurrentGame,
     setSeriesScore,
     withdrawChallenge,
+    playerMatchesStamp,
     withMatchForBet,
 } from './matches';
 import { getTournament, saveTournament } from './tournaments';
@@ -114,7 +115,8 @@ const report = (matchId: number, game: number, winnerSlot: 1 | 2 | null, reportI
     reportGameResult(pool, { reportId, matchId, game, winnerSlot, points1: winnerSlot === 1 ? 15 : 7, points2: winnerSlot === 2 ? 15 : 7 });
 
 async function start(matchId: number) {
-    expect(await callMatch(pool, matchId)).toMatchObject({ ok: true });
+    // An accepted 1v1 match is called when it is accepted, so only a tournament match is called here.
+    if ((await getMatch(pool, matchId))!.state === 'upcoming') expect(await callMatch(pool, matchId)).toMatchObject({ ok: true });
     expect(await reportPlayersConnected(pool, matchId)).toMatchObject({ ok: true, started: true });
 }
 
@@ -517,15 +519,15 @@ describe('reports', () => {
 });
 
 describe('1v1 matches', () => {
-    it('creates a match that needs the other player to accept before it can be called', async () => {
+    it('creates a match that needs the other player to accept, and calls it when accepted', async () => {
         const { eventId, players } = await activeEvent(3);
         const created = await createChallenge(pool, players[0], players[1], { bestOf: 3 });
         if (!created.ok) throw new Error(created.error);
         expect(await getMatch(pool, created.matchId)).toMatchObject({ eventId, tournamentId: null, roundLabel: null, bracketRound: null, state: 'upcoming', bestOf: 3, acceptedAt: null });
         expect(await callMatch(pool, created.matchId)).toEqual({ ok: false, error: 'not-accepted' });
         expect(await acceptChallenge(pool, created.matchId, players[0])).toEqual({ ok: false, error: 'not-allowed' });
-        expect(await acceptChallenge(pool, created.matchId, players[1])).toMatchObject({ ok: true });
-        expect((await getMatch(pool, created.matchId))!.acceptedAt).toBeInstanceOf(Date);
+        expect(await acceptChallenge(pool, created.matchId, players[1])).toMatchObject({ ok: true, called: true });
+        expect(await getMatch(pool, created.matchId)).toMatchObject({ state: 'called', acceptedAt: expect.any(Date), calledAt: expect.any(Date) });
         expect(await acceptChallenge(pool, created.matchId, players[1])).toEqual({ ok: false, error: 'state' });
         await start(created.matchId);
         await report(created.matchId, 1, 2);
@@ -594,6 +596,166 @@ describe('1v1 matches', () => {
         await pool.query('UPDATE events SET is_active = false');
         expect(await acceptChallenge(pool, created.matchId, players[1])).toEqual({ ok: false, error: 'no-event' });
         expect(await createChallenge(pool, players[1], stranger)).toEqual({ ok: false, error: 'no-event' });
+    });
+});
+
+describe('calling a 1v1 match by itself', () => {
+    /** Asks for a 1v1 match and accepts it. Returns the match and whether accepting called it. */
+    async function accepted(a: number, b: number) {
+        const created = await createChallenge(pool, a, b);
+        if (!created.ok) throw new Error(created.error);
+        const result = await acceptChallenge(pool, created.matchId, b);
+        if (!result.ok) throw new Error(result.error);
+        return { id: created.matchId, called: result.called };
+    }
+
+    const stateOf = async (id: number) => (await getMatch(pool, id))!.state;
+
+    it.each([
+        ['finishes', async (id: number) => report(id, 1, 1)],
+        ['ends in a no-show', async (id: number) => recordNoShow(pool, id, 2)],
+        ['is cancelled', async (id: number) => cancelMatch(pool, id)],
+    ])('keeps an accepted match waiting while a player is busy, and calls it when the busy match %s', async (_name, end) => {
+        const { players } = await activeEvent(3);
+        const [a, b, c] = players;
+        const busy = await accepted(a, b);
+        expect(busy.called).toBe(true);
+        await start(busy.id);
+        const waiting = await accepted(a, c);
+        expect(waiting.called).toBe(false);
+        expect(await stateOf(waiting.id)).toBe('upcoming');
+        expect(await end(busy.id)).toMatchObject({ ok: true });
+        expect(await stateOf(waiting.id)).toBe('called');
+    });
+
+    it('waits for both players, and calls the match accepted first', async () => {
+        const { players } = await activeEvent(6);
+        const [a, b, c, d, e, f] = players;
+        const first = await accepted(a, b);
+        const second = await accepted(c, d);
+        await start(first.id);
+        await start(second.id);
+        const both = await accepted(a, c);
+        const earlier = await accepted(e, a);
+        const later = await accepted(a, f);
+        expect([both.called, earlier.called, later.called]).toEqual([false, false, false]);
+        // a is free, but c is still busy, so the next match of a that can go is the one with e.
+        await report(first.id, 1, 1);
+        expect([await stateOf(both.id), await stateOf(earlier.id), await stateOf(later.id)]).toEqual(['upcoming', 'called', 'upcoming']);
+        // c is free now, but a plays e.
+        await report(second.id, 1, 1);
+        expect([await stateOf(both.id), await stateOf(later.id)]).toEqual(['upcoming', 'upcoming']);
+        await start(earlier.id);
+        await report(earlier.id, 1, 1);
+        expect([await stateOf(both.id), await stateOf(later.id)]).toEqual(['called', 'upcoming']);
+    });
+
+    it('lets an admin cancel a waiting match, and calls the next one instead', async () => {
+        const { players } = await activeEvent(4);
+        const [a, b, c, d] = players;
+        const busy = await accepted(a, b);
+        const cancelled = await accepted(a, c);
+        const next = await accepted(d, a);
+        expect(await cancelMatch(pool, cancelled.id)).toMatchObject({ ok: true });
+        expect(await stateOf(cancelled.id)).toBe('cancelled');
+        expect(await stateOf(next.id)).toBe('upcoming');
+        expect(await cancelMatch(pool, busy.id)).toMatchObject({ ok: true });
+        expect(await stateOf(next.id)).toBe('called');
+    });
+
+    it('calls a waiting 1v1 match after a tournament match, but never calls a tournament match', async () => {
+        const t = await tournament('single_elimination', 4, 1);
+        const [semi1, semi2] = t.ids;
+        const [x] = await playersOf(semi1);
+        const [z] = await playersOf(semi2);
+        await start(semi1);
+        const waiting = await accepted(x!, z!);
+        expect(waiting.called).toBe(false);
+        await report(semi1, 1, 1);
+        expect(await stateOf(waiting.id)).toBe('called');
+        // The tournament match stays for the admin, who must wait for the 1v1 match.
+        expect(await stateOf(semi2)).toBe('upcoming');
+        expect(await callMatch(pool, semi2)).toEqual({ ok: false, error: 'player-busy' });
+        await start(waiting.id);
+        await report(waiting.id, 1, 2);
+        expect(await stateOf(semi2)).toBe('upcoming');
+        expect(await callMatch(pool, semi2)).toMatchObject({ ok: true });
+    });
+
+    it('calls the match again when an admin resets it, since it is still accepted', async () => {
+        const { players } = await activeEvent(2);
+        const match = await accepted(players[0], players[1]);
+        await start(match.id);
+        await report(match.id, 1, 1);
+        expect(await resetMatch(pool, match.id)).toMatchObject({ ok: true });
+        expect(await getMatch(pool, match.id)).toMatchObject({ state: 'called', games: [], winnerId: null });
+    });
+
+    it('never leaves an accepted match waiting when the busy match ends at the same time', async () => {
+        const { players } = await activeEvent(24);
+        for (let i = 0; i < players.length; i += 3) {
+            const [a, b, c] = players.slice(i, i + 3);
+            const busy = await accepted(a, b);
+            await start(busy.id);
+            const created = await createChallenge(pool, c, a);
+            if (!created.ok) throw new Error(created.error);
+            const [ended, answer] = await Promise.all([report(busy.id, 1, 1), acceptChallenge(pool, created.matchId, a)]);
+            expect(ended).toMatchObject({ ok: true });
+            expect(answer).toMatchObject({ ok: true });
+            expect(await stateOf(created.matchId)).toBe('called');
+        }
+    });
+
+    it('changes the stamp of both players on every step of a 1v1 match, and not for others', async () => {
+        const { players } = await activeEvent(3);
+        const [a, b, c] = players;
+        const stamps = async () => Promise.all([a, b, c].map((p) => playerMatchesStamp(pool, p)));
+        let before = await stamps();
+        expect(before).toEqual(['', '', '']);
+        const steps: (() => Promise<unknown>)[] = [];
+        let id = 0;
+        steps.push(async () => {
+            const created = await createChallenge(pool, a, b);
+            if (!created.ok) throw new Error(created.error);
+            id = created.matchId;
+        });
+        steps.push(() => acceptChallenge(pool, id, b));
+        steps.push(() => reportPlayersConnected(pool, id));
+        steps.push(() => report(id, 1, 1));
+        for (const step of steps) {
+            await step();
+            const after = await stamps();
+            expect(after[0]).not.toBe(before[0]);
+            expect(after[1]).not.toBe(before[1]);
+            expect(after[2]).toBe('');
+            before = after;
+        }
+    });
+
+    it('never calls two matches for one player when matches end and are accepted at once', async () => {
+        const { eventId, players } = await activeEvent(8);
+        const [a, b, c, d, e, f, g, h] = players;
+        const busy = [await accepted(a, b), await accepted(c, d)];
+        for (const m of busy) await start(m.id);
+        const created: { id: number; by: number }[] = [];
+        for (const [x, y] of [
+            [e, a],
+            [f, a],
+            [g, c],
+            [a, c],
+            [h, c],
+        ]) {
+            const made = await createChallenge(pool, x, y);
+            if (!made.ok) throw new Error(made.error);
+            created.push({ id: made.matchId, by: y });
+        }
+        await Promise.all([...busy.map((m) => report(m.id, 1, 1)), ...created.map((m) => acceptChallenge(pool, m.id, m.by))]);
+        const live = (await listMatches(pool, eventId)).filter((m) => m.state === 'called' || m.state === 'started');
+        const ids = live.flatMap((m) => m.players.map((p) => p!.id));
+        expect(new Set(ids).size).toBe(ids.length);
+        // a and c are free again and each has accepted matches, so each plays one.
+        expect(ids).toContain(a);
+        expect(ids).toContain(c);
     });
 });
 
@@ -740,19 +902,23 @@ describe('withMatchForBet', () => {
 });
 
 describe('fix round checks', () => {
-    it('calls only one of several matches that share a player when they are called at once', async () => {
-        const { players } = await activeEvent(7);
+    it('calls only one of several 1v1 matches that share a player when they are accepted at once', async () => {
+        const { eventId, players } = await activeEvent(7);
         const ids: number[] = [];
         for (const opponent of players.slice(1)) {
             const created = await createChallenge(pool, players[0], opponent);
             if (!created.ok) throw new Error(created.error);
-            await acceptChallenge(pool, created.matchId, opponent);
             ids.push(created.matchId);
         }
         await Promise.all(Array.from({ length: 8 }, () => pool.query('SELECT pg_sleep(0.05)')));
-        const results = await Promise.all(ids.map((id) => callMatch(pool, id)));
-        expect(results.filter((r) => r.ok)).toHaveLength(1);
-        expect(results.filter((r) => !r.ok && r.error === 'player-busy')).toHaveLength(ids.length - 1);
+        const results = await Promise.all(ids.map((id, i) => acceptChallenge(pool, id, players[i + 1])));
+        const called = results.map((r) => (r.ok ? r.called : null));
+        expect(called.filter((c) => c === true)).toHaveLength(1);
+        expect(called.filter((c) => c === false)).toHaveLength(ids.length - 1);
+        expect((await listMatches(pool, eventId)).filter((m) => m.state === 'called')).toHaveLength(1);
+        // The others stay accepted, and the admin cannot call them either.
+        const waiting = ids.filter((_, i) => called[i] === false);
+        expect(await Promise.all(waiting.map((id) => callMatch(pool, id)))).toEqual(waiting.map(() => ({ ok: false, error: 'player-busy' })));
     });
 
     it('refuses a game result where the winner does not have more points', async () => {

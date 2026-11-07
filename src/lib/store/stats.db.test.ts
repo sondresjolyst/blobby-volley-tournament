@@ -51,16 +51,17 @@ async function event(n: number, names: string[]) {
     return { eventId, ids };
 }
 
-/** An accepted 1v1 match, called and started. */
+/** An accepted 1v1 match, which accepting calls. */
 async function oneVsOne(a: number, b: number, bestOf: BestOf = 1): Promise<number> {
     const created = await createChallenge(pool, a, b, { bestOf });
     if (!created.ok) throw new Error(created.error);
-    expect(await acceptChallenge(pool, created.matchId, b)).toMatchObject({ ok: true });
+    expect(await acceptChallenge(pool, created.matchId, b)).toMatchObject({ ok: true, called: true });
     return created.matchId;
 }
 
 async function start(matchId: number) {
-    expect(await callMatch(pool, matchId)).toMatchObject({ ok: true });
+    // An accepted 1v1 match is called when it is accepted, so only a tournament match is called here.
+    if ((await getMatch(pool, matchId))!.state === 'upcoming') expect(await callMatch(pool, matchId)).toMatchObject({ ok: true });
     expect(await reportPlayersConnected(pool, matchId)).toMatchObject({ ok: true, started: true });
 }
 
