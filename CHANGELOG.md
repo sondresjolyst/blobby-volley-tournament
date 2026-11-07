@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0](https://github.com/sondresjolyst/blobby-volley-tournament/compare/v0.3.0...v0.4.0) (2026-11-07)
+
+
+### Features
+
+* polish the pizza theme and the admin pages ([#57](https://github.com/sondresjolyst/blobby-volley-tournament/issues/57)) ([e51d88f](https://github.com/sondresjolyst/blobby-volley-tournament/commit/e51d88ff4502ac0a578f46df18dba13e18e73bf7))
+
+
+### Dependencies
+
+* **docker:** update node from 26.12.1-slim to 26.13.0-slim ([f2a95ea](https://github.com/sondresjolyst/blobby-volley-tournament/commit/f2a95ea2c538d8348c60f21f10d2e54d596d5560))
+
 ## [0.3.0](https://github.com/sondresjolyst/blobby-volley-tournament/compare/v0.2.0...v0.3.0) (2026-11-07)
 
 
