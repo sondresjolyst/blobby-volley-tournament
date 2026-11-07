@@ -54,7 +54,7 @@ test('an admin makes a new game server token, sees it once with the start comman
     );
     // One command, with no second copy of it for another shell.
     await expect(page.getByRole('tab')).toHaveCount(0);
-    await expect(page.getByText('docker run')).toHaveCount(0);
+    await expect(page.getByText('docker run')).toHaveCount(1);
     await expect(page.getByText('Run it on the PC at the LAN that will host the game server')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Copy command' })).toBeVisible();
     await start.locator('summary', { hasText: 'Stop, logs and update' }).click();
