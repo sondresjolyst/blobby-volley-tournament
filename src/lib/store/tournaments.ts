@@ -1,6 +1,6 @@
 import type { Pool } from 'pg';
 import { MAX_PLAYERS, MIN_PLAYERS, type BestOf, type FormatId, type PlannedBracket, type Section, type SeedingMethod } from '@/lib/bracket';
-import { DEFAULT_GAME_SPEED, DEFAULT_SCORE_TO_WIN } from '@/lib/matches/settings';
+import { DEFAULT_GAME_SPEED, DEFAULT_SCORE_TO_WIN, isNextGameDelay } from '@/lib/matches/settings';
 import { createBracketMatches } from './matches';
 import { inTransaction } from './transaction';
 
@@ -44,6 +44,8 @@ export interface SavedTournament {
     thirdPlaceMatch: boolean;
     scoreToWin: number;
     speed: number;
+    /** The pause in seconds between two games of a series. */
+    nextGameDelay: number;
     /** In seed order. */
     players: TournamentPlayer[];
     /** In play order. A match only links to matches later in the list. */
@@ -150,8 +152,8 @@ interface MatchRecord {
 }
 
 export async function getTournament(pool: Pool, id: number): Promise<SavedTournament | null> {
-    const found = await pool.query<{ id: number; event_id: number; name: string; format: FormatId; seeding: SeedingMethod; random_seed: number | null; third_place_match: boolean; score_to_win: number; game_speed: number }>(
-        'SELECT id, event_id, name, format, seeding, random_seed, third_place_match, score_to_win, game_speed FROM tournaments WHERE id = $1',
+    const found = await pool.query<{ id: number; event_id: number; name: string; format: FormatId; seeding: SeedingMethod; random_seed: number | null; third_place_match: boolean; score_to_win: number; game_speed: number; next_game_delay: number }>(
+        'SELECT id, event_id, name, format, seeding, random_seed, third_place_match, score_to_win, game_speed, next_game_delay FROM tournaments WHERE id = $1',
         [id],
     );
     const row = found.rows[0];
@@ -178,6 +180,7 @@ export async function getTournament(pool: Pool, id: number): Promise<SavedTourna
         thirdPlaceMatch: row.third_place_match,
         scoreToWin: row.score_to_win,
         speed: row.game_speed,
+        nextGameDelay: row.next_game_delay,
         players: players.rows.map((p) => ({ playerId: p.player_id, nickname: p.nickname, seed: p.seed })),
         matches: matches.rows.map((m) => ({
             id: m.id,
@@ -201,4 +204,11 @@ export async function listTournaments(pool: Pool, eventId: number): Promise<Tour
         [eventId],
     );
     return rows.map((row) => ({ id: row.id, name: row.name, format: row.format, playerCount: row.player_count }));
+}
+
+/** Sets the pause in seconds between two games of a series. Returns false when the tournament does not exist or the pause is out of bounds. */
+export async function setNextGameDelay(pool: Pool, id: number, seconds: number): Promise<boolean> {
+    if (!isNextGameDelay(seconds)) return false;
+    const { rowCount } = await pool.query('UPDATE tournaments SET next_game_delay = $2 WHERE id = $1', [id, seconds]);
+    return rowCount === 1;
 }

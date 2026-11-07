@@ -24,7 +24,7 @@ async function signUp(browser: Browser, nickname: string) {
 interface Sync {
     syncVersion: string;
     players: { playerId: number; nickname: string; code: string }[];
-    matches: { matchId: number; state: string; nextGame: number; scoreToWin: number; speed: number; wins1: number; wins2: number; players: { playerId: number; code: string }[] }[];
+    matches: { matchId: number; state: string; nextGame: number; scoreToWin: number; speed: number; nextGameDelay: number; wins1: number; wins2: number; players: { playerId: number; code: string }[] }[];
 }
 
 async function readSync(request: APIRequestContext): Promise<Sync> {
@@ -65,6 +65,12 @@ test('the game server syncs a called match, starts it, sends a live score and re
     await page.getByLabel(/^Best of for /).selectOption('1');
     await page.getByRole('button', { name: 'Save tournament' }).click();
     await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
+    // The pause between games starts at 10 seconds and is set on the tournament page.
+    await expect(page.getByLabel('Pause between games in seconds')).toHaveValue('10');
+    await page.getByLabel('Pause between games in seconds').fill('30');
+    await page.getByRole('button', { name: 'Save pause' }).click();
+    await expect(page.getByRole('status')).toHaveText('Saved.');
+    await expect(page.getByLabel('Pause between games in seconds')).toHaveValue('30');
 
     await page.goto('/admin/matches');
     const row = page.getByRole('region', { name: 'Upcoming' }).getByRole('row', { name: new RegExp(name) });
@@ -77,7 +83,7 @@ test('the game server syncs a called match, starts it, sends a live score and re
     const codes = nicknames.map((nickname) => sync.players.find((p) => p.nickname === nickname)!.code);
     for (const code of codes) expect(code).toMatch(/^[A-HJKMNP-Z2-9]{10}$/);
     const match = sync.matches.find((m) => m.players.some((p) => p.playerId === ids[0]))!;
-    expect(match).toMatchObject({ state: 'called', nextGame: 1, scoreToWin: 21, speed: 90, wins1: 0, wins2: 0 });
+    expect(match).toMatchObject({ state: 'called', nextGame: 1, scoreToWin: 21, speed: 90, nextGameDelay: 30, wins1: 0, wins2: 0 });
     expect(match.players.map((p) => p.code).sort()).toEqual([...codes].sort());
 
     const connected = await request.post(`/api/server/matches/${match.matchId}/connected`, { headers: auth(), data: { playerIds: ids } });
