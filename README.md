@@ -196,6 +196,8 @@ Everything the server needs: the active event, every player of it with the join 
       "scoreToWin": 15,
       "speed": 75,
       "awaitingDecision": false,
+      "wins1": 0,
+      "wins2": 0,
       "players": [
         { "playerId": 12, "code": "K7QM2XPR4T" },
         { "playerId": 17, "code": "B9HNZ3WD6F" }
@@ -210,6 +212,7 @@ Everything the server needs: the active event, every player of it with the join 
 - `state` is `called` until both players connect, then `started`. A finished, cancelled or reset match leaves the list.
 - `nextGame` is the number the next game must be reported with. An admin restart or reset moves it on, so read it again before each game.
 - `awaitingDecision` is `true` when the last game was abandoned and the admin has not restarted or awarded it yet. The server should wait.
+- `wins1` and `wins2` are the games player 1 and player 2 have won in the series so far. They are the stored series score, so they include results an admin entered or corrected and a score set by hand. An abandoned game does not count. After a restart the server continues the series from them. The site decides when a series is over, and a decided match leaves the list.
 - `speed` is in frames per second. `scoreToWin` is the points that win one game.
 
 ### GET /api/server/sponsors

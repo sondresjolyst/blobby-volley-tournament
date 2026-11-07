@@ -20,6 +20,9 @@ export interface SyncMatch {
     speed: number;
     /** The last game was abandoned and waits for the admin to restart or award it. */
     awaitingDecision: boolean;
+    /** The games player 1 and player 2 have won in the series, with the results an admin entered, corrected or set by hand. */
+    wins1: number;
+    wins2: number;
     /** Player 1 first. */
     players: [{ playerId: number; code: string }, { playerId: number; code: string }];
 }
@@ -38,6 +41,44 @@ export interface ServerSync {
 const GAME_STATE = `
     greatest(m.game_base, coalesce(lg.number, 0)) + 1 AS next_game,
     (m.state = 'started' AND lg.number IS NOT NULL AND lg.number > m.game_base AND lg.status = 'abandoned' AND lg.source = 'server') AS awaiting_decision`;
+
+/** A called or started match as the sync query reads it. */
+export interface SyncMatchRow {
+    id: number;
+    state: 'called' | 'started';
+    best_of: number;
+    rule_file: string;
+    score_to_win: number;
+    game_speed: number;
+    player1_id: number;
+    player2_id: number;
+    code1: string;
+    code2: string;
+    next_game: number;
+    awaiting_decision: boolean;
+    score1: number;
+    score2: number;
+}
+
+/** A match of the sync. The wins are the stored series score, which already counts admin results and a score set by hand. */
+export function toSyncMatch(m: SyncMatchRow): SyncMatch {
+    return {
+        matchId: m.id,
+        state: m.state,
+        bestOf: m.best_of,
+        nextGame: m.next_game,
+        ruleFile: m.rule_file,
+        scoreToWin: m.score_to_win,
+        speed: m.game_speed,
+        awaitingDecision: m.awaiting_decision,
+        wins1: m.score1,
+        wins2: m.score2,
+        players: [
+            { playerId: m.player1_id, code: m.code1 },
+            { playerId: m.player2_id, code: m.code2 },
+        ],
+    };
+}
 
 const LAST_GAME = `LEFT JOIN LATERAL (SELECT number, status, source FROM match_games g WHERE g.match_id = m.id ORDER BY number DESC LIMIT 1) lg ON true`;
 
@@ -61,21 +102,8 @@ export async function getServerSync(pool: Pool, now: Date): Promise<ServerSync> 
                 eventId === null
                     ? []
                     : (
-                          await client.query<{
-                              id: number;
-                              state: 'called' | 'started';
-                              best_of: number;
-                              rule_file: string;
-                              score_to_win: number;
-                              game_speed: number;
-                              player1_id: number;
-                              player2_id: number;
-                              code1: string;
-                              code2: string;
-                              next_game: number;
-                              awaiting_decision: boolean;
-                          }>(
-                              `SELECT m.id, m.state, m.best_of, m.rule_file, m.score_to_win, m.game_speed, m.player1_id, m.player2_id,
+                          await client.query<SyncMatchRow>(
+                              `SELECT m.id, m.state, m.best_of, m.rule_file, m.score_to_win, m.game_speed, m.player1_id, m.player2_id, m.score1, m.score2,
                                    p1.join_code AS code1, p2.join_code AS code2, ${GAME_STATE}
                                FROM matches m
                                JOIN players p1 ON p1.id = m.player1_id
@@ -90,20 +118,7 @@ export async function getServerSync(pool: Pool, now: Date): Promise<ServerSync> 
             content = {
                 eventId,
                 players: players.map((p) => ({ playerId: p.id, nickname: p.nickname, code: p.join_code })),
-                matches: matches.map((m) => ({
-                    matchId: m.id,
-                    state: m.state,
-                    bestOf: m.best_of,
-                    nextGame: m.next_game,
-                    ruleFile: m.rule_file,
-                    scoreToWin: m.score_to_win,
-                    speed: m.game_speed,
-                    awaitingDecision: m.awaiting_decision,
-                    players: [
-                        { playerId: m.player1_id, code: m.code1 },
-                        { playerId: m.player2_id, code: m.code2 },
-                    ],
-                })),
+                matches: matches.map(toSyncMatch),
             };
         } catch (error) {
             await client.query('ROLLBACK');
