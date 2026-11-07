@@ -27,6 +27,8 @@ export type MatchError =
     | 'game'
     /** The series score or the points are not valid. */
     | 'score'
+    /** The series is decided, so a new game cannot be added. Earlier games can still be corrected. */
+    | 'decided'
     /** The match was decided by a no-show, so its games cannot change it. */
     | 'forfeit'
     /** The change would move a player out of a later match that is already called, started or finished. */
@@ -468,7 +470,9 @@ export async function enterGameResult(pool: Pool, matchId: number, entry: GameEn
     return withMatch(pool, matchId, async (tx) => {
         await requireScorable(tx);
         const games = await readGames(tx.client, tx.match.id);
-        if (entry.game <= tx.match.game_base || entry.game > lastGame(tx.match, games) + 1) throw new Refused('game');
+        const last = lastGame(tx.match, games);
+        if (entry.game <= tx.match.game_base || entry.game > last + 1) throw new Refused('game');
+        if (entry.game > last && tx.match.state === 'finished') throw new Refused('decided');
         await tx.client.query(
             `INSERT INTO match_games (match_id, number, status, winner_slot, points1, points2, source) VALUES ($1, $2, $3, $4, $5, $6, 'admin')
              ON CONFLICT (match_id, number) DO UPDATE SET status = EXCLUDED.status, winner_slot = EXCLUDED.winner_slot,

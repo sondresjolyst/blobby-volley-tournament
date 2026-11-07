@@ -5,6 +5,7 @@ import type { MatchPool } from '@/lib/store/bets';
 import type { LiveScore } from '@/lib/store/game-server';
 import type { MatchSummary } from '@/lib/store/matches';
 import type { Leaderboard } from '@/lib/store/stats';
+import { DEFAULT_ROTATION } from './screens';
 import { buildBigScreen, floorMatches, focusMatches, pickSide, pickTournament, roundWindow, screenBoards, type ScreenInput } from './view';
 
 const names: Record<number, string> = { 11: 'Blobfisk', 12: 'Skvett', 13: 'Ostebit', 14: 'Kantina' };
@@ -157,7 +158,7 @@ describe('screenBoards', () => {
 
 describe('buildBigScreen', () => {
     function input(extra: Partial<ScreenInput> = {}): ScreenInput {
-        return { event: { id: 1, name: 'JulaLAN' }, matches: [], pools: [], live: [], leaderboard: leaderboard(), tournament: null, sponsors: [], ...extra };
+        return { event: { id: 1, name: 'JulaLAN' }, matches: [], pools: [], live: [], leaderboard: leaderboard(), tournament: null, sponsors: [], series: [], rotation: DEFAULT_ROTATION, ...extra };
     }
 
     it('features the live match with its score, sets, Elo and pool, and lists the next matches open for bets', () => {
@@ -205,6 +206,122 @@ describe('buildBigScreen', () => {
         expect(final.matches[0].slots.map((s) => s.name)).toEqual(['Vinnar av kamp 1', 'Vinnar av kamp 2']);
         expect(JSON.stringify(data.bracket)).not.toMatch(/playerId|mine/);
         expect(data.featured!.label).toBe('Semifinala, kamp 2');
+    });
+
+    it('lays out every round of every side for the bracket screen', () => {
+        const ids = Array.from({ length: 16 }, (_, i) => 100 + i);
+        const bracket = generateBracket({ format: 'double_elimination', players: ids, seeding: { method: 'manual', order: ids }, thirdPlaceMatch: false });
+        const runtime = bracket.matches.map((m) =>
+            match(1000 + m.id, 'upcoming', [m.players[0], m.players[1]], {
+                tournamentId: 6,
+                bracketMatchId: m.id,
+            }),
+        );
+        const data = buildBigScreen(input({ matches: runtime, tournament: { id: 6, name: 'Storcupen', format: 'double_elimination', matches: bracket.matches } }));
+        const full = data.fullBracket!;
+        expect(full.sections.map((s) => s.key)).toEqual(['main', 'losers']);
+        const shown = full.sections.flatMap((s) => s.rounds.flatMap((r) => r.matches));
+        expect(shown).toHaveLength(bracket.matches.length);
+        expect(full.sections.every((s) => s.rounds.every((r) => r.more === 0))).toBe(true);
+        expect(full.sections[0].rows).toBe(8);
+        // Eight matches in a round make it dense, so empty slots get short names there, and only there.
+        expect(full.dense).toBe(true);
+        expect(full.sections[0].rounds[1].matches[0].slots.map((s) => s.name)).toEqual(['Vinnar k. 1', 'Vinnar k. 2']);
+        expect(full.sections[1].rounds[0].matches[0].slots.map((s) => s.name)).toEqual(['Taper k. 1', 'Taper k. 2']);
+        // The overview keeps its window of four matches a round and the long names.
+        expect(data.bracket!.rounds[0].matches).toHaveLength(4);
+        expect(buildBigScreen(input()).fullBracket).toBeNull();
+    });
+
+    it('lists the matches on the floor, then the next ones that can be called, at most eight', () => {
+        const matches = [
+            match(1, 'finished', [11, 12]),
+            match(2, 'upcoming', [11, 13], { acceptedAt: new Date() }),
+            match(3, 'upcoming', [12, 14]),
+            match(4, 'called', [13, 14]),
+            match(5, 'upcoming', [11, null], { tournamentId: 5 }),
+            match(6, 'upcoming', [12, 13], { tournamentId: 5 }),
+            match(7, 'started', [11, 12]),
+            ...Array.from({ length: 9 }, (_, i) => match(20 + i, 'upcoming', [11, 14], { tournamentId: 5 })),
+        ];
+        const data = buildBigScreen(input({ matches, live: [live(7, [9, 4])] }));
+        expect(data.upNext.map((m) => m.matchId)).toEqual([7, 4, 2, 6, 20, 21, 22, 23]);
+        expect(data.upNext[0].live).toEqual({ game: 2, points: [9, 4] });
+        expect(buildBigScreen(input()).upNext).toEqual([]);
+    });
+
+    it('ranks the bettors by Foza won and lists the biggest wins, one per bettor', () => {
+        const board = leaderboard();
+        const bettor = board.bettors[0];
+        board.bettors = [
+            { ...bettor, playerId: 11, net: -50, correct: 1, bets: 3, biggestWin: { matchId: 1, onPlayerId: 12, value: 30 } },
+            { ...bettor, playerId: 12, net: 400, correct: 2, bets: 2, biggestWin: { matchId: 2, onPlayerId: 13, value: 380 } },
+            { ...bettor, playerId: 13, net: 90, correct: 0, bets: 1, biggestWin: null },
+        ];
+        const { foza } = buildBigScreen(input({ leaderboard: board }));
+        expect(foza.bettors).toEqual([
+            { nickname: 'Skvett', net: 400, correct: 2, bets: 2 },
+            { nickname: 'Ostebit', net: 90, correct: 0, bets: 1 },
+            { nickname: 'Blobfisk', net: -50, correct: 1, bets: 3 },
+        ]);
+        expect(foza.wins).toEqual([
+            { nickname: 'Skvett', on: 'Ostebit', profit: 380 },
+            { nickname: 'Blobfisk', on: 'Skvett', profit: 30 },
+        ]);
+        expect(buildBigScreen(input({ leaderboard: { ...board, bettors: [] } })).foza).toEqual({ bettors: [], wins: [] });
+    });
+
+    it('takes the final from the last stage of the bracket, not from the order of the match list', () => {
+        const de = { format: 'double_elimination' as const, position: 1 };
+        // The grand final has the lowest id, so list order alone would pick the wrong match.
+        const matches = [
+            match(2, 'finished', [11, 12], { tournamentId: 5, bracketRound: { ...de, section: 'final', round: 1, lastRound: 1 }, winnerId: 11, result: 'played', score1: 3, score2: 1 }),
+            match(9, 'finished', [11, 13], { tournamentId: 5, bracketRound: { ...de, section: 'winners', round: 3, lastRound: 3 }, winnerId: 11, result: 'played', score1: 2 }),
+            match(12, 'finished', [11, 14], { tournamentId: 5, bracketRound: { ...de, section: 'winners', round: 1, lastRound: 3 }, winnerId: 11, result: 'played', score1: 2 }),
+        ];
+        const board = leaderboard();
+        board.placings = [{ tournamentId: 5, tournamentName: 'Storcupen', playerId: 11, place: 1 }];
+        expect(buildBigScreen(input({ matches, leaderboard: board })).winner?.final).toEqual({
+            round: 'Storfinale',
+            sides: [
+                { name: 'Blobfisk', score: 3 },
+                { name: 'Skvett', score: 1 },
+            ],
+        });
+        // A grand final decided by a no-show has no score to show.
+        const forfeit = matches.map((m) => (m.id === 2 ? { ...m, result: 'forfeit' as const } : m));
+        expect(buildBigScreen(input({ matches: forfeit, leaderboard: board })).winner?.final).toBeNull();
+    });
+
+    it('has no winner before a tournament has a champion, then shows the champion, the final and the podium', () => {
+        expect(buildBigScreen(input()).winner).toBeNull();
+        const round = { format: 'single_elimination' as const, section: 'winners' as const, round: 2, lastRound: 2, position: 1 };
+        const matches = [
+            match(1, 'finished', [11, 14], { tournamentId: 5, bracketRound: { ...round, round: 1 }, winnerId: 11, result: 'played', score1: 2 }),
+            match(3, 'finished', [11, 12], { tournamentId: 5, bracketRound: round, winnerId: 11, result: 'played', score1: 2, score2: 1 }),
+        ];
+        const board = leaderboard();
+        board.placings = [
+            { tournamentId: 5, tournamentName: 'Hovedcupen', playerId: 11, place: 1 },
+            { tournamentId: 5, tournamentName: 'Hovedcupen', playerId: 12, place: 2 },
+            { tournamentId: 5, tournamentName: 'Hovedcupen', playerId: 13, place: 3 },
+            { tournamentId: 5, tournamentName: 'Hovedcupen', playerId: 14, place: 3 },
+        ];
+        expect(buildBigScreen(input({ matches, leaderboard: { ...board, placings: board.placings.slice(1) } })).winner).toBeNull();
+        expect(buildBigScreen(input({ matches, leaderboard: board })).winner).toEqual({
+            tournamentId: 5,
+            tournamentName: 'Hovedcupen',
+            champion: 'Blobfisk',
+            podium: [
+                { place: 2, names: ['Skvett'] },
+                { place: 3, names: ['Ostebit', 'Kantina'] },
+            ],
+            final: { round: 'Finale', sides: [{ name: 'Blobfisk', score: 2 }, { name: 'Skvett', score: 1 }] },
+        });
+    });
+
+    it('carries the rotation of the event', () => {
+        expect(buildBigScreen(input({ rotation: { screens: ['stats', 'overview'], seconds: 30 } })).rotation).toEqual({ screens: ['stats', 'overview'], seconds: 30 });
     });
 
     it('links the sponsor logos with their hash', () => {

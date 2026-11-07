@@ -1,7 +1,7 @@
 import { readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const requireAdminPost = vi.fn();
 const requireAdminRead = vi.fn();
@@ -28,6 +28,13 @@ function routeFiles(dir: string): string[] {
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
 const routes = routeFiles(root).map((file) => relative(root, file).replaceAll('\\', '/'));
 
+// The modules are loaded once before the tests. A first load with a cold transform cache can take
+// longer than the timeout of a single test, and a test that timed out keeps running into the next one.
+const modules = new Map<string, unknown>();
+beforeAll(async () => {
+    for (const file of routes) modules.set(file, await import(/* @vite-ignore */ `./${file}`));
+}, 120_000);
+
 beforeEach(() => {
     requireAdminPost.mockReset();
     requireAdminRead.mockReset();
@@ -40,7 +47,7 @@ describe('every /api/admin route', () => {
     });
 
     it.each(routes)('%s answers with the response from the admin check before it does anything else, the read check for GET and the post check otherwise', async (route) => {
-        const mod = (await import(/* @vite-ignore */ `./${route}`)) as Record<string, unknown>;
+        const mod = modules.get(route) as Record<string, unknown>;
         const handlers = METHODS.filter((method) => typeof mod[method] === 'function');
         expect(handlers.length).toBeGreaterThan(0);
         for (const method of handlers) {

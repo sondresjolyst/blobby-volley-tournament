@@ -107,6 +107,7 @@ const MESSAGES: Record<string, string> = {
     game: 'The game must be one of the games played or the next one.',
     score: 'The score is not valid. The winner of a game must have more points, and a series score must fit the best-of.',
     forfeit: 'This match was decided by a no-show. Its games cannot change it.',
+    decided: 'The series is decided, so no more games can be added. Correct a game that was played instead.',
     'downstream-played': 'The change would move a player out of a later match that is already called, started or finished. Reset that match to upcoming first.',
     'tournament-cancel': 'A tournament match cannot be cancelled, since the bracket could not move on. Record a no-show instead.',
 };

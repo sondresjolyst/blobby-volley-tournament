@@ -169,6 +169,29 @@ describe('series scoring', () => {
         expect(await reportPlayersConnected(pool, id)).toMatchObject({ ok: true, started: false });
         expect(await getMatch(pool, id)).toMatchObject({ state: 'started', score1: 1, score2: 1, nextGame: 3 });
     });
+
+    it('takes no new game once the series is decided, but still takes a correction', async () => {
+        const t = await tournament('single_elimination', 2, 3);
+        const [id] = t.ids;
+        await start(id);
+        expect(await enterGameResult(pool, id, { game: 1, winnerSlot: 1, points1: 15, points2: 4 })).toMatchObject({ ok: true });
+        expect(await enterGameResult(pool, id, { game: 2, winnerSlot: 1, points1: 15, points2: 9 })).toMatchObject({ ok: true });
+        expect(await enterGameResult(pool, id, { game: 3, winnerSlot: 2, points1: 2, points2: 15 })).toEqual({ ok: false, error: 'decided' });
+        expect(await getMatch(pool, id)).toMatchObject({ state: 'finished', score1: 2, score2: 0, games: [{ number: 1 }, { number: 2 }] });
+        // Correcting a played game is still allowed, and it can open the series again.
+        expect(await enterGameResult(pool, id, { game: 2, winnerSlot: 2, points1: 9, points2: 15 })).toMatchObject({ ok: true });
+        expect(await getMatch(pool, id)).toMatchObject({ state: 'started', score1: 1, score2: 1, nextGame: 3 });
+        expect(await enterGameResult(pool, id, { game: 3, winnerSlot: 2, points1: 2, points2: 15 })).toMatchObject({ ok: true });
+        expect(await getMatch(pool, id)).toMatchObject({ state: 'finished', score1: 1, score2: 2 });
+    });
+
+    it('takes no new game after a series score set by hand decided it', async () => {
+        const t = await tournament('single_elimination', 2, 3);
+        const [id] = t.ids;
+        await start(id);
+        expect(await setSeriesScore(pool, id, 2, 1)).toMatchObject({ ok: true });
+        expect(await enterGameResult(pool, id, { game: 1, winnerSlot: 2, points1: 2, points2: 15 })).toEqual({ ok: false, error: 'decided' });
+    });
 });
 
 describe('abandoned games and restart', () => {

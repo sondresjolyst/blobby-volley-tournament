@@ -6,6 +6,7 @@ import styles from '@/components/player/player.module.css';
 import type { FormatId, SeedingMethod } from '@/lib/bracket';
 import { getPool } from '@/lib/db';
 import { parseId } from '@/lib/http';
+import { nicknameOf } from '@/lib/stats/players';
 import { requireActivePlayer } from '@/lib/players/current';
 import { listMatchPools } from '@/lib/store/bets';
 import { getBalance } from '@/lib/store/foza';
@@ -41,7 +42,7 @@ export default async function BracketPage({ searchParams }: { searchParams: Prom
     const own = matches.filter((m) => m.tournamentId === chosen.id);
     const open = new Set(pools.filter((p) => p.open).map((p) => p.matchId));
     const sections = tournament ? buildBoard(tournament.format, tournament.matches, own, player.id, open) : [];
-    const nickname = new Map(tournament?.players.map((p) => [p.playerId, p.nickname]));
+    const nickname = nicknameOf(new Map(tournament?.players.map((p) => [p.playerId, p.nickname])));
     const champion = placings.find((p) => p.place === 1);
     return (
         <PlayerShell {...shell}>
@@ -72,7 +73,7 @@ export default async function BracketPage({ searchParams }: { searchParams: Prom
                         <h2 id={`side-${section.key}`} className={sections.length > 1 ? styles.h2 : styles.srOnly}>
                             {section.key === 'losers' ? 'Tapersida' : sections.length > 1 ? 'Vinnarsida' : 'Kampane'}
                         </h2>
-                        <BracketBoard rounds={section.rounds} champion={section.key === 'main' ? { name: champion ? (nickname.get(champion.playerId) ?? null) : null } : undefined} />
+                        <BracketBoard rounds={section.rounds} champion={section.key === 'main' ? { name: champion ? nickname(champion.playerId) : null } : undefined} />
                     </section>
                 ))}
 
@@ -84,7 +85,7 @@ export default async function BracketPage({ searchParams }: { searchParams: Prom
                         <ul className={styles.list} aria-label="Plasseringa">
                             {placings.map((p) => (
                                 <li key={p.playerId}>
-                                    <strong>{p.place}.</strong> {nickname.get(p.playerId) ?? `Spelar ${p.playerId}`}
+                                    <strong>{p.place}.</strong> {nickname(p.playerId)}
                                 </li>
                             ))}
                         </ul>

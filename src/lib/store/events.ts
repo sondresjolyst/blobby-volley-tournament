@@ -1,5 +1,6 @@
 import type { Pool } from 'pg';
 import type { EventInput } from '@/lib/events/input';
+import { toRotation, type ScreenRotation } from '@/lib/big-screen/screens';
 import type { GameBoard } from '@/lib/sponsors/input';
 
 export interface EventRow extends EventInput {
@@ -7,6 +8,8 @@ export interface EventRow extends EventInput {
     isActive: boolean;
     /** The style of the sponsor board in the game. Off shows no board. */
     gameBoard: GameBoard;
+    /** The screens the big screen takes turns on, and how long each one stays up. */
+    bigScreen: ScreenRotation;
 }
 
 interface EventRecord {
@@ -21,11 +24,13 @@ interface EventRecord {
     server_host: string | null;
     server_port: number | null;
     game_board: GameBoard;
+    big_screen_screens: string[];
+    big_screen_seconds: number;
 }
 
 // Dates are read as text, so the time zone of the server cannot move them a day.
 const COLUMNS = `id, name, to_char(starts_on, 'YYYY-MM-DD') AS starts_on, to_char(ends_on, 'YYYY-MM-DD') AS ends_on,
-    code, starting_foza, daily_foza, is_active, server_host, server_port, game_board`;
+    code, starting_foza, daily_foza, is_active, server_host, server_port, game_board, big_screen_screens, big_screen_seconds`;
 
 // Any number works, as long as only setActiveEvent uses it.
 const ACTIVE_LOCK_ID = 7_310_403;
@@ -43,6 +48,7 @@ function toEvent(row: EventRecord): EventRow {
         serverHost: row.server_host,
         serverPort: row.server_port,
         gameBoard: row.game_board,
+        bigScreen: toRotation(row.big_screen_screens, row.big_screen_seconds),
     };
 }
 
@@ -85,6 +91,12 @@ export async function updateEvent(pool: Pool, id: number, input: EventInput): Pr
 /** Sets the style of the sponsor board in the game. Returns false when the event does not exist. */
 export async function setGameBoard(pool: Pool, id: number, board: GameBoard): Promise<boolean> {
     const { rowCount } = await pool.query('UPDATE events SET game_board = $2 WHERE id = $1', [id, board]);
+    return rowCount === 1;
+}
+
+/** Sets the screens of the big screen and how long each stays up. Returns false when the event does not exist. */
+export async function setBigScreenRotation(pool: Pool, id: number, rotation: ScreenRotation): Promise<boolean> {
+    const { rowCount } = await pool.query('UPDATE events SET big_screen_screens = $2, big_screen_seconds = $3 WHERE id = $1', [id, rotation.screens, rotation.seconds]);
     return rowCount === 1;
 }
 

@@ -5,6 +5,7 @@ import styles from '@/components/stats/stats.module.css';
 import { getPool } from '@/lib/db';
 import { parseId } from '@/lib/http';
 import { shownRating } from '@/lib/stats/elo';
+import { nicknameOf } from '@/lib/stats/players';
 import { getActiveEvent } from '@/lib/store/events';
 import { getPlayerStats } from '@/lib/store/stats';
 
@@ -16,7 +17,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ id
     const [page, active] = await Promise.all([getPlayerStats(pool, id), getActiveEvent(pool)]);
     if (!page) notFound();
     const { player, stats, betting, elo, placings } = page;
-    const name = (playerId: number) => page.nicknames.get(playerId) ?? `Spelar ${playerId}`;
+    const name = nicknameOf(page.nicknames);
     const back = active?.id === player.eventId ? '/leaderboard' : `/leaderboard?event=${player.eventId}`;
 
     return (

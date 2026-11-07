@@ -1,5 +1,6 @@
 import type { MatchPool } from '@/lib/store/bets';
 import type { MatchSummary } from '@/lib/store/matches';
+import { nicknameOf } from '@/lib/stats/players';
 import styles from './player.module.css';
 import { matchTitle } from '../matches/describe';
 import { foza, matchSettings, payout } from './text';
@@ -29,7 +30,7 @@ export function MatchCard({ match, pool, viewerId, balance, bet }: CardProps) {
     const tag = tagOf(match, open);
     const name = (slot: 0 | 1) => match.players[slot]?.nickname ?? 'Ikkje klart enno';
     const sides = pool?.sides ?? [];
-    const nicknameOf = (playerId: number) => match.players.find((p) => p?.id === playerId)?.nickname ?? `Spelar ${playerId}`;
+    const nickname = nicknameOf(new Map(match.players.flatMap((p) => (p ? [[p.id, p.nickname] as const] : []))));
     return (
         <article id={`kamp-${match.id}`} className={`${styles.card} ${mine ? styles.mine : ''}`}>
             <div className={styles.cardTop}>
@@ -76,7 +77,7 @@ export function MatchCard({ match, pool, viewerId, balance, bet }: CardProps) {
                             {sides.map((side) => (
                                 <label key={side.playerId} className={styles.side}>
                                     <input type="radio" name="on" value={side.playerId} required defaultChecked={bet?.onPlayerId === side.playerId} disabled={bet !== undefined && bet.onPlayerId !== side.playerId} />
-                                    <span className={styles.sideName}>{nicknameOf(side.playerId)}</span>
+                                    <span className={styles.sideName}>{nickname(side.playerId)}</span>
                                     <span className={styles.sideOdds}>
                                         {foza(side.stake)} · {payout(side.multiplier)}
                                     </span>

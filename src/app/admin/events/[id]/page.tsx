@@ -26,6 +26,7 @@ type Search = {
     sponsorDeleted?: string | string[];
     boardSaved?: string | string[];
     bigScreenKey?: string | string[];
+    rotationSaved?: string | string[];
 };
 
 export default async function EditEvent({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Search> }) {
@@ -71,6 +72,7 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
             {search.sponsorDeleted === '1' && <p role="status">The sponsor is deleted.</p>}
             {search.boardSaved === '1' && <p role="status">Saved the sponsor board.</p>}
             {search.bigScreenKey === 'new' && <p role="status">The big screen has a new key. The old address stops showing the join card.</p>}
+            {search.rotationSaved === '1' && <p role="status">Saved the big screen screens.</p>}
             {adjustedPlayer && (
                 <p role="status">
                     The Foza of {adjustedPlayer.nickname} is now {adjustedPlayer.fozaBalance}.
@@ -149,7 +151,7 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
                 <button type="submit">Reset network PIN limit</button>
             </form>
 
-            {bigScreenKey && <BigScreenSection eventId={event.id} address={bigScreenUrl(bigScreenKey, process.env)} isActive={event.isActive} />}
+            {bigScreenKey && <BigScreenSection eventId={event.id} address={bigScreenUrl(bigScreenKey, process.env)} isActive={event.isActive} rotation={event.bigScreen} />}
 
             <SponsorSection eventId={event.id} gameBoard={event.gameBoard} sponsors={sponsors} />
         </AdminShell>
