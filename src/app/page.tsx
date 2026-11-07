@@ -125,7 +125,6 @@ export default async function Home() {
                                     Logg inn
                                 </Link>
                             </div>
-                            <p className={s.heroNote}>LAN-koden står på storskjermen i lokalet.</p>
                         </>
                     )}
                 </div>
