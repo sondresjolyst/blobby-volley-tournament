@@ -1,0 +1,214 @@
+import { describe, expect, it } from 'vitest';
+import { generateBracket } from '@/lib/bracket';
+import type { MatchState } from '@/lib/matches/state';
+import type { MatchPool } from '@/lib/store/bets';
+import type { LiveScore } from '@/lib/store/game-server';
+import type { MatchSummary } from '@/lib/store/matches';
+import type { Leaderboard } from '@/lib/store/stats';
+import { buildBigScreen, floorMatches, focusMatches, pickSide, pickTournament, roundWindow, screenBoards, type ScreenInput } from './view';
+
+const names: Record<number, string> = { 11: 'Blobfisk', 12: 'Skvett', 13: 'Ostebit', 14: 'Kantina' };
+
+function match(id: number, state: MatchState, players: [number | null, number | null], extra: Partial<MatchSummary> = {}): MatchSummary {
+    const player = (p: number | null) => (p === null ? null : { id: p, nickname: names[p] });
+    return {
+        id,
+        eventId: 1,
+        tournamentId: null,
+        tournamentName: null,
+        bracketMatchId: null,
+        roundLabel: null,
+        bracketRound: null,
+        state,
+        bestOf: 3,
+        ruleFile: 'default.lua',
+        scoreToWin: 15,
+        speed: 75,
+        players: [player(players[0]), player(players[1])],
+        acceptedAt: null,
+        score1: 0,
+        score2: 0,
+        winnerId: null,
+        result: null,
+        cancelReason: null,
+        ...extra,
+    };
+}
+
+const live = (matchId: number, points: [number, number] | null): LiveScore => ({
+    matchId,
+    state: 'started',
+    live: points ? { game: 2, points: [{ playerId: 0, points: points[0] }, { playerId: 0, points: points[1] }], updatedAt: '2026-11-20T18:00:00.000Z' } : null,
+});
+
+function leaderboard(): Leaderboard {
+    const bettor = (playerId: number, correct: number, bets: number) => ({ playerId, bets, correct, hitRate: correct / bets, fozaWon: 0, fozaLost: 0, net: 0, biggestWin: null, bestOdds: null });
+    const wins = (playerId: number, matchesWon: number) => ({
+        playerId,
+        matchesWon,
+        matchesLost: 0,
+        gamesWon: 0,
+        gamesLost: 0,
+        winRate: 1,
+        pointsScored: 0,
+        pointsConceded: 0,
+        longestStreak: 0,
+        headToHead: [],
+    });
+    return {
+        eventId: 1,
+        tournamentId: null,
+        nicknames: new Map(Object.entries(names).map(([id, n]) => [Number(id), n])),
+        bettors: [bettor(13, 14, 19), bettor(11, 11, 17), bettor(14, 9, 15), bettor(12, 8, 16), bettor(15, 5, 12), bettor(16, 1, 2)],
+        wins: [wins(11, 2), wins(12, 1)],
+        elo: [
+            { playerId: 11, rating: 1084.4, start: 1000, change: 84, matches: 3 },
+            { playerId: 12, rating: 1031.6, start: 1000, change: 31, matches: 3 },
+        ],
+        placings: [],
+    };
+}
+
+const pool = (matchId: number, open: boolean, stakes: [number, number], players: [number, number]): MatchPool => {
+    const total = stakes[0] + stakes[1];
+    return {
+        matchId,
+        open,
+        total,
+        sides: [
+            { playerId: players[0], stake: stakes[0], bettors: 1, multiplier: stakes[0] ? total / stakes[0] : null },
+            { playerId: players[1], stake: stakes[1], bettors: 1, multiplier: stakes[1] ? total / stakes[1] : null },
+        ],
+    };
+};
+
+describe('floorMatches', () => {
+    it('puts started matches with a live score first, then other started ones, then called ones', () => {
+        const matches = [match(1, 'called', [11, 12]), match(2, 'started', [13, 14]), match(3, 'started', [11, 13]), match(4, 'upcoming', [12, 14]), match(5, 'finished', [11, 14])];
+        expect(floorMatches(matches, [live(3, [4, 6]), live(2, null)]).map((m) => m.id)).toEqual([3, 2, 1]);
+    });
+});
+
+describe('pickTournament', () => {
+    const matches = [match(1, 'finished', [11, 12], { tournamentId: 7 }), match(2, 'upcoming', [13, 14], { tournamentId: 8 }), match(3, 'started', [11, 13], { tournamentId: 9 })];
+
+    it('takes a wanted tournament of the event', () => {
+        expect(pickTournament([9, 8, 7], matches, [], 7)).toBe(7);
+    });
+
+    it('takes the tournament of the match on the floor when the wanted one is not in the event', () => {
+        expect(pickTournament([9, 8, 7], matches, [], 99)).toBe(9);
+    });
+
+    it('takes the newest tournament with a match left, then the newest', () => {
+        expect(pickTournament([9, 8, 7], matches.slice(0, 2), [], null)).toBe(8);
+        expect(pickTournament([9, 7], matches.slice(0, 1), [], null)).toBe(9);
+        expect(pickTournament([], [], [], null)).toBeNull();
+    });
+});
+
+describe('roundWindow', () => {
+    const round = (...states: MatchState[]) => ({ matches: states.map((state) => ({ state })) });
+
+    it('starts at the first round with a match left and keeps the window full', () => {
+        const rounds = [round('finished', 'finished'), round('finished', 'started'), round('upcoming'), round('upcoming'), round('upcoming'), round('upcoming')];
+        expect(roundWindow(rounds, 4)).toEqual(rounds.slice(1, 5));
+        expect(roundWindow(rounds.slice(0, 3), 4)).toEqual(rounds.slice(0, 3));
+        const done = [round('finished'), round('finished'), round('finished'), round('finished'), round('cancelled')];
+        expect(roundWindow(done, 4)).toEqual(done.slice(1));
+    });
+});
+
+describe('focusMatches', () => {
+    it('keeps live, called and open matches first, in bracket order', () => {
+        const states: MatchState[] = ['finished', 'finished', 'upcoming', 'finished', 'started', 'called', 'upcoming', 'finished'];
+        const matches = states.map((state, i) => ({ state, i }));
+        expect(focusMatches(matches, 4).map((m) => m.i)).toEqual([2, 4, 5, 6]);
+        expect(focusMatches(matches.slice(0, 3), 4)).toEqual(matches.slice(0, 3));
+    });
+});
+
+describe('pickSide', () => {
+    const side = (key: 'main' | 'losers', ...states: MatchState[]) => ({ key, rounds: [{ matches: states.map((state) => ({ state })) }] });
+
+    it('shows the side with the most urgent match, the winners side on a tie', () => {
+        expect(pickSide([side('main', 'upcoming'), side('losers', 'started')]).key).toBe('losers');
+        expect(pickSide([side('main', 'called'), side('losers', 'called')]).key).toBe('main');
+        expect(pickSide([side('main', 'finished'), side('losers', 'upcoming')]).key).toBe('losers');
+        expect(pickSide([side('main', 'finished'), side('losers', 'finished')]).key).toBe('main');
+        expect(pickSide([side('main', 'finished')]).key).toBe('main');
+    });
+});
+
+describe('screenBoards', () => {
+    it('ranks bets by correct bets and shows the top five of each board', () => {
+        const [rette, sigra, elo] = screenBoards(leaderboard());
+        expect(rette.key).toBe('rette');
+        expect(rette.rows).toHaveLength(5);
+        expect(rette.rows[0]).toEqual({ rank: 1, nickname: 'Ostebit', value: '14 av 19' });
+        expect(rette.rows[4]).toEqual({ rank: 5, nickname: 'Spelar 15', value: '5 av 12' });
+        expect(sigra.rows).toEqual([
+            { rank: 1, nickname: 'Blobfisk', value: '2 sigra' },
+            { rank: 2, nickname: 'Skvett', value: '1 siger' },
+        ]);
+        expect(elo.rows.map((r) => r.value)).toEqual(['1084', '1032']);
+    });
+});
+
+describe('buildBigScreen', () => {
+    function input(extra: Partial<ScreenInput> = {}): ScreenInput {
+        return { event: { id: 1, name: 'JulaLAN' }, matches: [], pools: [], live: [], leaderboard: leaderboard(), tournament: null, sponsors: [], ...extra };
+    }
+
+    it('features the live match with its score, sets, Elo and pool, and lists the next matches open for bets', () => {
+        const matches = [match(1, 'started', [11, 12], { score1: 1, score2: 0 }), match(2, 'upcoming', [13, 14]), match(3, 'upcoming', [11, 14]), match(4, 'upcoming', [12, null])];
+        const data = buildBigScreen(
+            input({
+                matches,
+                pools: [pool(1, false, [2666, 1634], [11, 12]), pool(2, true, [100, 300], [13, 14]), pool(3, false, [0, 0], [11, 14]), { matchId: 4, open: false, total: 0, sides: [] }],
+                live: [live(1, [11, 8])],
+            }),
+        );
+        expect(data.featured).toMatchObject({ matchId: 1, label: '1v1-utfordring', live: { game: 2, points: [11, 8] }, pool: 4300, bestOf: 3 });
+        expect(data.featured!.sides[0]).toMatchObject({ nickname: 'Blobfisk', sets: 1, elo: 1084, stake: 2666 });
+        expect(data.featured!.sides[1]).toMatchObject({ nickname: 'Skvett', sets: 0, elo: 1032 });
+        expect(data.others.map((m) => m.matchId)).toEqual([2]);
+        expect(data.others[0].sides[1].multiplier).toBeCloseTo(4 / 3);
+    });
+
+    it('features the next match open for bets when nothing is on the floor', () => {
+        const data = buildBigScreen(input({ matches: [match(2, 'upcoming', [13, 14])], pools: [pool(2, true, [0, 0], [13, 14])] }));
+        expect(data.featured).toMatchObject({ matchId: 2, state: 'upcoming', live: null, pool: 0, open: true });
+        expect(data.featured!.sides[0].elo).toBe(1000);
+        expect(data.others).toEqual([]);
+    });
+
+    it('lays out the bracket of the tournament with nicknames only', () => {
+        const bracket = generateBracket({ format: 'single_elimination', players: [11, 12, 13, 14], seeding: { method: 'manual', order: [11, 12, 13, 14] }, thirdPlaceMatch: false });
+        const runtime = bracket.matches.map((m, i) =>
+            match(100 + m.id, i === 0 ? 'finished' : i === 1 ? 'started' : 'upcoming', [m.players[0], m.players[1]], {
+                tournamentId: 5,
+                tournamentName: 'Hovedcupen',
+                bracketMatchId: m.id,
+                bracketRound: { format: 'single_elimination', section: m.section, round: m.round, lastRound: 2, position: m.position },
+                ...(i === 0 ? { score1: 2, score2: 0, winnerId: 11, result: 'played' as const } : {}),
+            }),
+        );
+        const data = buildBigScreen(input({ matches: runtime, tournament: { id: 5, name: 'Hovedcupen', format: 'single_elimination', matches: bracket.matches } }));
+        expect(data.bracket).toMatchObject({ tournamentId: 5, name: 'Hovedcupen', side: null, rows: 2 });
+        const [semis, final] = data.bracket!.rounds;
+        expect(semis.name).toBe('Semifinala');
+        expect(semis.matches[0].slots).toEqual([
+            { name: 'Blobfisk', score: 2, outcome: 'won' },
+            { name: 'Kantina', score: 0, outcome: 'lost' },
+        ]);
+        expect(final.matches[0].slots.map((s) => s.name)).toEqual(['Vinnar av kamp 1', 'Vinnar av kamp 2']);
+        expect(JSON.stringify(data.bracket)).not.toMatch(/playerId|mine/);
+        expect(data.featured!.label).toBe('Semifinala, kamp 2');
+    });
+
+    it('links the sponsor logos with their hash', () => {
+        const sponsor = { id: 3, eventId: 1, name: 'Pizzabakeren', link: null, position: 1, enabled: true, gameBackground: null, logoType: 'image/png' as const, logoWidth: 300, logoHeight: 100, logoHash: 'ab12', gameLogoHash: 'cd34' };
+        expect(buildBigScreen(input({ sponsors: [sponsor] })).sponsors).toEqual([{ id: 3, name: 'Pizzabakeren', src: '/api/sponsors/3/logo?v=ab12', width: 300, height: 100 }]);
+    });
+});
