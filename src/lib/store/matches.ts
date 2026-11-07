@@ -57,6 +57,8 @@ export interface MatchGame {
     points1: number;
     points2: number;
     source: 'server' | 'admin';
+    /** The slot of the player who left an abandoned game, as the game server reported it. Null when unknown. */
+    leftSlot: 1 | 2 | null;
 }
 
 export interface MatchSummary {
@@ -146,6 +148,7 @@ interface GameRow {
     points1: number;
     points2: number;
     source: 'server' | 'admin';
+    left_slot: 1 | 2 | null;
 }
 
 const MATCH_COLUMNS = `id, event_id, tournament_id, bracket_match_id, state, best_of, rule_file, score_to_win, game_speed, player1_id, player2_id, accepted_at,
@@ -252,7 +255,7 @@ export async function withMatchForBet(client: PoolClient, matchId: number): Prom
 const lastGame = (match: MatchRow, games: readonly GameRow[]) => Math.max(games.at(-1)?.number ?? 0, match.game_base);
 
 async function readGames(client: PoolClient | Pool, matchId: number): Promise<GameRow[]> {
-    const { rows } = await client.query<GameRow>('SELECT number, status, winner_slot, points1, points2, source FROM match_games WHERE match_id = $1 ORDER BY number', [matchId]);
+    const { rows } = await client.query<GameRow>('SELECT number, status, winner_slot, points1, points2, source, left_slot FROM match_games WHERE match_id = $1 ORDER BY number', [matchId]);
     return rows;
 }
 
@@ -473,7 +476,7 @@ export async function enterGameResult(pool: Pool, matchId: number, entry: GameEn
         await tx.client.query(
             `INSERT INTO match_games (match_id, number, status, winner_slot, points1, points2, source) VALUES ($1, $2, $3, $4, $5, $6, 'admin')
              ON CONFLICT (match_id, number) DO UPDATE SET status = EXCLUDED.status, winner_slot = EXCLUDED.winner_slot,
-                 points1 = EXCLUDED.points1, points2 = EXCLUDED.points2, source = 'admin', updated_at = now()`,
+                 points1 = EXCLUDED.points1, points2 = EXCLUDED.points2, source = 'admin', left_slot = NULL, updated_at = now()`,
             [tx.match.id, entry.game, entry.winnerSlot === null ? 'abandoned' : 'finished', entry.winnerSlot, entry.points1, entry.points2],
         );
         await settleSeries(tx);
@@ -594,6 +597,8 @@ export interface GameReport {
     winnerSlot: 1 | 2 | null;
     points1: number;
     points2: number;
+    /** The slot of the player who left a game without a winner. Null or left out when unknown. */
+    leftSlot?: 1 | 2 | null;
 }
 
 export type ReportStatus =
@@ -613,6 +618,8 @@ const isValidReport = (report: GameReport) =>
     isPoints(report.points1) &&
     isPoints(report.points2) &&
     [1, 2, null].includes(report.winnerSlot) &&
+    [1, 2, null, undefined].includes(report.leftSlot) &&
+    ((report.leftSlot ?? null) === null || report.winnerSlot === null) &&
     winnerAhead(report.winnerSlot, report.points1, report.points2);
 
 /** Stores one report on the locked match and applies it when it is for the next game. */
@@ -627,8 +634,8 @@ async function storeReport(tx: MatchTx, report: GameReport, times: { startedAt: 
 
     // The match row is locked, so a report with the same id for this match waits here and then finds this one.
     const stored = await tx.client.query(
-        `INSERT INTO game_reports (report_id, match_id, game_number, winner_slot, points1, points2, outcome, reason, started_at, ended_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) ON CONFLICT (report_id) DO NOTHING RETURNING report_id`,
+        `INSERT INTO game_reports (report_id, match_id, game_number, winner_slot, points1, points2, outcome, reason, started_at, ended_at, left_slot)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) ON CONFLICT (report_id) DO NOTHING RETURNING report_id`,
         [
             report.reportId,
             tx.match.id,
@@ -640,19 +647,21 @@ async function storeReport(tx: MatchTx, report: GameReport, times: { startedAt: 
             decision.status === 'ignored' ? decision.reason : null,
             times?.startedAt ?? null,
             times?.endedAt ?? null,
+            report.leftSlot ?? null,
         ],
     );
     if (stored.rowCount === 0) return { status: 'duplicate' };
     if (decision.status !== 'applied') return decision;
 
     await startIfCalled(tx);
-    await tx.client.query(`INSERT INTO match_games (match_id, number, status, winner_slot, points1, points2, source) VALUES ($1, $2, $3, $4, $5, $6, 'server')`, [
+    await tx.client.query(`INSERT INTO match_games (match_id, number, status, winner_slot, points1, points2, source, left_slot) VALUES ($1, $2, $3, $4, $5, $6, 'server', $7)`, [
         tx.match.id,
         report.game,
         report.winnerSlot === null ? 'abandoned' : 'finished',
         report.winnerSlot,
         report.points1,
         report.points2,
+        report.leftSlot ?? null,
     ]);
     await settleSeries(tx);
     return decision;
@@ -675,6 +684,8 @@ export interface ServerGameReport {
     game: number;
     /** The player who won, or null for an abandoned game. */
     winnerId: number | null;
+    /** The player who left an abandoned game, when the server knows. It must be one of the two players of the match. */
+    leftPlayerId?: number | null;
     /** The points of each of the two players of the match, in any order. */
     points: readonly { playerId: number; points: number }[];
     startedAt: Date;
@@ -694,6 +705,8 @@ export async function reportServerGame(pool: Pool, report: ServerGameReport): Pr
         if (!samePlayers(tx.match, ids)) throw new Refused('players');
         const [player1, player2] = bothPlayers(tx.match);
         if (report.winnerId !== null && !ids.includes(report.winnerId)) throw new Refused('players');
+        const left = report.leftPlayerId ?? null;
+        if (left !== null && (report.winnerId !== null || !ids.includes(left))) throw new Refused('players');
         const pointsOf = (playerId: number) => report.points.find((p) => p.playerId === playerId)!.points;
         const slots: GameReport = {
             reportId: report.reportId,
@@ -702,6 +715,7 @@ export async function reportServerGame(pool: Pool, report: ServerGameReport): Pr
             winnerSlot: report.winnerId === null ? null : report.winnerId === player1 ? 1 : 2,
             points1: pointsOf(player1),
             points2: pointsOf(player2),
+            leftSlot: left === null ? null : left === player1 ? 1 : 2,
         };
         if (!isValidReport(slots)) throw new Refused('score');
         return storeReport(tx, slots, { startedAt: report.startedAt, endedAt: report.endedAt });
@@ -862,7 +876,7 @@ export async function getMatch(pool: Pool, matchId: number): Promise<MatchDetail
     return {
         ...toSummary(row),
         manualScore: row.manual_after_game === null ? null : { score1: row.manual_score1!, score2: row.manual_score2!, afterGame: row.manual_after_game },
-        games: games.map((g) => ({ number: g.number, status: g.status, winnerSlot: g.winner_slot, points1: g.points1, points2: g.points2, source: g.source })),
+        games: games.map((g) => ({ number: g.number, status: g.status, winnerSlot: g.winner_slot, points1: g.points1, points2: g.points2, source: g.source, leftSlot: g.left_slot })),
         nextGame: lastGame(row, games) + 1,
         awaitingDecision: row.state === 'started' && last !== undefined && last.number > row.game_base && last.status === 'abandoned' && last.source === 'server',
         calledAt: row.called_at,
@@ -870,6 +884,36 @@ export async function getMatch(pool: Pool, matchId: number): Promise<MatchDetail
         finishedAt: row.finished_at,
         cancelledAt: row.cancelled_at,
     };
+}
+
+export interface AwaitingMatch extends MatchSummary {
+    eventName: string;
+    /** The abandoned game that waits for the admin to restart or award it. */
+    game: MatchGame;
+}
+
+/**
+ * The matches of every event whose last game the game server abandoned, so they wait for an admin
+ * to restart or award the game. The same rule as awaitingDecision in getMatch. The longest waiting first.
+ */
+export async function listAwaitingDecision(pool: Pool): Promise<AwaitingMatch[]> {
+    const { rows: waiting } = await pool.query<GameRow & { match_id: number; event_name: string }>(
+        `SELECT m.id AS match_id, e.name AS event_name, lg.number, lg.status, lg.winner_slot, lg.points1, lg.points2, lg.source, lg.left_slot
+         FROM matches m
+         JOIN events e ON e.id = m.event_id
+         JOIN LATERAL (SELECT * FROM match_games g WHERE g.match_id = m.id ORDER BY g.number DESC LIMIT 1) lg ON true
+         WHERE m.state = 'started' AND lg.number > m.game_base AND lg.status = 'abandoned' AND lg.source = 'server'
+         ORDER BY lg.updated_at, m.id`,
+    );
+    if (waiting.length === 0) return [];
+    const { rows } = await pool.query<SummaryRecord>(`${SUMMARY_SELECT} WHERE m.id = ANY($1::int[])`, [waiting.map((w) => w.match_id)]);
+    const summaries = new Map(rows.map((row) => [row.id, toSummary(row)]));
+    return waiting.flatMap((w) => {
+        const summary = summaries.get(w.match_id);
+        if (!summary) return [];
+        const game: MatchGame = { number: w.number, status: w.status, winnerSlot: w.winner_slot, points1: w.points1, points2: w.points2, source: w.source, leftSlot: w.left_slot };
+        return [{ ...summary, eventName: w.event_name, game }];
+    });
 }
 
 /** The final places of a tournament decided so far, best first. */

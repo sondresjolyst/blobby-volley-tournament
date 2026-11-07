@@ -18,6 +18,7 @@ export async function POST(req: Request) {
         matchId: report.matchId,
         game: report.game,
         winnerId: report.status === 'finished' ? report.winnerId : null,
+        leftPlayerId: report.leftPlayerId,
         points: report.points,
         startedAt: report.startedAt,
         endedAt: report.endedAt,

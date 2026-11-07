@@ -273,6 +273,7 @@ describe('POST /api/server/games', () => {
                 matchId: 7,
                 game: 2,
                 winnerId: 17,
+                leftPlayerId: null,
                 points: [
                     { playerId: 12, points: 11 },
                     { playerId: 17, points: 15 },
@@ -286,7 +287,20 @@ describe('POST /api/server/games', () => {
     it('passes an abandoned game on with no winner', async () => {
         reportServerGame.mockResolvedValue({ ok: true, events: [], status: 'applied' });
         await post(gameBody({ status: 'abandoned', winnerId: null }));
-        expect(reportServerGame).toHaveBeenCalledWith({}, expect.objectContaining({ winnerId: null }));
+        expect(reportServerGame).toHaveBeenCalledWith({}, expect.objectContaining({ winnerId: null, leftPlayerId: null }));
+    });
+
+    it('passes on the player who left an abandoned game', async () => {
+        reportServerGame.mockResolvedValue({ ok: true, events: [], status: 'applied' });
+        await post(gameBody({ status: 'abandoned', winnerId: null, leftPlayerId: 12 }));
+        expect(reportServerGame).toHaveBeenCalledWith({}, expect.objectContaining({ winnerId: null, leftPlayerId: 12 }));
+    });
+
+    it('refuses a finished game that names a player who left', async () => {
+        const res = await post(gameBody({ leftPlayerId: 12 }));
+        expect(res.status).toBe(400);
+        expect(await res.json()).toEqual({ error: 'invalid', field: 'leftPlayerId' });
+        expect(reportServerGame).not.toHaveBeenCalled();
     });
 
     it.each([

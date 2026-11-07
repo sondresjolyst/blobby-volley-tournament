@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { matchOutcome, matchPlayers, matchTitle } from '@/components/matches/describe';
+import { matchOutcome, matchPlayers, matchTitle, stoppedGame } from '@/components/matches/describe';
 import { requireAdmin } from '@/lib/auth/options';
 import { getPool } from '@/lib/db';
 import { parseId } from '@/lib/http';
@@ -75,7 +75,7 @@ export default async function AdminMatch({ params, searchParams }: { params: Pro
                 </p>
             )}
             {match.tournamentId === null && match.state === 'upcoming' && <p>{match.acceptedAt ? 'Accepted by the other player.' : 'Waiting for the other player to accept.'}</p>}
-            {match.awaitingDecision && <p role="alert">The last game was abandoned. Restart it from 0-0 or award it.</p>}
+            {match.awaitingDecision && <p role="alert">The last game was abandoned. {stoppedGame(match, match.games.at(-1)!)} Restart it from 0-0 or award it.</p>}
 
             <h2>Games</h2>
             {match.games.length === 0 ? (
@@ -94,7 +94,7 @@ export default async function AdminMatch({ params, searchParams }: { params: Pro
                         {match.games.map((g) => (
                             <tr key={g.number}>
                                 <td>{g.number}</td>
-                                <td>{g.winnerSlot === null ? 'Abandoned' : `${name(g.winnerSlot)} won`}</td>
+                                <td>{g.winnerSlot !== null ? `${name(g.winnerSlot)} won` : g.leftSlot !== null ? `Abandoned, ${name(g.leftSlot)} left` : 'Abandoned'}</td>
                                 <td>
                                     {g.points1}-{g.points2}
                                 </td>
