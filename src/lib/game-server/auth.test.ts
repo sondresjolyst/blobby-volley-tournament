@@ -45,10 +45,10 @@ describe('checkGameServerToken', () => {
 });
 
 describe('lastUseIsStale', () => {
-    it('is true when the token was never used or the last use is a minute old', () => {
+    it('is true when the token was never used or the last use is 15 seconds old', () => {
         const now = new Date('2026-11-20T18:00:00Z');
         expect(lastUseIsStale({ lastUsedAt: null }, now)).toBe(true);
-        expect(lastUseIsStale({ lastUsedAt: new Date('2026-11-20T17:59:00Z') }, now)).toBe(true);
-        expect(lastUseIsStale({ lastUsedAt: new Date('2026-11-20T17:59:01Z') }, now)).toBe(false);
+        expect(lastUseIsStale({ lastUsedAt: new Date('2026-11-20T17:59:45Z') }, now)).toBe(true);
+        expect(lastUseIsStale({ lastUsedAt: new Date('2026-11-20T17:59:46Z') }, now)).toBe(false);
     });
 });

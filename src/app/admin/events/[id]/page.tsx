@@ -10,7 +10,8 @@ import { bigScreenUrl } from '@/lib/big-screen/key';
 import { getPool } from '@/lib/db';
 import { parseId } from '@/lib/http';
 import { getBigScreenKey, getEvent } from '@/lib/store/events';
-import { listPlayers } from '@/lib/store/players';
+import { countedWrongPins, isLocked, MAX_WRONG_PINS } from '@/lib/players/lockout';
+import { busiestPinClient, CLIENT_WRONG_PINS_PER_HOUR, listPlayers } from '@/lib/store/players';
 import { listSponsors } from '@/lib/store/sponsors';
 
 type Search = {
@@ -19,6 +20,8 @@ type Search = {
     reset?: string | string[];
     adjusted?: string | string[];
     rotated?: string | string[];
+    unlocked?: string | string[];
+    pinLimit?: string | string[];
     sponsor?: string | string[];
     sponsorDeleted?: string | string[];
     boardSaved?: string | string[];
@@ -32,7 +35,9 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
     const pool = getPool();
     const event = await getEvent(pool, id);
     if (!event) notFound();
+    const now = new Date();
     const players = await listPlayers(pool, id);
+    const pinPeak = await busiestPinClient(pool, now);
     const sponsors = await listSponsors(pool, id);
     const bigScreenKey = await getBigScreenKey(pool, id);
     const search = await searchParams;
@@ -43,9 +48,10 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
     const adjustedPlayer = players.find((player) => player.id === adjustedId);
     const rotatedId = typeof search.rotated === 'string' ? parseId(search.rotated) : null;
     const rotatedPlayer = players.find((player) => player.id === rotatedId);
+    const unlockedId = typeof search.unlocked === 'string' ? parseId(search.unlocked) : null;
+    const unlockedPlayer = players.find((player) => player.id === unlockedId);
     const savedSponsorId = typeof search.sponsor === 'string' ? parseId(search.sponsor) : null;
     const savedSponsor = sponsors.find((sponsor) => sponsor.id === savedSponsorId);
-    const now = new Date();
     return (
         <AdminShell section="events">
             <h1>{event.name}</h1>
@@ -59,6 +65,8 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
             {search.saved === '1' && <p role="status">Saved.</p>}
             {resetPlayer && <p role="status">The PIN for {resetPlayer.nickname} is reset.</p>}
             {rotatedPlayer && <p role="status">{rotatedPlayer.nickname} has a new join code. The old code stops working.</p>}
+            {unlockedPlayer && <p role="status">{unlockedPlayer.nickname} is unlocked and can sign in again.</p>}
+            {search.pinLimit === 'reset' && <p role="status">The network PIN limit is reset. Every network can try PINs again.</p>}
             {savedSponsor && <p role="status">Saved the sponsor {savedSponsor.name}.</p>}
             {search.sponsorDeleted === '1' && <p role="status">The sponsor is deleted.</p>}
             {search.boardSaved === '1' && <p role="status">Saved the sponsor board.</p>}
@@ -82,7 +90,7 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
                             <tr>
                                 <th>Nickname</th>
                                 <th>Foza</th>
-                                <th>Locked</th>
+                                <th>PIN lock</th>
                                 <th>Reset PIN</th>
                                 <th>Adjust Foza</th>
                                 <th>Join code</th>
@@ -93,7 +101,7 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
                                 <tr key={player.id}>
                                     <td data-label="Nickname">{player.nickname}</td>
                                     <td data-label="Foza">{player.fozaBalance}</td>
-                                    <td data-label="Locked">{player.lockedUntil && player.lockedUntil > now ? `Until ${adminTime(player.lockedUntil)}` : ''}</td>
+                                    <PinLockCell id={player.id} nickname={player.nickname} lockedUntil={player.lockedUntil} wrongPins={countedWrongPins(player.failedPinAttempts, player.lastFailedPinAt, now)} now={now} />
                                     <td>
                                         <form method="post" action={`/api/admin/players/${player.id}/pin`}>
                                             <input type="hidden" name="eventId" value={event.id} />
@@ -131,9 +139,35 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
                 </div>
             )}
 
+            <h3>Network PIN limit</h3>
+            <p>
+                One network can give {CLIENT_WRONG_PINS_PER_HOUR} wrong PINs in an hour, across all players. After that nobody on it can sign in until the hour is over. Most players at the LAN
+                share one network. The busiest network has {pinPeak} of {CLIENT_WRONG_PINS_PER_HOUR} wrong PINs this hour.
+            </p>
+            <form method="post" action="/api/admin/players/pin-limit">
+                <input type="hidden" name="eventId" value={event.id} />
+                <button type="submit">Reset network PIN limit</button>
+            </form>
+
             {bigScreenKey && <BigScreenSection eventId={event.id} address={bigScreenUrl(bigScreenKey, process.env)} isActive={event.isActive} />}
 
             <SponsorSection eventId={event.id} gameBoard={event.gameBoard} sponsors={sponsors} />
         </AdminShell>
+    );
+}
+
+/** The lock and the wrong PINs of a player, with the button that clears them. Empty while the player has neither. */
+function PinLockCell({ id, nickname, lockedUntil, wrongPins, now }: { id: number; nickname: string; lockedUntil: Date | null; wrongPins: number; now: Date }) {
+    const locked = isLocked(lockedUntil, now);
+    if (!locked && wrongPins === 0) return <td data-label="PIN lock"></td>;
+    return (
+        <td data-label="PIN lock">
+            {locked ? `Locked until ${adminTime(lockedUntil!)}` : `${wrongPins} of ${MAX_WRONG_PINS} wrong PINs`}{' '}
+            <form method="post" action={`/api/admin/players/${id}/unlock`}>
+                <button type="submit" aria-label={`Unlock ${nickname}`}>
+                    Unlock
+                </button>
+            </form>
+        </td>
     );
 }

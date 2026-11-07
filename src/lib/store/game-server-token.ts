@@ -3,8 +3,11 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { Pool } from 'pg';
 
-/** Calls closer than this to the last stored use do not write the time again. */
-export const LAST_USED_STEP_MS = 60_000;
+/**
+ * Calls closer than this to the last stored use do not write the time again. The admin page shows
+ * the game server as healthy for a minute after the last use, so this is well under that.
+ */
+export const LAST_USED_STEP_MS = 15_000;
 
 export interface GameServerTokenInfo {
     createdAt: Date;
@@ -49,8 +52,8 @@ export async function getStoredGameServerToken(pool: Pool): Promise<StoredGameSe
 }
 
 /**
- * Notes that the token with this hash was used. It writes only when the last use is a minute old
- * or more, so a busy game server does not write on every call. A token replaced in the meantime is
+ * Notes that the token with this hash was used. It writes only when the last use is LAST_USED_STEP_MS
+ * old or more, so a busy game server does not write on every call. A token replaced in the meantime is
  * left alone.
  */
 export async function markGameServerTokenUsed(pool: Pool, hash: Buffer): Promise<void> {

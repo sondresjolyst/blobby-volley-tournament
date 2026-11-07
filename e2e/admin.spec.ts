@@ -15,7 +15,7 @@ for (const path of ['/admin/events', '/admin/events/new', '/admin/events/1', '/a
     });
 }
 
-for (const path of ['/api/admin/events', '/api/admin/events/1', '/api/admin/events/1/activate', '/api/admin/events/deactivate', '/api/admin/players/1/pin', '/api/admin/players/1/join-code', '/api/admin/tournaments', '/api/admin/matches/call', '/api/admin/matches/1']) {
+for (const path of ['/api/admin/events', '/api/admin/events/1', '/api/admin/events/1/activate', '/api/admin/events/deactivate', '/api/admin/players/1/pin', '/api/admin/players/1/join-code', '/api/admin/players/1/unlock', '/api/admin/players/pin-limit', '/api/admin/tournaments', '/api/admin/matches/call', '/api/admin/matches/1']) {
     test(`POST ${path} answers 401 without a session`, async ({ request }) => {
         const res = await request.post(path, { form: { name: 'x' } });
         expect(res.status()).toBe(401);
@@ -43,8 +43,10 @@ for (const [path, heading] of [
 }
 
 test('admin API answers 401 without a session', async ({ request }) => {
-    const res = await request.get('/api/admin/anything');
-    expect(res.status()).toBe(401);
+    for (const path of ['/api/admin/anything', '/api/admin/game-server/health']) {
+        const res = await request.get(path);
+        expect(res.status()).toBe(401);
+    }
 });
 
 test('start page stays public', async ({ page }) => {

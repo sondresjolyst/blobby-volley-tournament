@@ -20,3 +20,8 @@ export function lockDurationMs(level: number): number {
 export function isLocked(lockedUntil: Date | null, now: Date): boolean {
     return lockedUntil !== null && lockedUntil.getTime() > now.getTime();
 }
+
+/** The wrong PINs that still count. They are all forgotten when the last one is a day old. */
+export function countedWrongPins(failed: number, lastFailedAt: Date | null, now: Date): number {
+    return lastFailedAt !== null && now.getTime() - lastFailedAt.getTime() < WRONG_PIN_MEMORY_MS ? failed : 0;
+}

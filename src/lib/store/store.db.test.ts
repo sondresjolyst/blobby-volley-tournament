@@ -20,13 +20,16 @@ import {
     EVENT_FAILURES_PER_HOUR,
     eventBucket,
     getSessionPlayer,
+    busiestPinClient,
     listPlayers,
     pinBucket,
+    resetPinLimits,
     resetPlayerPin,
     signInPlayer,
     signUpBucket,
     signUpPlayer,
     type SignUpInput,
+    unlockPlayer,
 } from './players';
 
 // Runs inside each PIN check, so a test can see how many connections are checked out at that moment.
@@ -339,6 +342,47 @@ describe('resetPlayerPin', () => {
 
     it('returns null for a player that does not exist', async () => {
         expect(await resetPlayerPin(pool, 999, await hashPin('5678'))).toBeNull();
+    });
+});
+
+describe('unlockPlayer', () => {
+    it('forgets the wrong PINs and lifts the lock, and keeps the PIN and the sessions', async () => {
+        const { playerId, eventId } = await activeEventWithPlayer('Ola', '1234');
+        const { token } = await createSession(pool, playerId, now);
+        for (let i = 0; i < 2; i++) await signIn('ola', '0000');
+        expect(await listPlayers(pool, eventId)).toEqual([expect.objectContaining({ failedPinAttempts: 2, lastFailedPinAt: now, lockedUntil: null })]);
+        for (let i = 0; i < 3; i++) await signIn('ola', '0000');
+        expect(await signIn('ola', '1234')).toMatchObject({ ok: false, error: 'locked' });
+
+        expect(await unlockPlayer(pool, playerId)).toEqual({ eventId });
+        expect(await listPlayers(pool, eventId)).toEqual([expect.objectContaining({ failedPinAttempts: 0, lastFailedPinAt: null, lockedUntil: null })]);
+        const { rows } = await pool.query('SELECT lock_level FROM players WHERE id = $1', [playerId]);
+        expect(rows[0].lock_level).toBe(0);
+        expect(await getSessionPlayer(pool, token, now)).not.toBeNull();
+        expect(await signIn('ola', '0000')).toEqual({ ok: false, error: 'wrong' });
+        expect((await signIn('ola', '1234')).ok).toBe(true);
+    });
+
+    it('returns null for a player that does not exist', async () => {
+        expect(await unlockPlayer(pool, 999)).toBeNull();
+    });
+});
+
+describe('the network PIN limit', () => {
+    it('shows the busiest client of this hour, and a reset lets every client try PINs again', async () => {
+        await activeEventWithPlayer('Ola', '1234');
+        expect(await busiestPinClient(pool, now)).toBe(0);
+        await setAttempts(pinBucket(client), CLIENT_WRONG_PINS_PER_HOUR);
+        await setAttempts(pinBucket('ip:192.0.2.11'), 3);
+        await setAttempts(pinBucket(client), 7, new Date(now.getTime() - 60 * MINUTE));
+        await setAttempts(client, 9);
+        expect(await busiestPinClient(pool, now)).toBe(CLIENT_WRONG_PINS_PER_HOUR);
+        expect(await signIn('ola', '1234')).toEqual({ ok: false, error: 'pins' });
+
+        await resetPinLimits(pool);
+        expect(await busiestPinClient(pool, now)).toBe(0);
+        expect(await readAttempts(pool, client, now)).toBe(9);
+        expect((await signIn('ola', '1234')).ok).toBe(true);
     });
 });
 

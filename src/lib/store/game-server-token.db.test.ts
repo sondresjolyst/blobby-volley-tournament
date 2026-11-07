@@ -46,7 +46,7 @@ describe('the game server token', () => {
         expect((await pool.query('SELECT count(*)::int AS n FROM game_server_token')).rows[0].n).toBe(1);
     });
 
-    it('notes the last use at most once a minute, and never for a replaced token', async () => {
+    it('notes the last use at most once every 15 seconds, and never for a replaced token', async () => {
         const { token } = await createGameServerToken(pool);
         const hash = hashGameServerToken(token);
         await markGameServerTokenUsed(pool, hash);
@@ -54,10 +54,10 @@ describe('the game server token', () => {
         expect(first).toBeInstanceOf(Date);
         await markGameServerTokenUsed(pool, hash);
         expect((await getGameServerTokenInfo(pool))!.lastUsedAt).toEqual(first);
-        await pool.query("UPDATE game_server_token SET last_used_at = now() - interval '61 seconds'");
+        await pool.query("UPDATE game_server_token SET last_used_at = now() - interval '16 seconds'");
         const old = (await getGameServerTokenInfo(pool))!.lastUsedAt!;
         await markGameServerTokenUsed(pool, hash);
-        expect((await getGameServerTokenInfo(pool))!.lastUsedAt!.getTime()).toBeGreaterThanOrEqual(old.getTime() + 60_000);
+        expect((await getGameServerTokenInfo(pool))!.lastUsedAt!.getTime()).toBeGreaterThanOrEqual(old.getTime() + 15_000);
 
         await createGameServerToken(pool);
         await markGameServerTokenUsed(pool, hash);
