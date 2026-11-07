@@ -8,7 +8,7 @@ import { reportServerGame } from '@/lib/store/matches';
  * game-closed, or refused with a reason. Each of these is final, so the report need not be sent again.
  */
 export async function POST(req: Request) {
-    const refused = refuseGameServer(req, process.env);
+    const refused = await refuseGameServer(req);
     if (refused) return refused;
     const input = parseGameReport(await readJsonBody(req));
     if (!input.ok) return badRequest(input.field);

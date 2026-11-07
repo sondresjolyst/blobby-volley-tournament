@@ -10,7 +10,7 @@ export default async function Admin() {
             <h1>Admin</h1>
             <p>Signed in as {session.user?.name ?? 'admin'}.</p>
             <p>
-                <Link href="/admin/events">Events</Link> | <Link href="/admin/tournaments">Tournaments</Link> | <Link href="/admin/matches">Matches</Link> | <Link href={bigScreenHref(process.env)}>Big screen</Link>
+                <Link href="/admin/events">Events</Link> | <Link href="/admin/tournaments">Tournaments</Link> | <Link href="/admin/matches">Matches</Link> | <Link href="/admin/game-server">Game server</Link> | <Link href={bigScreenHref(process.env)}>Big screen</Link>
             </p>
             <SignOutButton />
         </main>

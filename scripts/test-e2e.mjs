@@ -4,6 +4,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { encode } from 'next-auth/jwt';
 import pg from 'pg';
+import { createGameServerToken } from '../src/lib/store/game-server-token.ts';
 import { migrate } from './migrate.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -16,7 +17,6 @@ const databaseUrl = `postgres://postgres:test@127.0.0.1:${dbPort}/bvt_e2e`;
 const baseUrl = `http://localhost:${appPort}`;
 const secret = 'e2e-placeholder-secret';
 const adminId = '1';
-const gameServerToken = 'e2e-placeholder-game-server-token';
 const bigScreenKey = 'e2e-placeholder-big-screen-key';
 
 // The event the tests sign up to. The code is invented.
@@ -41,6 +41,7 @@ async function waitFor(check, what) {
     throw new Error(`${what} did not become ready in time.`);
 }
 
+// Returns the game server token, made through the store as an admin would.
 async function seed() {
     const pool = new pg.Pool({ connectionString: databaseUrl });
     try {
@@ -50,6 +51,7 @@ async function seed() {
              VALUES ('E2E LAN', '2026-11-20', '2026-11-22', $1, 1000, 100, true, 'e2e-server.lan', 1234)`,
             [E2E_EVENT_CODE],
         );
+        return (await createGameServerToken(pool)).token;
     } finally {
         await pool.end();
     }
@@ -72,7 +74,7 @@ try {
         return probe.status === 0 && probe.stdout.trim() === '1';
     }, 'Postgres');
 
-    await seed();
+    const gameServerToken = await seed();
 
     if (spawnSync(process.execPath, ['scripts/prepare-standalone.mjs'], { cwd: root, stdio: 'inherit' }).status !== 0) {
         throw new Error('Could not copy the static files. Run npm run build first.');
@@ -92,7 +94,6 @@ try {
             GITHUB_CLIENT_ID: 'e2e-placeholder',
             GITHUB_CLIENT_SECRET: 'e2e-placeholder',
             ALLOWED_GITHUB_USER_IDS: adminId,
-            GAME_SERVER_TOKEN: gameServerToken,
             BIG_SCREEN_KEY: bigScreenKey,
         },
     });

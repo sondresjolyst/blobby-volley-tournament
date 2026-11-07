@@ -153,19 +153,37 @@ Images are decoded with [sharp](https://sharp.pixelplumbing.com), which ships pr
 
 The dedicated game server at the LAN calls these routes. It only calls out to the site. The site never calls it. If the site cannot be reached, the server keeps the last sync on disk and sends its reports later, so a report may arrive late or twice.
 
-Every route under `/api/server` needs the header `Authorization: Bearer <token>`, where the token is the value of `GAME_SERVER_TOKEN`. The site compares it in constant time and never logs it. These routes do not use the admin login or the player session.
+Every route under `/api/server` needs the header `Authorization: Bearer <token>`, where the token is the game server token made on `/admin/game-server`. The site compares its SHA-256 hash with the stored hash in constant time and never logs it. These routes do not use the admin login or the player session.
 
 - No header, or another token: `401` with `{ "error": "unauthorized" }`.
-- `GAME_SERVER_TOKEN` is not set or empty: `503` with `{ "error": "not-configured" }` for every request.
+- No token has been made yet: `503` with `{ "error": "not-configured" }` for every request.
 - A body that is not valid: `400` with `{ "error": "invalid", "field": "<the first bad field>" }`. The field is `body` when the body is not a JSON object or is larger than 16 KB.
 
 Bodies are JSON. Ids are whole numbers from 1 to 2147483647. Points are whole numbers from 0 to 1000. Times are ISO 8601 with a time zone, such as `2026-11-20T18:04:05Z`. How the server should treat an answer:
 
 - `200`, `400` and `404` are final. Do not send the same request again. A `400` or `404` means the request itself is wrong and will never work.
-- `401` and `503` mean the token is wrong or not set on the site. Sending again does not help. Fix the configuration first, and keep the queued reports until then.
+- `401` and `503` mean the token is wrong or not made on the site yet. Sending again does not help. Fix the configuration first, and keep the queued reports until then.
 - Any other `5xx` or a network error: try again later with the same body.
 
 Reports for one match must be sent one at a time and in game order. Wait for the answer to game 1 before sending game 2. A report for a game past `nextGame` is refused with `game-ahead`, and that answer is final.
+
+### Game server token
+
+There is one token for the whole site, since the game server serves the active event. An admin makes it on `/admin/game-server`, linked from `/admin` as Game server. The token is 32 bytes from the cryptographic random source, written as 43 URL-safe characters. The site stores only its SHA-256 hash, so the token shows once, in the answer to the admin who makes it. It is never in an address or a log. Until a token is made the game server API answers 503.
+
+New token, with the box checked to confirm, replaces the token at once. The old token gets 401 from then on. The page shows when the token was made and when the game server last used it. The last use is written at most once a minute, so a busy game server does not write on every call.
+
+With the new token the page shows the command that starts the game server in Docker, for PowerShell and for bash, with this site and the token filled in. It maps the game server port of the active event, or 1234 without one, to port 1234 in the container:
+
+    docker run -d --name blobby-server --restart unless-stopped -p 1234:1234/udp -v blobby-data:/data -e BLOBBY_TOURNAMENT=1 -e BLOBBY_SITE_URL=<NEXTAUTH_URL> -e BLOBBY_SITE_TOKEN=<token> sondresjo/blobby-server:latest
+
+The game server reads these variables in tournament mode:
+
+- `BLOBBY_TOURNAMENT`: `1` turns tournament mode on.
+- `BLOBBY_SITE_URL`: the public address of the site, the origin of `NEXTAUTH_URL`.
+- `BLOBBY_SITE_TOKEN`: the game server token, sent as `Authorization: Bearer <token>`.
+
+The page also lists `docker stop blobby-server`, `docker start blobby-server` and `docker logs -f blobby-server`. To update, run `docker rm -f blobby-server`, make a new token and run the start command again. The start script in the game repository is the other way to start the server. It asks for the token.
 
 ### Join codes
 
@@ -175,7 +193,7 @@ The game sends a player's join code in its 16 byte player name field. A code is 
 
 Everything the server needs: the active event, every player of it with the join code, and every match that is called or started. Matches are sorted by id. In `players` of a match, player 1 comes first.
 
-    curl -H "Authorization: Bearer $GAME_SERVER_TOKEN" https://<site>/api/server/sync
+    curl -H "Authorization: Bearer $BLOBBY_SITE_TOKEN" https://<site>/api/server/sync
 
 ```json
 {
@@ -219,7 +237,7 @@ Everything the server needs: the active event, every player of it with the join 
 
 The sponsor board style of the active event and its sponsors that are on, in the order the admin set. Each logo is a 32-bit BMP with alpha, 32 pixels high and at most 160 wide, sent as base64.
 
-    curl -H "Authorization: Bearer $GAME_SERVER_TOKEN" https://<site>/api/server/sponsors
+    curl -H "Authorization: Bearer $BLOBBY_SITE_TOKEN" https://<site>/api/server/sponsors
 
 ```json
 {
@@ -341,7 +359,7 @@ Pages under `/admin` and routes under `/api/admin` need a GitHub login. All othe
 - `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`: from a GitHub OAuth app. Set its callback URL to `<NEXTAUTH_URL>/api/auth/callback/github`.
 - `ALLOWED_GITHUB_USER_IDS`: the numeric GitHub user IDs of the admins, separated by commas. An empty value lets nobody in. Find an ID at `https://api.github.com/users/<login>`.
 
-`GAME_SERVER_TOKEN` is the token of the game server API. Set it to a long random string, such as the output of `openssl rand -hex 32`, and give the same value to the game server. Without it that API answers 503.
+The token of the game server API is made on `/admin/game-server`, not set here. See Game server token above.
 
 ## Test
 

@@ -6,7 +6,7 @@ import { reportPlayersConnected } from '@/lib/store/matches';
 
 /** The game server reports both players of a match connected. A called match starts. Repeat calls change nothing. */
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
-    const refused = refuseGameServer(req, process.env);
+    const refused = await refuseGameServer(req);
     if (refused) return refused;
     const id = parseId((await ctx.params).id);
     if (id === null) return badRequest('id');

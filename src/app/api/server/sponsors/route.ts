@@ -7,7 +7,7 @@ import { listServerSponsors, upgradeGameLogos } from '@/lib/store/sponsors';
 
 /** The board style and the enabled sponsors of the active event in order, each with its game logo as a base64 BMP. */
 export async function GET(req: Request) {
-    const refused = refuseGameServer(req, process.env);
+    const refused = await refuseGameServer(req);
     if (refused) return refused;
     const pool = getPool();
     // Game logos stored before the alpha channel are made again the first time the game asks.
