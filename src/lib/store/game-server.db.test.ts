@@ -9,7 +9,7 @@ import type { EventInput } from '@/lib/events/input';
 import { isJoinCode, newJoinCode } from '@/lib/players/join-code';
 import { createEvent, setActiveEvent } from './events';
 import { getLiveScore, getServerSync, updateLiveScore } from './game-server';
-import { callMatch, createChallenge, acceptChallenge, enterGameResult, getMatch, listMatches, reportPlayersConnected, reportServerGame, resetMatch, restartCurrentGame, type ServerGameReport } from './matches';
+import { callMatch, createChallenge, acceptChallenge, enterGameResult, getMatch, listMatches, reportPlayersConnected, reportServerGame, resetMatch, restartCurrentGame, setSeriesScore, type ServerGameReport } from './matches';
 import { getJoinCode, rotateJoinCode, signUpPlayer } from './players';
 import { getTournament, saveTournament } from './tournaments';
 
@@ -242,6 +242,8 @@ describe('getServerSync', () => {
                 scoreToWin: 21,
                 speed: 90,
                 awaitingDecision: false,
+                wins1: 0,
+                wins2: 0,
                 players: [
                     { playerId: s.players[0], code: await codeOf(s.players[0]) },
                     { playerId: s.players[3], code: await codeOf(s.players[3]) },
@@ -279,6 +281,55 @@ describe('getServerSync', () => {
         expect(await restartCurrentGame(pool, m1)).toMatchObject({ ok: true, nextGame: 3 });
         expect((await getServerSync(pool, NOW)).matches[0]).toMatchObject({ nextGame: 3, awaitingDecision: false });
         expect((await getMatch(pool, m1))!.nextGame).toBe(3);
+    });
+
+    it('sends the series score of each player from the games the server reported', async () => {
+        const s = await setup();
+        const [m1] = s.ids;
+        const [a, b] = [s.players[0], s.players[3]];
+        await callMatch(pool, m1);
+        expect((await getServerSync(pool, NOW)).matches[0]).toMatchObject({ wins1: 0, wins2: 0 });
+        // The report names the players in any order. The wins follow player 1 and player 2 of the match.
+        await reportServerGame(pool, serverReport(m1, 1, b, [b, 15, a, 9]));
+        const sync = await getServerSync(pool, NOW);
+        expect(sync.matches[0]).toMatchObject({ nextGame: 2, wins1: 0, wins2: 1, players: [expect.objectContaining({ playerId: a }), expect.objectContaining({ playerId: b })] });
+        // An abandoned game does not count.
+        await reportServerGame(pool, serverReport(m1, 2, null, [a, 4, b, 6]));
+        expect((await getServerSync(pool, NOW)).matches[0]).toMatchObject({ wins1: 0, wins2: 1, awaitingDecision: true });
+    });
+
+    it('sends the series score after an admin enters and corrects a result, and changes the version', async () => {
+        const s = await setup();
+        const [m1] = s.ids;
+        const [a, b] = [s.players[0], s.players[3]];
+        await callMatch(pool, m1);
+        await reportServerGame(pool, serverReport(m1, 1, a, [a, 15, b, 3]));
+        const before = await getServerSync(pool, NOW);
+        expect(before.matches[0]).toMatchObject({ wins1: 1, wins2: 0 });
+        expect(await enterGameResult(pool, m1, { game: 1, winnerSlot: 2, points1: 13, points2: 15 })).toMatchObject({ ok: true });
+        const corrected = await getServerSync(pool, NOW);
+        expect(corrected.matches[0]).toMatchObject({ nextGame: 2, wins1: 0, wins2: 1 });
+        expect(corrected.syncVersion).not.toBe(before.syncVersion);
+        // An admin awards an abandoned game.
+        await reportServerGame(pool, serverReport(m1, 2, null, [a, 4, b, 6]));
+        expect(await enterGameResult(pool, m1, { game: 2, winnerSlot: 1, points1: 15, points2: 6 })).toMatchObject({ ok: true });
+        expect((await getServerSync(pool, NOW)).matches[0]).toMatchObject({ nextGame: 3, wins1: 1, wins2: 1, awaitingDecision: false });
+    });
+
+    it('sends a series score the admin set by hand, with later games on top', async () => {
+        const s = await setup({ bestOf: 3 });
+        const [m1] = s.ids;
+        const [a, b] = [s.players[0], s.players[3]];
+        await callMatch(pool, m1);
+        await reportServerGame(pool, serverReport(m1, 1, a, [a, 15, b, 3]));
+        expect(await setSeriesScore(pool, m1, 0, 1)).toMatchObject({ ok: true });
+        expect((await getServerSync(pool, NOW)).matches[0]).toMatchObject({ nextGame: 2, wins1: 0, wins2: 1 });
+        await reportServerGame(pool, serverReport(m1, 2, a, [a, 15, b, 10]));
+        expect((await getServerSync(pool, NOW)).matches[0]).toMatchObject({ nextGame: 3, wins1: 1, wins2: 1 });
+        // The site decides when the series is over, so a decided match leaves the sync.
+        expect(await setSeriesScore(pool, m1, 2, 1)).toMatchObject({ ok: true });
+        expect((await getServerSync(pool, NOW)).matches).toEqual([]);
+        expect((await getMatch(pool, m1))!.winnerId).toBe(a);
     });
 });
 

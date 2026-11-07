@@ -119,8 +119,31 @@ describe('every /api/server route', () => {
 });
 
 describe('GET /api/server/sync', () => {
-    it('answers with the sync and no caching', async () => {
-        const body = { serverTime: '2026-11-20T18:00:00.000Z', syncVersion: 'abc', eventId: 1, players: [], matches: [] };
+    it('answers with the sync and no caching, with the series score of each match', async () => {
+        const body = {
+            serverTime: '2026-11-20T18:00:00.000Z',
+            syncVersion: 'abc',
+            eventId: 1,
+            players: [],
+            matches: [
+                {
+                    matchId: 7,
+                    state: 'started',
+                    bestOf: 3,
+                    nextGame: 3,
+                    ruleFile: 'default.lua',
+                    scoreToWin: 15,
+                    speed: 75,
+                    awaitingDecision: false,
+                    wins1: 1,
+                    wins2: 1,
+                    players: [
+                        { playerId: 12, code: 'K7QM2XPR4T' },
+                        { playerId: 17, code: 'B9HNZ3WD6F' },
+                    ],
+                },
+            ],
+        };
         getServerSync.mockResolvedValue(body);
         const res = await sync(request('sync'));
         expect(res.status).toBe(200);
