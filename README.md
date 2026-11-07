@@ -181,21 +181,19 @@ Reports for one match must be sent one at a time and in game order. Wait for the
 
 There is one token for the whole site, since the game server serves the active event. An admin makes it on `/admin/game-server`, linked from `/admin` as Game server. The token is 32 bytes from the cryptographic random source, written as 43 URL-safe characters. The site stores only its SHA-256 hash, so the token shows once, in the answer to the admin who makes it. It is never in an address or a log. Until a token is made the game server API answers 503.
 
-New token, with the box checked to confirm, replaces the token at once. The old token gets 401 from then on. The page shows when the token was made and when the game server last used it. The last use is written at most once a minute, so a busy game server does not write on every call.
+Make a new token, with the box checked to confirm, replaces the token at once. The old token gets 401 from then on. The page shows when the token was made and when the game server last reported.
 
-The easy way to start the game server is the start script in the game repository, which the page links. It asks for the site address and the token once, keeps them in a file only the user can read, and passes the token to Docker in a temporary env file. Its `update` command gets the newest server image and starts it again with the saved token.
+The page is one flow from top to bottom. The health line comes first. Under Start the game server, Make a token shows one command with this site, the token and the port filled in, with a copy button. It is the same line in PowerShell and bash. Run it on the PC at the LAN that hosts the game server, and the health line turns green within a few seconds. The command maps the game server port of the active event, or 1234 without one, to port 1234 in the container:
 
-The alternative is one line. With the new token the page shows the command that starts the game server in Docker, for PowerShell and for bash, with this site and the token filled in. The token then ends up in the shell history. It maps the game server port of the active event, or 1234 without one, to port 1234 in the container:
+    docker run -d --name blobby-server --restart unless-stopped -p 1234:1234/udp -v blobby-data:/data -e BLOBBY_TOURNAMENT=1 -e BLOBBY_SITE_URL=<NEXTAUTH_URL> -e BLOBBY_SITE_TOKEN=<token> sondresjo/blobby-server:<BLOBBY_SERVER_TAG>
 
-    docker run -d --name blobby-server --restart unless-stopped -p 1234:1234/udp -v blobby-data:/data -e BLOBBY_TOURNAMENT=1 -e BLOBBY_SITE_URL=<NEXTAUTH_URL> -e BLOBBY_SITE_TOKEN=<token> sondresjo/blobby-server:latest
+Three folded sections follow. First time on this PC covers Docker, the Windows firewall rule for the UDP port and a fixed IP address for the PC, which is the game server host of the event. Stop, logs and update lists `docker stop blobby-server`, `docker start blobby-server`, `docker logs -f blobby-server` and `docker pull` of the image. Other ways has the start scripts of the game repository. They ask for the site address, the token and the port once, keep them in a file only the user can read, and pass the token to Docker in a temporary env file. Their `update` gets the newest image without a new token, and `set-token` puts in a new token.
 
 The game server reads these variables in tournament mode:
 
 - `BLOBBY_TOURNAMENT`: `1` turns tournament mode on.
 - `BLOBBY_SITE_URL`: the public address of the site, the origin of `NEXTAUTH_URL`.
 - `BLOBBY_SITE_TOKEN`: the game server token, sent as `Authorization: Bearer <token>`.
-
-The page also lists `docker stop blobby-server`, `docker start blobby-server` and `docker logs -f blobby-server`. To update without the script, run `docker pull sondresjo/blobby-server:latest` and `docker rm -f blobby-server`, make a new token and run the start command again.
 
 ### Join codes
 
@@ -373,6 +371,8 @@ Pages under `/admin` and routes under `/api/admin` need a GitHub login. All othe
 - `NEXTAUTH_SECRET`: a long random string that signs the session.
 - `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`: from a GitHub OAuth app. Set its callback URL to `<NEXTAUTH_URL>/api/auth/callback/github`.
 - `ALLOWED_GITHUB_USER_IDS`: the numeric GitHub user IDs of the admins, separated by commas. An empty value lets nobody in. Find an ID at `https://api.github.com/users/<login>`.
+
+- `BLOBBY_SERVER_TAG`: the tag of the `sondresjo/blobby-server` image in the commands on `/admin/game-server`, such as `dev` on a test site. It is `latest` when it is not set or not a valid Docker tag.
 
 The token of the game server API is made on `/admin/game-server`, not set here. See Game server token above.
 
