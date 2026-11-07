@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { BracketBoard } from '@/components/player/BracketBoard';
+import { NO_BRACKET } from '@/components/big-screen/text';
 import { Pizza } from '@/components/pizza/Pizza';
 import { PlayerShell } from '@/components/player/PlayerShell';
 import styles from '@/components/player/player.module.css';
@@ -32,7 +33,7 @@ export default async function BracketPage({ searchParams }: { searchParams: Prom
             <PlayerShell {...shell}>
                 <div className={styles.wide}>
                     <h1 className={styles.h1}>Kampoppsett</h1>
-                    <p className={styles.empty}>Ingen turneringa enno. Admin snekre nok på det, så finn fram ostepoppen så lenge.</p>
+                    <p className={styles.empty}>{NO_BRACKET}</p>
                 </div>
             </PlayerShell>
         );
