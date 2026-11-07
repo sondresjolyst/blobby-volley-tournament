@@ -1,7 +1,8 @@
 import { readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { hashGameServerToken, type StoredGameServerToken } from '@/lib/store/game-server-token';
 
 const getPool = vi.fn(() => ({}));
 const getServerSync = vi.fn();
@@ -12,7 +13,15 @@ const reportServerGame = vi.fn();
 const listServerSponsors = vi.fn();
 const upgradeGameLogos = vi.fn();
 
+const getStoredGameServerToken = vi.fn();
+const markGameServerTokenUsed = vi.fn();
+
 vi.mock('@/lib/db', () => ({ getPool: () => getPool() }));
+vi.mock('@/lib/store/game-server-token', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@/lib/store/game-server-token')>()),
+    getStoredGameServerToken: (...args: unknown[]) => getStoredGameServerToken(...args),
+    markGameServerTokenUsed: (...args: unknown[]) => markGameServerTokenUsed(...args),
+}));
 vi.mock('@/lib/store/game-server', () => ({
     getServerSync: (...args: unknown[]) => getServerSync(...args),
     updateLiveScore: (...args: unknown[]) => updateLiveScore(...args),
@@ -77,13 +86,13 @@ const gameBody = (change: Record<string, unknown> = {}) => ({
 
 const liveBody = { matchId: 7, game: 2, points: [{ playerId: 12, points: 3 }, { playerId: 17, points: 5 }] };
 
-beforeEach(() => {
-    vi.stubEnv('GAME_SERVER_TOKEN', TOKEN);
-    for (const mock of [getPool, getServerSync, updateLiveScore, getLiveScore, reportPlayersConnected, reportServerGame, listServerSponsors, upgradeGameLogos]) mock.mockClear();
-});
+const stored = (lastUsedAt: Date | null = new Date()): StoredGameServerToken => ({ hash: hashGameServerToken(TOKEN), createdAt: new Date('2026-11-20T12:00:00Z'), lastUsedAt });
+const STORES = [getServerSync, updateLiveScore, getLiveScore, reportPlayersConnected, reportServerGame, listServerSponsors, upgradeGameLogos];
 
-afterEach(() => {
-    vi.unstubAllEnvs();
+beforeEach(() => {
+    for (const mock of [getPool, getStoredGameServerToken, markGameServerTokenUsed, ...STORES]) mock.mockClear();
+    getStoredGameServerToken.mockReset();
+    getStoredGameServerToken.mockResolvedValue(stored());
 });
 
 describe('every /api/server route', () => {
@@ -106,15 +115,34 @@ describe('every /api/server route', () => {
                 expect(await res.json()).toEqual({ error: 'unauthorized' });
             }
 
-            vi.stubEnv('GAME_SERVER_TOKEN', '');
+            getStoredGameServerToken.mockResolvedValueOnce(null);
             const unset = await call(`Bearer ${TOKEN}`);
             expect(unset.status).toBe(503);
             expect(await unset.json()).toEqual({ error: 'not-configured' });
-            vi.stubEnv('GAME_SERVER_TOKEN', undefined);
-            expect((await call(`Bearer ${TOKEN}`)).status).toBe(503);
-            vi.stubEnv('GAME_SERVER_TOKEN', TOKEN);
         }
-        expect(getPool).not.toHaveBeenCalled();
+        for (const mock of STORES) expect(mock).not.toHaveBeenCalled();
+        expect(markGameServerTokenUsed).not.toHaveBeenCalled();
+    });
+});
+
+describe('the last use of the token', () => {
+    it('is written when it is a minute old or more, and not on every call', async () => {
+        getServerSync.mockResolvedValue({});
+        getStoredGameServerToken.mockResolvedValueOnce(stored(new Date()));
+        expect((await sync(request('sync'))).status).toBe(200);
+        expect(markGameServerTokenUsed).not.toHaveBeenCalled();
+        getStoredGameServerToken.mockResolvedValueOnce(stored(new Date(Date.now() - 61_000)));
+        expect((await sync(request('sync'))).status).toBe(200);
+        getStoredGameServerToken.mockResolvedValueOnce(stored(null));
+        expect((await sync(request('sync'))).status).toBe(200);
+        expect(markGameServerTokenUsed).toHaveBeenCalledTimes(2);
+        expect(markGameServerTokenUsed).toHaveBeenCalledWith({}, hashGameServerToken(TOKEN));
+    });
+
+    it('is not written for a refused call', async () => {
+        getStoredGameServerToken.mockResolvedValueOnce(stored(null));
+        expect((await sync(request('sync', undefined, 'Bearer test-placeholder-other'))).status).toBe(401);
+        expect(markGameServerTokenUsed).not.toHaveBeenCalled();
     });
 });
 
@@ -342,7 +370,7 @@ describe('POST /api/server/live', () => {
 
 describe('GET /api/matches/{id}/live', () => {
     it('is public and answers the live score with no caching', async () => {
-        vi.stubEnv('GAME_SERVER_TOKEN', '');
+        getStoredGameServerToken.mockResolvedValue(null);
         const score = { matchId: 7, state: 'started', live: null };
         getLiveScore.mockResolvedValue(score);
         const res = await publicLive(new Request('https://bvt.example.test/api/matches/7/live'), params());

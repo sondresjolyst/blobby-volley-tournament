@@ -31,7 +31,7 @@ beforeEach(() => {
 
 describe('every /api/admin route', () => {
     it('is found', () => {
-        expect(routes).toEqual(expect.arrayContaining(['matches/call/route.ts', 'matches/[id]/route.ts', 'events/[id]/sponsors/route.ts', 'events/[id]/game-board/route.ts', 'events/[id]/big-screen-key/route.ts', 'sponsors/[id]/route.ts', 'sponsors/[id]/logo/route.ts']));
+        expect(routes).toEqual(expect.arrayContaining(['matches/call/route.ts', 'matches/[id]/route.ts', 'events/[id]/sponsors/route.ts', 'events/[id]/game-board/route.ts', 'events/[id]/big-screen-key/route.ts', 'game-server-token/route.ts', 'sponsors/[id]/route.ts', 'sponsors/[id]/logo/route.ts']));
     });
 
     it.each(routes)('%s answers with the response from requireAdminApi before it does anything else', async (route) => {

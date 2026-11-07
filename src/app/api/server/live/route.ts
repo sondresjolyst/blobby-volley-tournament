@@ -5,7 +5,7 @@ import { updateLiveScore } from '@/lib/store/game-server';
 
 /** The game server sends the score of the game being played. Best effort: it never changes a result. */
 export async function POST(req: Request) {
-    const refused = refuseGameServer(req, process.env);
+    const refused = await refuseGameServer(req);
     if (refused) return refused;
     const input = parseLive(await readJsonBody(req));
     if (!input.ok) return badRequest(input.field);
