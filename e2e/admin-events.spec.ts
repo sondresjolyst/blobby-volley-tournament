@@ -17,7 +17,11 @@ test('an admin creates an event with a generated code and edits it', async ({ pa
     await page.goto('/admin/events/new');
     // The code follows the name until the admin presses Generate.
     await page.getByLabel('Name').fill(name);
-    await expect(page.getByLabel('Event code')).toHaveValue(`TEST-LAN-${tag.toUpperCase()}`);
+    // The name is public, so the suggestion always ends with random characters.
+    await expect(page.getByLabel('Event code')).toHaveValue(new RegExp(`^TEST-LAN-${tag.toUpperCase()}-[A-HJKMNP-Z2-9]{4}$`));
+    const suggested = await page.getByLabel('Event code').inputValue();
+    await page.getByLabel('Name').fill(`${name} 2`);
+    await expect(page.getByLabel('Event code')).toHaveValue(`TEST-LAN-${tag.toUpperCase()}-2-${suggested.slice(-4)}`);
     await page.getByRole('button', { name: 'Generate' }).click();
     const code = await page.getByLabel('Event code').inputValue();
     expect(code).toMatch(/^[A-HJKMNP-Z2-9]{4}-[A-HJKMNP-Z2-9]{4}$/);
@@ -63,12 +67,18 @@ test('an admin creates an event with a generated code and edits it', async ({ pa
     await expect(page.getByRole('status')).toHaveText('Saved.');
     await expect(page.getByLabel('Game server port')).toHaveValue('1234');
 
-    for (const host of ['localhost', '127.0.0.1', 'http://192.168.1.50']) {
+    for (const host of ['localhost', '127.0.0.1', 'http://192.168.1.50', '999.1.1.1']) {
         await page.getByLabel('Game server host').fill(host);
         await page.getByRole('button', { name: 'Save' }).click();
         await expect(page.getByRole('alert').filter({ hasText: 'It cannot be localhost, 127.0.0.1 or a web address' })).toBeVisible();
     }
     await expect(page.getByLabel('Game server host')).toHaveValue('lan-pc.local');
+
+    // Two events cannot share a code.
+    await page.getByLabel('Event code').fill(process.env.E2E_EVENT_CODE ?? '');
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(page.getByRole('alert').filter({ hasText: 'Another event already has this event code.' })).toBeVisible();
+    await expect(page.getByLabel('Event code')).toHaveValue(`LAN-${tag.toUpperCase()}`);
 
     await page.goto('/admin/events');
     await expect(page.getByRole('link', { name })).toBeVisible();
@@ -104,7 +114,8 @@ test('an admin resets the PIN of a player', async ({ page, browser }) => {
 });
 
 test('an admin sees the wrong PINs of a player and unlocks a locked player', async ({ page, browser }) => {
-    const nickname = `Lock${randomBytes(3).toString('hex')}`;
+    // The prefix keeps the nickname from ever reading Locked.
+    const nickname = `Wp${randomBytes(3).toString('hex')}`;
     const player = await browser.newContext({ baseURL: process.env.E2E_BASE_URL });
     const playerPage = await player.newPage();
     await playerPage.goto('/join');
@@ -140,7 +151,7 @@ test('an admin sees the wrong PINs of a player and unlocks a locked player', asy
     await row.getByRole('button', { name: `Unlock ${nickname}` }).click();
     await expect(page.getByRole('status')).toHaveText(`${nickname} is unlocked and can sign in again.`);
     await expect(row.getByRole('button', { name: `Unlock ${nickname}` })).toHaveCount(0);
-    await expect(row).not.toContainText('Locked');
+    await expect(row).not.toContainText(/Locked until/);
 
     await signIn('1234');
     await expect(playerPage).toHaveURL(/\/me$/);

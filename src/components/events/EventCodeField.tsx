@@ -1,25 +1,27 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { randomEventCode, suggestEventCode } from '@/lib/events/code';
+import { randomEventCode, randomSuffix, suggestEventCode } from '@/lib/events/code';
 
 /**
  * The event code field with a Generate button. With `followName`, the code follows the name field
- * until the admin types a code or presses Generate. The field always stays editable.
+ * until the admin types a code or presses Generate. The random end of that code is made once, so it
+ * stays the same while the admin types. The field always stays editable.
  */
 export function EventCodeField({ initial, followName }: { initial: string; followName: boolean }) {
     const [code, setCode] = useState(initial);
     const [own, setOwn] = useState(!followName);
+    const [suffix] = useState(randomSuffix);
     const input = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (own) return;
         const name = input.current?.form?.elements.namedItem('name');
         if (!(name instanceof HTMLInputElement)) return;
-        const follow = () => setCode(name.value.trim() === '' ? initial : suggestEventCode(name.value));
+        const follow = () => setCode(name.value.trim() === '' ? initial : suggestEventCode(name.value, suffix));
         name.addEventListener('input', follow);
         return () => name.removeEventListener('input', follow);
-    }, [own, initial]);
+    }, [own, initial, suffix]);
 
     return (
         <p>

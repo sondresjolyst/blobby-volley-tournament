@@ -8,10 +8,12 @@ const EVENT_ERRORS: Record<string, string> = {
     name: 'The name must be 1 to 100 characters.',
     dates: 'Give a valid start and end date. The end cannot be before the start.',
     code: 'The event code must be 8 to 32 letters A to Z, digits or hyphens.',
+    'code-taken': 'Another event already has this event code. Press Generate for a new one.',
     foza: `Foza amounts must be whole numbers from 0 to ${MAX_FOZA}.`,
     pin: 'The PIN must be 4 digits.',
     server: 'Give a game server host, or leave the host and the port empty. The port is from 1 to 65535. The host is a name or an IPv4 address.',
-    'server-host': 'The game server host must be the LAN address of the PC that runs the game server, such as 192.168.1.50. It cannot be localhost, 127.0.0.1 or a web address with http://.',
+    'server-host':
+        'The game server host must be the LAN address of the PC that runs the game server, as four numbers such as 192.168.1.50 or as a name on the LAN. It cannot be localhost, 127.0.0.1 or a web address with http://.',
 };
 
 export function eventErrorMessage(code: string | string[] | undefined): string | null {
@@ -62,7 +64,10 @@ export function EventForm({ action, event, submitLabel, suggestedCode = '' }: { 
                             with ipconfig on Windows or ip addr on Linux.
                         </p>
                         <p>Not localhost or 127.0.0.1, and not the address of this website.</p>
-                        <p>Leave the port empty to use {CONTAINER_PORT}, the port the start command uses.</p>
+                        <p>
+                            Leave the port empty to use {CONTAINER_PORT}, the port the start command uses. If you change the port, start the game server container again with the new
+                            port.
+                        </p>
                         <p>Tip: give that PC a fixed IP address in the router, and allow UDP port {CONTAINER_PORT} in its firewall. The Game server page has the firewall command.</p>
                         <p>After you change the host or the port, players who are already connected stay on the old server. They must use the new join link or join again.</p>
                     </InfoButton>

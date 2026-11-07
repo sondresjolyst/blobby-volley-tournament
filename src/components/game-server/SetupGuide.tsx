@@ -19,7 +19,7 @@ export function SetupGuide({ siteUrl, port, event }: { siteUrl: string | null; p
             ) : event.serverHost ? (
                 <p>
                     The join links send the games of the players to <code>{`${event.serverHost}:${port}`}</code>. If the game server moves to another PC, change the host on the{' '}
-                    <Link href={`/admin/events/${event.id}`}>event page</Link>.
+                    <Link href={`/admin/events/${event.id}`}>event page</Link>. If you change the port, start the game server container again with the new port.
                 </p>
             ) : (
                 <p>

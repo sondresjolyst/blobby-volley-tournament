@@ -57,12 +57,30 @@ export function parseEventInput(form: Record<string, unknown>): EventInputResult
     return { ok: true, value: { name, startsOn, endsOn, code, startingFoza, dailyFoza, ...server } };
 }
 
+// Names that always mean this PC itself.
+const LOOPBACK_NAMES = new Set(['localhost', 'localhost6', 'ip6-localhost', 'ip6-loopback', 'localhost.localdomain', 'localhost6.localdomain6']);
+// A last label like this makes the host an IPv4 address to the game and the browser, also in short
+// forms such as 127.1 or 2130706433.
+const NUMERIC_LABEL = /^(\d+|0x[0-9a-f]*)$/;
+const OCTET = /^(0|[1-9][0-9]{0,2})$/;
+
+/** True for a dotted quad IPv4 address that another PC on the LAN can reach. */
+function isReachableIpv4(host: string): boolean {
+    const octets = host.split('.');
+    if (octets.length !== 4 || !octets.every((octet) => OCTET.test(octet) && Number(octet) <= 255)) return false;
+    return octets[0] !== '0' && octets[0] !== '127';
+}
+
 /**
- * True for a host the games of other players can never reach: this PC itself, or a web address
- * with a scheme such as http://.
+ * True for a host the games of other players can never reach: this PC itself, an address that only
+ * looks like IPv4, or a web address with a scheme such as http://. A host that looks like a number
+ * must be a plain dotted quad, so short and hex forms are refused.
  */
 function isUnreachableHost(host: string): boolean {
-    return host === 'localhost' || host.endsWith('.localhost') || /^127\./.test(host) || host === '0.0.0.0' || /^[a-z][a-z0-9+.-]*:\/\//.test(host);
+    if (/^[a-z][a-z0-9+.-]*:\/\//.test(host)) return true;
+    if (LOOPBACK_NAMES.has(host) || host.endsWith('.localhost')) return true;
+    if (NUMERIC_LABEL.test(host.split('.').at(-1)!)) return !isReachableIpv4(host);
+    return false;
 }
 
 /** Both empty means no game server yet. An empty port with a host is the default port. */

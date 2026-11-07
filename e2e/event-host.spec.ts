@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { expect, test, type Browser } from '@playwright/test';
 
 // This file changes the game server host of the active event, which the join links of the other
-// tests use. So it runs after them, and it puts the host back at the end.
+// tests use. So it runs after them, and it always puts the host back, also when a test fails.
 
 async function signUp(browser: Browser, nickname: string) {
     const context = await browser.newContext({ baseURL: process.env.E2E_BASE_URL });
@@ -20,6 +20,16 @@ test.beforeEach(async ({ context, baseURL }) => {
     await context.addCookies([
         { name: '__Secure-next-auth.session-token', value: process.env.E2E_ADMIN_TOKEN ?? '', domain: new URL(baseURL!).hostname, path: '/', secure: true, httpOnly: true, sameSite: 'Lax' },
     ]);
+});
+
+test.afterEach(async ({ page }) => {
+    await page.goto('/admin/events');
+    await page.getByRole('row', { name: /E2E LAN/ }).getByRole('link').click();
+    await expect(page).toHaveURL(/\/admin\/events\/\d+$/);
+    await page.getByLabel('Game server host').fill('e2e-server.lan');
+    await page.getByLabel('Game server port').fill('1234');
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(page.getByLabel('Game server host')).toHaveValue('e2e-server.lan');
 });
 
 test('an admin moves the game server to another PC and the join link follows at once', async ({ page, browser }) => {
@@ -53,9 +63,14 @@ test('an admin moves the game server to another PC and the join link follows at 
     await page.goto('/admin/events');
     await page.getByRole('row', { name: /E2E LAN/ }).getByRole('link').click();
     await expect(page).toHaveURL(/\/admin\/events\/\d+$/);
-    const eventPage = page.url();
-    await page.getByRole('button', { name: 'Where to find the host' }).click();
+    const info = page.getByRole('button', { name: 'Where to find the host' });
+    await info.click();
     await expect(page.getByText('Not localhost or 127.0.0.1')).toBeVisible();
+    // Escape closes the help also when focus is inside it.
+    await page.getByText('Not localhost or 127.0.0.1').click();
+    await page.keyboard.press('Escape');
+    await expect(page.getByText('Not localhost or 127.0.0.1')).toBeHidden();
+    await expect(info).toBeFocused();
     await page.getByLabel('Game server host').fill('192.168.1.77');
     await page.getByRole('button', { name: 'Save' }).click();
     await expect(page.getByRole('status')).toHaveText('Saved.');
@@ -66,12 +81,10 @@ test('an admin moves the game server to another PC and the join link follows at 
     await expect(hero.getByRole('link', { name: 'opne lenkjå direkte' })).toHaveAttribute('href', /^blobby:\/\/join\?server=192\.168\.1\.77:1234&code=/);
     await expect(hero.getByRole('definition').filter({ hasText: '192.168.1.77:1234' })).toBeVisible();
     await page.goto('/admin/game-server');
-    await expect(page.getByRole('region', { name: 'Set up the game server' })).toContainText('192.168.1.77:1234');
+    const guide = page.getByRole('region', { name: 'Set up the game server' });
+    await expect(guide).toContainText('192.168.1.77:1234');
+    await expect(guide).toContainText('If you change the port, start the game server container again with the new port.');
 
-    await page.goto(eventPage);
-    await page.getByLabel('Game server host').fill('e2e-server.lan');
-    await page.getByRole('button', { name: 'Save' }).click();
-    await expect(page.getByLabel('Game server host')).toHaveValue('e2e-server.lan');
     await asker.context.close();
     await asked.context.close();
 });

@@ -36,26 +36,38 @@ export function randomEventCode(): string {
 
 const NORWEGIAN: Record<string, string> = { Æ: 'AE', Ø: 'OE', Å: 'AA' };
 
+/** The longest suffix a name code needs, for a name of one letter. */
+const MAX_SUFFIX = MIN_LENGTH - 2;
+
 /**
- * A code made from the event name, such as JULALAN-2026 from JulaLAN 2026. Æ, Ø and Å are spelled
- * out, other accents are dropped and every run of other characters becomes one hyphen. A short name
- * gets random characters after it. A name without letters or digits gives null.
+ * Random characters for the end of a code made from a name. Make it once and pass it to
+ * `eventCodeFromName` on every change of the name, so the end stays the same while the admin types.
  */
-export function eventCodeFromName(name: string): string | null {
+export function randomSuffix(): string {
+    return randomCharacters(MAX_SUFFIX);
+}
+
+/**
+ * A code made from the event name and `suffix`, such as JULALAN-2026-K7RM from JulaLAN 2026. The
+ * name is public, so the random end keeps the code hard to guess. Æ, Ø and Å are spelled out, other
+ * accents are dropped and every run of other characters becomes one hyphen. A short name gets more
+ * of the suffix. A name without letters or digits gives null.
+ */
+export function eventCodeFromName(name: string, suffix: string): string | null {
     const slug = name
         .toUpperCase()
         .replace(/[ÆØÅ]/g, (letter) => NORWEGIAN[letter])
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
         .replace(/[^A-Z0-9]+/g, '-')
-        .slice(0, MAX_LENGTH)
-        .replace(/^-+|-+$/g, '');
+        .replace(/^-+/, '')
+        .slice(0, MAX_LENGTH - GROUP - 1)
+        .replace(/-+$/, '');
     if (slug === '') return null;
-    if (slug.length >= MIN_LENGTH) return slug;
-    return `${slug}-${randomCharacters(Math.max(GROUP, MIN_LENGTH - 1 - slug.length))}`;
+    return `${slug}-${suffix.slice(0, Math.max(GROUP, MIN_LENGTH - 1 - slug.length))}`;
 }
 
-/** The code to suggest for a new event: from the name when it has one, otherwise random. */
-export function suggestEventCode(name: string): string {
-    return eventCodeFromName(name) ?? randomEventCode();
+/** The code to suggest for a new event: from the name and `suffix` when it has a name, otherwise random. */
+export function suggestEventCode(name: string, suffix: string): string {
+    return eventCodeFromName(name, suffix) ?? randomEventCode();
 }
