@@ -1,7 +1,7 @@
 import { readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hashGameServerToken, type StoredGameServerToken } from '@/lib/store/game-server-token';
 
 const getPool = vi.fn(() => ({}));
@@ -89,6 +89,13 @@ const liveBody = { matchId: 7, game: 2, points: [{ playerId: 12, points: 3 }, { 
 const stored = (lastUsedAt: Date | null = new Date()): StoredGameServerToken => ({ hash: hashGameServerToken(TOKEN), createdAt: new Date('2026-11-20T12:00:00Z'), lastUsedAt });
 const STORES = [getServerSync, updateLiveScore, getLiveScore, reportPlayersConnected, reportServerGame, listServerSponsors, upgradeGameLogosOnce];
 
+// The modules are loaded once before the tests. A first load with a cold transform cache can take
+// longer than the timeout of a single test, and a test that timed out keeps running into the next one.
+const modules = new Map<string, unknown>();
+beforeAll(async () => {
+    for (const file of routes) modules.set(file, await import(/* @vite-ignore */ `./${file}`));
+}, 120_000);
+
 beforeEach(() => {
     for (const mock of [getPool, getStoredGameServerToken, markGameServerTokenUsed, ...STORES]) mock.mockClear();
     getStoredGameServerToken.mockReset();
@@ -101,7 +108,7 @@ describe('every /api/server route', () => {
     });
 
     it.each(routes)('%s checks the token before it does anything else', async (route) => {
-        const mod = (await import(/* @vite-ignore */ `./${route}`)) as Record<string, unknown>;
+        const mod = modules.get(route) as Record<string, unknown>;
         const handlers = METHODS.filter((method) => typeof mod[method] === 'function');
         expect(handlers.length).toBeGreaterThan(0);
         for (const method of handlers) {
