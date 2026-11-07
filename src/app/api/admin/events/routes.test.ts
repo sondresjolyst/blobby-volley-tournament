@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const requireAdminApi = vi.fn();
+const requireAdminPost = vi.fn();
 const rotateBigScreenKey = vi.fn();
 
-vi.mock('@/lib/auth/options', () => ({ requireAdminApi: (...args: unknown[]) => requireAdminApi(...args) }));
+vi.mock('@/lib/auth/options', () => ({ requireAdminPost: (...args: unknown[]) => requireAdminPost(...args) }));
 vi.mock('@/lib/db', () => ({ getPool: () => ({}) }));
 vi.mock('@/lib/store/events', () => ({ rotateBigScreenKey: (...args: unknown[]) => rotateBigScreenKey(...args) }));
 
@@ -13,9 +13,9 @@ const params = (id: string) => ({ params: Promise.resolve({ id }) });
 const post = (fields: Record<string, string>) => new Request('https://bvt.example.test/api/admin/events/3/big-screen-key', { method: 'POST', body: new URLSearchParams(fields) });
 
 beforeEach(() => {
-    requireAdminApi.mockReset();
+    requireAdminPost.mockReset();
     rotateBigScreenKey.mockReset();
-    requireAdminApi.mockResolvedValue({ githubId: '1' });
+    requireAdminPost.mockResolvedValue({ githubId: '1' });
 });
 
 describe('POST /api/admin/events/{id}/big-screen-key', () => {
@@ -42,9 +42,9 @@ describe('POST /api/admin/events/{id}/big-screen-key', () => {
         expect((await newKey(post({ confirm: 'yes' }), params('9'))).status).toBe(404);
     });
 
-    it('answers with the denial from requireAdminApi, such as a cross-site post', async () => {
+    it('answers with the denial from requireAdminPost, such as a cross-site post', async () => {
         const denied = Response.json({ error: 'forbidden' }, { status: 403 });
-        requireAdminApi.mockResolvedValueOnce(denied);
+        requireAdminPost.mockResolvedValueOnce(denied);
         expect(await newKey(post({ confirm: 'yes' }), params('3'))).toBe(denied);
         expect(rotateBigScreenKey).not.toHaveBeenCalled();
     });

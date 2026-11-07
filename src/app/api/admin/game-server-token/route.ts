@@ -1,4 +1,4 @@
-import { requireAdminApi } from '@/lib/auth/options';
+import { requireAdminPost } from '@/lib/auth/options';
 import { getPool } from '@/lib/db';
 import { readForm } from '@/lib/http';
 import { createGameServerToken, getGameServerTokenInfo } from '@/lib/store/game-server-token';
@@ -9,7 +9,7 @@ import { createGameServerToken, getGameServerTokenInfo } from '@/lib/store/game-
  * the token, the only time it is shown, so it is not cached.
  */
 export async function POST(req: Request) {
-    const admin = await requireAdminApi(req);
+    const admin = await requireAdminPost(req);
     if (admin instanceof Response) return admin;
     const pool = getPool();
     const form = await readForm(req);

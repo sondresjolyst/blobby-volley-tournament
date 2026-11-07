@@ -2,7 +2,8 @@ import Link from 'next/link';
 import { connection } from 'next/server';
 import { Pizza } from '@/components/pizza/Pizza';
 import p from '@/components/player/player.module.css';
-import { foza, matchSettings, matchTitle, payout } from '@/components/player/text';
+import { matchTitle } from '@/components/matches/describe';
+import { foza, matchSettings, payout } from '@/components/player/text';
 import { SiteShell } from '@/components/site/SiteShell';
 import s from '@/components/site/site.module.css';
 import { eventDates } from '@/components/site/text';
@@ -33,7 +34,7 @@ function PublicMatch({ match, pool, signedIn }: { match: MatchSummary; pool: Mat
                 {name(0)} <span>vs</span> {name(1)}
             </h3>
             <p className={p.meta}>
-                {matchTitle(match)} · {matchSettings(match)}
+                {matchTitle(match, 'player')} · {matchSettings(match)}
             </p>
             {live && (
                 <p className={p.meta}>

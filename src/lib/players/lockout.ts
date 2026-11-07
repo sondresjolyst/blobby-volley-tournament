@@ -1,6 +1,9 @@
 export const MAX_WRONG_PINS = 5;
 const MINUTE_MS = 60 * 1000;
 
+/** Wrong PINs older than this no longer count towards a lock. */
+export const WRONG_PIN_MEMORY_MS = 24 * 60 * MINUTE_MS;
+
 /** Lock lengths in a row: 15 minutes, then 30, then 60 for every lock after that. */
 export const LOCK_STEPS_MS = [15 * MINUTE_MS, 30 * MINUTE_MS, 60 * MINUTE_MS] as const;
 

@@ -1,3 +1,5 @@
+import { MAX_FOZA } from '@/lib/foza';
+
 export interface EventInput {
     name: string;
     startsOn: string;
@@ -9,8 +11,6 @@ export interface EventInput {
     serverHost?: string | null;
     serverPort?: number | null;
 }
-
-export const MAX_FOZA = 1_000_000;
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 // At least 8 characters, so the code cannot be guessed in the attempts the limits allow.

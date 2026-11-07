@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const requireAdminApi = vi.fn();
+const requireAdminPost = vi.fn();
 const createGameServerToken = vi.fn();
 const getGameServerTokenInfo = vi.fn();
 
-vi.mock('@/lib/auth/options', () => ({ requireAdminApi: (...args: unknown[]) => requireAdminApi(...args) }));
+vi.mock('@/lib/auth/options', () => ({ requireAdminPost: (...args: unknown[]) => requireAdminPost(...args) }));
 vi.mock('@/lib/db', () => ({ getPool: () => ({}) }));
 vi.mock('@/lib/store/game-server-token', () => ({
     createGameServerToken: (...args: unknown[]) => createGameServerToken(...args),
@@ -18,8 +18,8 @@ const TOKEN = 'test-placeholder-token';
 const post = (fields: Record<string, string>) => new Request('https://bvt.example.test/api/admin/game-server-token', { method: 'POST', body: new URLSearchParams(fields) });
 
 beforeEach(() => {
-    for (const mock of [requireAdminApi, createGameServerToken, getGameServerTokenInfo]) mock.mockReset();
-    requireAdminApi.mockResolvedValue({ githubId: '1' });
+    for (const mock of [requireAdminPost, createGameServerToken, getGameServerTokenInfo]) mock.mockReset();
+    requireAdminPost.mockResolvedValue({ githubId: '1' });
     createGameServerToken.mockResolvedValue({ token: TOKEN, createdAt: new Date('2026-11-20T12:00:00Z') });
 });
 
@@ -44,9 +44,9 @@ describe('POST /api/admin/game-server-token', () => {
         expect(createGameServerToken).toHaveBeenCalledTimes(1);
     });
 
-    it('answers with the denial from requireAdminApi, such as a cross-site post', async () => {
+    it('answers with the denial from requireAdminPost, such as a cross-site post', async () => {
         const denied = Response.json({ error: 'forbidden' }, { status: 403 });
-        requireAdminApi.mockResolvedValueOnce(denied);
+        requireAdminPost.mockResolvedValueOnce(denied);
         expect(await POST(post({ confirm: 'yes' }))).toBe(denied);
         expect(createGameServerToken).not.toHaveBeenCalled();
     });

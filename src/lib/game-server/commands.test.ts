@@ -15,7 +15,9 @@ describe('serverRunCommand', () => {
     });
 
     it('quotes a value the shell would read as something else', () => {
-        expect(shellArg("a b'c", 'bash')).toBe(`'a b'\''c'`);
+        // In bash a quote inside quotes is written as '\'' and must reach the shell as those four characters.
+        expect(shellArg("a b'c", 'bash')).toBe(String.raw`'a b'\''c'`);
+        expect(shellArg("a b'c", 'bash')).toHaveLength(10);
         expect(shellArg("a b'c", 'powershell')).toBe(`'a b''c'`);
         expect(shellArg('$x', 'powershell')).toBe(`'$x'`);
         expect(serverRunCommand({ siteUrl: 'https://x.test', token: 'a$b', port: 1 }, 'bash')).toContain(`-e 'BLOBBY_SITE_TOKEN=a$b'`);
@@ -32,7 +34,11 @@ describe('siteUrl', () => {
 
 describe('SERVER_HELP', () => {
     it('holds no token', () => {
-        expect(SERVER_HELP.map((h) => h.command).join(' ')).not.toMatch(/TOKEN/);
+        expect(SERVER_HELP.flatMap((h) => h.commands).join(' ')).not.toMatch(/TOKEN/);
+    });
+
+    it('pulls the newest image before it removes the container to update', () => {
+        expect(SERVER_HELP.find((h) => h.label === 'Update')?.commands).toEqual(['docker pull sondresjo/blobby-server:latest', 'docker rm -f blobby-server']);
     });
 });
 
@@ -53,5 +59,6 @@ describe('START_SCRIPTS', () => {
             'curl -fsSLO https://raw.githubusercontent.com/sondresjolyst/blobbyvolley2/main/scripts/tournament-server.sh',
         ]);
         expect(START_SCRIPTS.map((s) => s.command)).toEqual(['powershell -ExecutionPolicy Bypass -File .\\tournament-server.ps1 start', 'bash tournament-server.sh start']);
+        expect(START_SCRIPTS.map((s) => s.update)).toEqual(['powershell -ExecutionPolicy Bypass -File .\\tournament-server.ps1 update', 'bash tournament-server.sh update']);
     });
 });

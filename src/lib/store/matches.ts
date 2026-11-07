@@ -3,7 +3,7 @@
 // same transaction.
 import type { Pool, PoolClient } from 'pg';
 import { DEFAULT_RULES, finalPlacings, isBestOf, isRuleFile, roundName, type FormatId, type MatchLink, type Placing, type Section } from '@/lib/bracket';
-import { DEFAULT_GAME_SPEED, DEFAULT_SCORE_TO_WIN, isGameSpeed, isScoreToWin } from '@/lib/matches/settings';
+import { DEFAULT_GAME_SPEED, DEFAULT_SCORE_TO_WIN, isGameSpeed, isPoints, isScoreToWin, isWinningScore } from '@/lib/matches/settings';
 import { isOpenForBets, isValidSeriesScore, nextState, seriesScore, type GameResult, type MatchAction, type MatchState } from '@/lib/matches/state';
 import { handleMatchEvents, type MatchEvent } from './match-events';
 import { inTransaction } from './transaction';
@@ -455,20 +455,16 @@ export interface GameEntry {
     points2: number;
 }
 
-const isPoints = (n: number) => Number.isInteger(n) && n >= 0 && n <= 1000;
-
-/** The winner of a game must have more points than the loser. An abandoned game has no winner. */
-const winnerAhead = (winnerSlot: 1 | 2 | null, points1: number, points2: number) => winnerSlot === null || (winnerSlot === 1 ? points1 > points2 : points2 > points1);
-
 /**
  * Enters or corrects a game result by hand. Awarding an abandoned game is a correction that gives
- * it a winner. The series, the winner and the bracket are worked out again. A game the admin set
+ * it a winner. The winner needs more points but not the points to win, so an admin can award a
+ * game at the score where it stopped. The series, the winner and the bracket are worked out again. A game the admin set
  * is never changed by a later report from the game server.
  */
 export async function enterGameResult(pool: Pool, matchId: number, entry: GameEntry): Promise<MatchResult> {
     if (!Number.isInteger(entry.game) || entry.game < 1) return { ok: false, error: 'game' };
     if (!isPoints(entry.points1) || !isPoints(entry.points2) || ![1, 2, null].includes(entry.winnerSlot)) return { ok: false, error: 'score' };
-    if (!winnerAhead(entry.winnerSlot, entry.points1, entry.points2)) return { ok: false, error: 'score' };
+    if (!isWinningScore(entry.winnerSlot, entry.points1, entry.points2, 1)) return { ok: false, error: 'score' };
     return withMatch(pool, matchId, async (tx) => {
         await requireScorable(tx);
         const games = await readGames(tx.client, tx.match.id);
@@ -620,10 +616,12 @@ const isValidReport = (report: GameReport) =>
     [1, 2, null].includes(report.winnerSlot) &&
     [1, 2, null, undefined].includes(report.leftSlot) &&
     ((report.leftSlot ?? null) === null || report.winnerSlot === null) &&
-    winnerAhead(report.winnerSlot, report.points1, report.points2);
+    isWinningScore(report.winnerSlot, report.points1, report.points2, 1);
 
 /** Stores one report on the locked match and applies it when it is for the next game. */
 async function storeReport(tx: MatchTx, report: GameReport, times: { startedAt: Date; endedAt: Date } | null): Promise<ReportStatus> {
+    // A finished game from the game server ends at the points to win of the match or later.
+    if (!isWinningScore(report.winnerSlot, report.points1, report.points2, tx.match.score_to_win)) throw new Refused('score');
     const games = await readGames(tx.client, tx.match.id);
     const last = lastGame(tx.match, games);
     let decision: ReportStatus;

@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const requireAdminApi = vi.fn();
+const requireAdminPost = vi.fn();
 const setNextGameDelay = vi.fn();
 
-vi.mock('@/lib/auth/options', () => ({ requireAdminApi: (...args: unknown[]) => requireAdminApi(...args) }));
+vi.mock('@/lib/auth/options', () => ({ requireAdminPost: (...args: unknown[]) => requireAdminPost(...args) }));
 vi.mock('@/lib/db', () => ({ getPool: () => ({}) }));
 vi.mock('@/lib/store/tournaments', () => ({ setNextGameDelay: (...args: unknown[]) => setNextGameDelay(...args) }));
 
@@ -13,9 +13,9 @@ const params = (id: string) => ({ params: Promise.resolve({ id }) });
 const post = (fields: Record<string, string>) => new Request('https://bvt.example.test/api/admin/tournaments/4/next-game-delay', { method: 'POST', body: new URLSearchParams(fields) });
 
 beforeEach(() => {
-    requireAdminApi.mockReset();
+    requireAdminPost.mockReset();
     setNextGameDelay.mockReset();
-    requireAdminApi.mockResolvedValue({ githubId: '1' });
+    requireAdminPost.mockResolvedValue({ githubId: '1' });
 });
 
 describe('POST /api/admin/tournaments/{id}/next-game-delay', () => {
@@ -42,9 +42,9 @@ describe('POST /api/admin/tournaments/{id}/next-game-delay', () => {
         expect((await pause(post({ nextGameDelay: '10' }), params('9'))).status).toBe(404);
     });
 
-    it('answers with the denial from requireAdminApi', async () => {
+    it('answers with the denial from requireAdminPost', async () => {
         const denied = Response.json({ error: 'forbidden' }, { status: 403 });
-        requireAdminApi.mockResolvedValueOnce(denied);
+        requireAdminPost.mockResolvedValueOnce(denied);
         expect(await pause(post({ nextGameDelay: '10' }), params('4'))).toBe(denied);
         expect(setNextGameDelay).not.toHaveBeenCalled();
     });

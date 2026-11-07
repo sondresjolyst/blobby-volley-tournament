@@ -1,11 +1,11 @@
 // Reads the JSON bodies the game server sends. Each parser names the first bad field.
 import { readCappedBody } from '@/lib/http';
+import { isPoints } from '@/lib/matches/settings';
 
 /** The largest body read. Every request of the game server is far smaller. */
 export const MAX_BODY_BYTES = 16 * 1024;
 
 const MAX_ID = 2_147_483_647;
-const MAX_POINTS = 1000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // An ISO 8601 time with a date, a time and a zone, such as 2026-11-20T18:04:05Z.
 const TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,9})?(Z|[+-]\d{2}:\d{2})$/;
@@ -33,7 +33,6 @@ export async function readJsonBody(req: Request): Promise<unknown> {
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 const isId = (value: unknown): value is number => Number.isInteger(value) && (value as number) >= 1 && (value as number) <= MAX_ID;
-const isPoints = (value: unknown): value is number => Number.isInteger(value) && (value as number) >= 0 && (value as number) <= MAX_POINTS;
 
 function readTime(value: unknown): Date | null {
     if (typeof value !== 'string' || !TIME.test(value)) return null;

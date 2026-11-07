@@ -19,5 +19,7 @@ export function signed(n: number): string {
 /** The change of a rating, from the shown ratings, so the change always matches the numbers next to it. */
 export const ratingChange = (start: number, end: number) => signed(shownRating(end) - shownRating(start));
 
-/** Payout divided by stake, such as `4.2×`. */
-export const odds = (multiplier: number) => `${Number(multiplier.toFixed(2))}×`;
+const twoDecimals = new Intl.NumberFormat('nb-NO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/** Payout divided by stake with a decimal comma, such as `4,20×`. Every page writes odds this way. */
+export const odds = (multiplier: number) => `${twoDecimals.format(multiplier)}×`;

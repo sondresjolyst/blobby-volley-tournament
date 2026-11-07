@@ -67,10 +67,10 @@ export default async function AdminMatches({ searchParams }: { searchParams: Pro
                                                 )}
                                                 <td data-label="Match">
                                                     <Link href={`/admin/matches/${m.id}`}>
-                                                        Match {m.id}: {matchTitle(m)}
+                                                        Match {m.id}: {matchTitle(m, 'admin')}
                                                     </Link>
                                                 </td>
-                                                <td data-label="Players">{matchPlayers(m)}</td>
+                                                <td data-label="Players">{matchPlayers(m, 'admin')}</td>
                                                 <td data-label="Best of">{m.bestOf}</td>
                                                 <td data-label="Score">{matchOutcome(m)}</td>
                                             </tr>

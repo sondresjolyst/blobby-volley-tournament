@@ -1,4 +1,5 @@
 // Parimutuel pool maths. No database access, so it can be tested on its own.
+import { MAX_FOZA } from '@/lib/foza';
 
 export interface PoolBet {
     id: number;
@@ -58,14 +59,12 @@ export function poolOdds(bets: readonly PoolBet[], players: readonly [number, nu
     return { total: sum, sides: [side(players[0]), side(players[1])] };
 }
 
-/** The most Foza one bet or raise can stake. It keeps amounts far inside a database integer. */
-export const MAX_STAKE = 1_000_000;
 
 /**
  * Why a stake cannot be placed from this balance, or null when it can. A stake is whole Foza, at
  * least 1, and never more than the balance. The whole balance is allowed.
  */
 export function stakeError(amount: number, balance: number): 'amount' | 'balance' | null {
-    if (!Number.isInteger(amount) || amount < 1 || amount > MAX_STAKE) return 'amount';
+    if (!Number.isInteger(amount) || amount < 1 || amount > MAX_FOZA) return 'amount';
     return amount > balance ? 'balance' : null;
 }

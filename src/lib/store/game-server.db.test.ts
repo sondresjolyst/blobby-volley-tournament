@@ -482,6 +482,18 @@ describe('reportServerGame', () => {
         expect((await getMatch(pool, m1))!.games).toEqual([]);
     });
 
+    it('refuses a finished game where the winner is below the points to win, and takes one at or above them', async () => {
+        const s = await setup();
+        const [m1] = s.ids;
+        const [a, b] = [s.players[0], s.players[3]];
+        await callMatch(pool, m1);
+        const { scoreToWin } = (await getMatch(pool, m1))!;
+        expect(await reportServerGame(pool, serverReport(m1, 1, a, [a, scoreToWin - 1, b, 3]))).toEqual({ ok: false, error: 'score' });
+        expect((await getMatch(pool, m1))!.games).toEqual([]);
+        expect(await reportServerGame(pool, serverReport(m1, 1, a, [a, scoreToWin, b, 3]))).toMatchObject({ ok: true, status: 'applied' });
+        expect(await reportServerGame(pool, serverReport(m1, 2, a, [a, scoreToWin + 5, b, scoreToWin + 3]))).toMatchObject({ ok: true, status: 'applied' });
+    });
+
     it('starts a called match when the first report comes before the connect report', async () => {
         const s = await setup();
         const [m1] = s.ids;

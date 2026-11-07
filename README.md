@@ -33,9 +33,11 @@ An event can also have the host and port of the game server at the LAN. The site
 
 Sign-in has these limits:
 
-- After 5 wrong PINs in a row the player is locked for 15 minutes. The next locks last 30 and then 60 minutes, until the player signs in with the right PIN.
+- After 5 wrong PINs in a row the player is locked for 15 minutes. The next locks last 30 and then 60 minutes, until the player signs in with the right PIN. Wrong PINs are forgotten when the last one is more than 24 hours old.
+- One client address can have 40 wrong PINs on real players per hour, across all players. Above that the address cannot try a PIN, not even the right one, until the hour is over.
+- One client address can sign up 50 new players per hour.
 - Wrong PINs are counted per event. Above 300 in an hour the site logs a warning, but it does not block sign-in. A right PIN always works unless the player is locked.
-- One client address can have 100 unknown nicknames and wrong event codes per hour. Wrong PINs on real players do not count here, so players who share one address at a LAN cannot block each other. An IPv6 address counts by its /64 prefix.
+- One client address can have 100 unknown nicknames and wrong event codes per hour. Wrong PINs on real players do not count here. An IPv6 address counts by its /64 prefix in every limit.
 
 `TRUSTED_PROXY_IP_HEADER` names the header in which the proxy in front of the site puts the client address, such as `x-forwarded-for` or `x-real-ip`. Set it only behind a proxy that overwrites that header with the real client address. Otherwise a client can send any address and get a fresh limit each time. For a list, the last address is used. Without the variable, all clients share one limit, and the site logs a warning at startup in production.
 
@@ -61,7 +63,7 @@ Each tournament match and each 1v1 match is a row in the `matches` table. A matc
 
 A match is best of 1, 3, 5 or 7. Each game is stored with its own result, and the series score is stored with the match. A game that ends without a winner, such as on a disconnect, is abandoned and does not count. The admin then restarts it from 0-0 or awards it. The admin home page lists every match that waits for this decision at the top, with the event, the tournament and round, the players, the score when the game stopped and who left, and a link to the match. The match page shows the same score and who left.
 
-On the match page an admin can restart the current game, enter or correct a game result, set the series score by hand, record a no-show, reset the match to upcoming and cancel a 1v1 match. A game result needs more points for the winner. A no-show gives the other player the win. A tournament match cannot be cancelled, since the bracket could not move on. Record a no-show instead. When a series is decided, the winner and the loser move on to their next matches and the tournament places are updated. A correction works out the series and the bracket again. It is refused when it would move a player out of a later match that is already called, started or finished. The page then links to that match. Reset it to upcoming, which clears its games and refunds its bets, and the correction goes through.
+On the match page an admin can restart the current game, enter or correct a game result, set the series score by hand, record a no-show, reset the match to upcoming and cancel a 1v1 match. A game result needs more points for the winner. It may be below the points to win, so an abandoned game can be awarded at the score where it stopped. A no-show gives the other player the win. A tournament match cannot be cancelled, since the bracket could not move on. Record a no-show instead. When a series is decided, the winner and the loser move on to their next matches and the tournament places are updated. A correction works out the series and the bracket again. It is refused when it would move a player out of a later match that is already called, started or finished. The page then links to that match. Reset it to upcoming, which clears its games and refunds its bets, and the correction goes through.
 
 The game server sends each game result with a report id that is unique across all matches, a UUID. It reads the next game number again before each game. A report that comes again changes nothing. A report for a game that already has a result, such as one an admin entered, is kept but ignored. See [Game server API](#game-server-api).
 
@@ -143,7 +145,7 @@ The address holds the key, so do not share it beyond whoever sets up the TV. The
 
 ## Sponsors
 
-An admin manages the sponsors of an event on its page under `/admin/events`. A sponsor has a name of at most 60 characters, an optional http or https link, a logo, a place in the order and an on or off switch. Up and Down move a sponsor one place. The footer of every page and the game server API list the sponsors of the active event that are on, in this order. An event has at most 50 sponsors.
+An admin manages the sponsors of an event on its page under `/admin/events`. A sponsor has a name of at most 60 characters, an optional http or https link, a logo, a place in the order and an on or off switch. Up and Down move a sponsor one place. The footer of every page and the game server API list the sponsors of the active event that are on, in this order. An event has at most 32 sponsors, the most the game shows.
 
 Each event also has a style for the sponsor board in the game, picked in a list above the sponsors. The styles are `off`, `led` (dark LED with a metal frame), `printed` (white printed panels), `wood` (a wooden beach bar), `slim` (slim glossy LED) and `padded` (a padded rounded board). A new event starts with `off`. While the board is off the game server gets no sponsors and the game shows no board. The footer and the logo routes are not affected.
 
@@ -151,7 +153,7 @@ A logo is a PNG, JPEG or WebP file of at most 1 MB and at most 2000 pixels wide 
 
 For the game the site makes a 32-bit BMP with alpha, 32 pixels high and at most 160 wide, with the aspect ratio kept. It has a `BITMAPV4HEADER` with `BI_BITFIELDS` and the masks red `0x00FF0000`, green `0x0000FF00`, blue `0x000000FF` and alpha `0xFF000000`, and the rows are stored from the bottom up. Transparent parts stay transparent, so the board in the game shows through. A wider logo is centred on a transparent band 32 pixels high. An admin can give a sponsor its own game background for a logo that needs a backing. The logo is then put on that colour and every pixel is opaque. A changed colour makes the BMP again from the stored logo. The board style does not change the BMP.
 
-Game logos stored before the alpha channel are 24-bit. The site makes each of them again from the stored logo the first time the game server asks for the sponsors after the update. Sponsors that had the old white default lose it and keep their transparency. Another colour stays as their own game background.
+Game logos stored before the alpha channel are 24-bit. The site makes each of them again from the stored logo the first time the game server asks for the sponsors after the update. This runs once per start of the site. A logo that fails 3 times is left as it is and logged. Sponsors that had the old white default lose it and keep their transparency. Another colour stays as their own game background.
 
 `GET /api/sponsors/<id>/logo` is public and returns the logo of a sponsor that is on in the active event, with its own content type and `X-Content-Type-Options: nosniff`. The footer adds `?v=<hash>`, the SHA-256 of the logo, and that address may be cached for a year. Without it the browser checks the ETag each time.
 
@@ -181,7 +183,9 @@ There is one token for the whole site, since the game server serves the active e
 
 New token, with the box checked to confirm, replaces the token at once. The old token gets 401 from then on. The page shows when the token was made and when the game server last used it. The last use is written at most once a minute, so a busy game server does not write on every call.
 
-With the new token the page shows the command that starts the game server in Docker, for PowerShell and for bash, with this site and the token filled in. It maps the game server port of the active event, or 1234 without one, to port 1234 in the container:
+The easy way to start the game server is the start script in the game repository, which the page links. It asks for the site address and the token once, keeps them in a file only the user can read, and passes the token to Docker in a temporary env file. Its `update` command gets the newest server image and starts it again with the saved token.
+
+The alternative is one line. With the new token the page shows the command that starts the game server in Docker, for PowerShell and for bash, with this site and the token filled in. The token then ends up in the shell history. It maps the game server port of the active event, or 1234 without one, to port 1234 in the container:
 
     docker run -d --name blobby-server --restart unless-stopped -p 1234:1234/udp -v blobby-data:/data -e BLOBBY_TOURNAMENT=1 -e BLOBBY_SITE_URL=<NEXTAUTH_URL> -e BLOBBY_SITE_TOKEN=<token> sondresjo/blobby-server:latest
 
@@ -191,7 +195,7 @@ The game server reads these variables in tournament mode:
 - `BLOBBY_SITE_URL`: the public address of the site, the origin of `NEXTAUTH_URL`.
 - `BLOBBY_SITE_TOKEN`: the game server token, sent as `Authorization: Bearer <token>`.
 
-The page also lists `docker stop blobby-server`, `docker start blobby-server` and `docker logs -f blobby-server`. To update, run `docker rm -f blobby-server`, make a new token and run the start command again. The start script in the game repository is the other way to start the server. It asks for the token.
+The page also lists `docker stop blobby-server`, `docker start blobby-server` and `docker logs -f blobby-server`. To update without the script, run `docker pull sondresjo/blobby-server:latest` and `docker rm -f blobby-server`, make a new token and run the start command again.
 
 ### Join codes
 
@@ -312,7 +316,7 @@ One game ended. Send it once per game, with a new UUID as `reportId`. Send the s
 }
 ```
 
-- `status` is `finished` or `abandoned`. A finished game needs `winnerId`, and the winner must have more points. An abandoned game, such as on a disconnect, has `winnerId` `null` or leaves it out.
+- `status` is `finished` or `abandoned`. A finished game needs `winnerId`, and the winner must have more points and at least `scoreToWin` from the sync. An abandoned game, such as on a disconnect, has `winnerId` `null` or leaves it out.
 - `leftPlayerId` is optional. On an abandoned game it names the player who left, so the admin can decide. It must be one of the two players of the match, or the report is refused with `players`. Leave it out or send `null` when no one left or the server does not know. A finished game that names a player who left gets `400` with the field `leftPlayerId`.
 - `points` holds both players of the match, in any order.
 - `endedAt` may not be before `startedAt`.
@@ -322,7 +326,7 @@ Answers:
 - `200` `{ "status": "stored" }`: the game is stored. When it decides the series, the match finishes, bets settle and the bracket moves on. A report for a called match starts it first.
 - `200` `{ "status": "duplicate" }`: a report with this id came before, whatever its answer was then. Nothing changed.
 - `200` `{ "status": "game-closed" }`: the game already has a result, from an admin or an earlier report, or a reset cleared it. The report is kept but changes nothing.
-- `200` `{ "status": "refused", "reason": "<reason>" }`: nothing changed. `not-found`: no such match. `players`: the players are not the two of the match. `state`: the match is not called or started. `game-ahead`: the game number is past `nextGame`. `score`: the points do not fit the result.
+- `200` `{ "status": "refused", "reason": "<reason>" }`: nothing changed. `not-found`: no such match. `players`: the players are not the two of the match. `state`: the match is not called or started. `game-ahead`: the game number is past `nextGame`. `score`: the points do not fit the result, such as a winner below the points to win of the match.
 
 ### POST /api/server/live
 

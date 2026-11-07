@@ -1,13 +1,13 @@
 import { isBestOf } from '@/lib/bracket';
 import { parseId } from '@/lib/http';
-import { DEFAULT_GAME_SPEED, DEFAULT_SCORE_TO_WIN, formNumber, isGameSpeed, isScoreToWin } from './settings';
+import { DEFAULT_GAME_SPEED, DEFAULT_SCORE_TO_WIN, formNumber, isGameSpeed, isPoints, isScoreToWin } from './settings';
 import type { MatchState } from './state';
 
-/** A whole number from 0 to 1000 from a form field, or null. */
+/** A whole number from 0 to MAX_POINTS from a form field, or null. */
 export function parseCount(value: string | undefined): number | null {
     if (value === undefined || !/^[0-9]{1,4}$/.test(value.trim())) return null;
     const n = Number(value.trim());
-    return n <= 1000 ? n : null;
+    return isPoints(n) ? n : null;
 }
 
 /** Slot 1 or 2 from a form field, or null. */

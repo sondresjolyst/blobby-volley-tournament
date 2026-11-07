@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { MatchSummary } from '@/lib/store/matches';
-import { challengeErrorMessage, foza, matchPlayers, matchSettings, matchTitle, noticeMessage, payout } from './text';
+import { matchPlayers, matchTitle } from '../matches/describe';
+import { challengeErrorMessage, foza, matchSettings, noticeMessage, payout } from './text';
 
 const oneVsOne: MatchSummary = {
     id: 9,
@@ -32,8 +33,9 @@ describe('player texts', () => {
         expect(payout(null)).toBe('ingen spel enno');
     });
 
-    it('names tournament and 1v1 matches', () => {
-        expect(matchTitle(oneVsOne)).toBe('1v1-utfordring');
+    it('names tournament and 1v1 matches for players and admins', () => {
+        expect(matchTitle(oneVsOne, 'player')).toBe('1v1-utfordring');
+        expect(matchTitle(oneVsOne, 'admin')).toBe('1v1');
         const semi: MatchSummary = {
             ...oneVsOne,
             tournamentId: 2,
@@ -41,8 +43,11 @@ describe('player texts', () => {
             bracketMatchId: 5,
             bracketRound: { format: 'single_elimination', section: 'winners', round: 2, lastRound: 3, position: 1 },
         };
-        expect(matchTitle(semi)).toBe('Hovedcupen · Semifinala, kamp 1');
-        expect(matchPlayers(oneVsOne)).toBe('Ola vs Ikkje klart enno');
+        expect(matchTitle(semi, 'player')).toBe('Hovedcupen · Semifinala, kamp 1');
+        expect(matchTitle(semi, 'admin')).toBe('Hovedcupen, Round 2, match 1');
+        expect(matchTitle({ ...semi, bracketRound: { ...semi.bracketRound!, round: 3 } }, 'admin')).toBe('Hovedcupen, Final, match 1');
+        expect(matchPlayers(oneVsOne, 'player')).toBe('Ola vs Ikkje klart enno');
+        expect(matchPlayers(oneVsOne, 'admin')).toBe('Ola vs To be decided');
         expect(matchSettings(oneVsOne)).toBe('Best av 3 · først te 21 · 90 fps');
     });
 

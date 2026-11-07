@@ -3,7 +3,7 @@ import { getPool } from '@/lib/db';
 import { refuseGameServer } from '@/lib/game-server/auth';
 import { readBmpInfo } from '@/lib/sponsors/bmp';
 import { makeGameLogo } from '@/lib/sponsors/logo';
-import { listServerSponsors, upgradeGameLogos } from '@/lib/store/sponsors';
+import { listServerSponsors, upgradeGameLogosOnce } from '@/lib/store/sponsors';
 
 /** The board style and the enabled sponsors of the active event in order, each with its game logo as a base64 BMP. */
 export async function GET(req: Request) {
@@ -11,7 +11,7 @@ export async function GET(req: Request) {
     if (refused) return refused;
     const pool = getPool();
     // Game logos stored before the alpha channel are made again the first time the game asks.
-    await upgradeGameLogos(pool, makeGameLogo);
+    await upgradeGameLogosOnce(pool, makeGameLogo);
     const { eventId, gameBoard, sponsors } = await listServerSponsors(pool);
     const list = sponsors.map((sponsor) => {
         const info = readBmpInfo(sponsor.gameLogo);

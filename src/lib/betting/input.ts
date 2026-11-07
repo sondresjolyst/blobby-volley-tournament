@@ -1,11 +1,12 @@
+import { MAX_FOZA } from '@/lib/foza';
 import { parseId } from '@/lib/http';
 import type { BetInput } from '@/lib/store/bets';
 
-/** A whole number of Foza from 1 to 1000000 from a form field, or null. */
+/** A whole number of Foza from 1 to MAX_FOZA from a form field, or null. */
 export function parseFoza(value: string | undefined): number | null {
     if (value === undefined || !/^[1-9][0-9]{0,6}$/.test(value.trim())) return null;
     const n = Number(value.trim());
-    return n <= 1_000_000 ? n : null;
+    return n <= MAX_FOZA ? n : null;
 }
 
 /** Reads the bet form: matchId, on (the player to back) and amount. Null when a field is missing or wrong. */
@@ -24,7 +25,7 @@ export function parseAdjustmentForm(form: Record<string, string>): { amount: num
     const reason = (form.reason ?? '').trim();
     if (!match || reason.length < 1 || reason.length > 200) return null;
     const size = Number(match[2]);
-    if (size > 1_000_000) return null;
+    if (size > MAX_FOZA) return null;
     return { amount: match[1] === '-' ? -size : size, reason };
 }
 
@@ -37,7 +38,7 @@ const BET_MESSAGES: Record<string, string> = {
     switch: 'Du har allerede satsa på den andre. Du kan høgna spelet, men ikkje bytta side.',
     amount: 'Innsatsen må vera eit heilt tal Foza, minst 1.',
     balance: 'Så mykje Foza har du ikkje.',
-    form: 'Noe gjekk gale. Prøv igjen.',
+    form: 'Nokke gjekk gale. Prøv igjen.',
 };
 
 /** The text for a bet error code in the address. Unknown codes show nothing. */

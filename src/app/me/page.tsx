@@ -3,7 +3,8 @@ import { MatchCard } from '@/components/player/MatchCard';
 import { Pizza } from '@/components/pizza/Pizza';
 import { PlayerShell } from '@/components/player/PlayerShell';
 import styles from '@/components/player/player.module.css';
-import { BET_STATUS, challengeErrorMessage, foza, matchPlayers, matchSettings, matchTitle, noticeMessage } from '@/components/player/text';
+import { matchPlayers, matchTitle } from '@/components/matches/describe';
+import { BET_STATUS, challengeErrorMessage, foza, matchSettings, noticeMessage } from '@/components/player/text';
 import { BEST_OF } from '@/lib/bracket';
 import { betErrorMessage } from '@/lib/betting/input';
 import { getPool } from '@/lib/db';
@@ -81,13 +82,13 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                     <section className={styles.hero} aria-labelledby="din-kamp">
                         <Pizza size={160} variant="deluxe" className={styles.heroPizza} />
                         <p className={styles.kicker}>
-                            {matchTitle(current)} · {matchSettings(current)}
+                            {matchTitle(current, 'player')} · {matchSettings(current)}
                         </p>
                         <h2 id="din-kamp" className={styles.heroTitle}>
                             {current.state === 'called' ? 'Kampen din e ropt opp!' : 'Kampen din e i gang'}
                         </h2>
                         <p className={styles.heroVersus}>
-                            {matchPlayers(current)}
+                            {matchPlayers(current, 'player')}
                             {current.state === 'started' && ` · ${current.score1}-${current.score2}`}
                         </p>
                         {join && code && event?.serverHost && event.serverPort ? (
@@ -173,7 +174,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                                         const m = matchOf.get(b.matchId);
                                         return (
                                             <tr key={b.id}>
-                                                <td>{m ? matchPlayers(m) : `Kamp ${b.matchId}`}</td>
+                                                <td>{m ? matchPlayers(m, 'player') : `Kamp ${b.matchId}`}</td>
                                                 <td>{b.onNickname}</td>
                                                 <td>{foza(b.amount)}</td>
                                                 <td>{BET_STATUS[b.status]}</td>

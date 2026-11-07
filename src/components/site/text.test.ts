@@ -40,7 +40,7 @@ describe('errorMessage', () => {
     });
 
     it('never uses an em dash or a semicolon', () => {
-        for (const code of ['no-event', 'code', 'taken', 'nickname-empty', 'nickname-too-long', 'nickname-invalid', 'pin', 'wrong', 'locked', 'busy', 'form']) {
+        for (const code of ['no-event', 'code', 'taken', 'nickname-empty', 'nickname-too-long', 'nickname-invalid', 'pin', 'wrong', 'locked', 'busy', 'pins', 'sign-ups', 'form']) {
             const text = errorMessage(code);
             expect(text).toBeTruthy();
             expect(text).not.toMatch(/[\u2014;]/);

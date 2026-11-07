@@ -1,4 +1,4 @@
-import { requireAdminApi } from '@/lib/auth/options';
+import { requireAdminPost } from '@/lib/auth/options';
 import { getPool } from '@/lib/db';
 import { seeOther } from '@/lib/http';
 import { parseMatchIds } from '@/lib/matches/input';
@@ -6,7 +6,7 @@ import { callMatches } from '@/lib/store/matches';
 
 /** Calls the matches picked on /admin/matches. Each match is called on its own. */
 export async function POST(req: Request) {
-    const admin = await requireAdminApi(req);
+    const admin = await requireAdminPost(req);
     if (admin instanceof Response) return admin;
     let form: FormData;
     try {

@@ -4,14 +4,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Pool } from 'pg';
 import sharp from 'sharp';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { migrate, MIGRATIONS_DIR, readMigrations } from '../../../scripts/migrate.mjs';
 import type { EventInput } from '@/lib/events/input';
 import { BMP_HEADER_BYTES, encodeBmp32, readBmpInfo } from '@/lib/sponsors/bmp';
 import type { SponsorInput } from '@/lib/sponsors/input';
 import { checkLogo, makeGameLogo, type CheckedLogo } from '@/lib/sponsors/logo';
 import { createEvent, getEvent, setActiveEvent, setGameBoard } from './events';
-import { createSponsor, deleteSponsor, getSponsorLogo, listServerSponsors, listShownSponsors, listSponsors, MAX_SPONSORS, moveSponsor, updateSponsor, upgradeGameLogos } from './sponsors';
+import { createSponsor, deleteSponsor, getSponsorLogo, listServerSponsors, listShownSponsors, listSponsors, LOGO_UPGRADE_TRIES, MAX_SPONSORS, moveSponsor, newLogoUpgradeState, updateSponsor, upgradeGameLogos, upgradeGameLogosOnce } from './sponsors';
 
 if (!process.env.TEST_DATABASE_URL) {
     throw new Error('TEST_DATABASE_URL is not set. Run these tests with npm run test:db.');
@@ -236,7 +236,7 @@ describe('game logos from before the alpha channel', () => {
         await setGameBoard(pool, eventId, 'led');
         const before = (await listServerSponsors(pool)).sponsors.map((s) => readBmpInfo(new Uint8Array(s.gameLogo))?.bitsPerPixel);
         expect(before).toEqual([24, 24]);
-        expect(await upgradeGameLogos(pool, makeGameLogo)).toBe(2);
+        expect(await upgradeGameLogos(pool, makeGameLogo)).toEqual({ made: 2, failed: [] });
         const after = (await listServerSponsors(pool)).sponsors.map((s) => new Uint8Array(s.gameLogo));
         expect(after.map((bmp) => readBmpInfo(bmp))).toEqual([
             { width: 96, height: 32, bitsPerPixel: 32 },
@@ -245,17 +245,54 @@ describe('game logos from before the alpha channel', () => {
         // Blue, green, red, alpha of the first pixel.
         expect(Array.from(after[0].slice(BMP_HEADER_BYTES, BMP_HEADER_BYTES + 4))).toEqual([0, 0, 0, 0]);
         expect(Array.from(after[1].slice(BMP_HEADER_BYTES, BMP_HEADER_BYTES + 4))).toEqual([0, 0, 255, 255]);
-        expect(await upgradeGameLogos(pool, makeGameLogo)).toBe(0);
+        expect(await upgradeGameLogos(pool, makeGameLogo)).toEqual({ made: 0, failed: [] });
     });
 
-    it('leaves a logo that cannot be made as it is', async () => {
+    it('leaves a logo that cannot be made as it is and names it', async () => {
         await migrateFromBefore();
-        expect(
-            await upgradeGameLogos(pool, async () => {
-                throw new Error('broken');
-            }),
-        ).toBe(0);
-        expect(await upgradeGameLogos(pool, makeGameLogo)).toBe(2);
+        const result = await upgradeGameLogos(pool, async () => {
+            throw new Error('broken');
+        });
+        expect(result.made).toBe(0);
+        expect(result.failed).toHaveLength(2);
+        expect(await upgradeGameLogos(pool, makeGameLogo, [result.failed[0]])).toEqual({ made: 1, failed: [] });
+        expect(await upgradeGameLogos(pool, makeGameLogo)).toEqual({ made: 1, failed: [] });
+    });
+
+    it('runs once per process when every logo is made', async () => {
+        await migrateFromBefore();
+        const state = newLogoUpgradeState();
+        let calls = 0;
+        const counting: typeof makeGameLogo = (logo, background) => {
+            calls++;
+            return makeGameLogo(logo, background);
+        };
+        await Promise.all([upgradeGameLogosOnce(pool, counting, state), upgradeGameLogosOnce(pool, counting, state)]);
+        expect(calls).toBe(2);
+        expect(state.done).toBe(true);
+        await pool.query('UPDATE sponsors SET game_logo = set_byte(game_logo, 28, 24)');
+        await upgradeGameLogosOnce(pool, counting, state);
+        expect(calls).toBe(2);
+    });
+
+    it('stops trying a logo that keeps failing, with a log line', async () => {
+        await migrateFromBefore();
+        const state = newLogoUpgradeState();
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        let calls = 0;
+        const broken = async () => {
+            calls++;
+            throw new Error('broken');
+        };
+        try {
+            for (let i = 0; i < LOGO_UPGRADE_TRIES + 2; i++) await upgradeGameLogosOnce(pool, broken, state);
+            expect(calls).toBe(2 * LOGO_UPGRADE_TRIES);
+            expect(state.done).toBe(true);
+            expect(warn).toHaveBeenCalledTimes(2);
+            expect(warn.mock.calls[0][0]).toMatch(/could not be made again after 3 tries/);
+        } finally {
+            warn.mockRestore();
+        }
     });
 });
 

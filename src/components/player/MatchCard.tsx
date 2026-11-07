@@ -1,7 +1,8 @@
 import type { MatchPool } from '@/lib/store/bets';
 import type { MatchSummary } from '@/lib/store/matches';
 import styles from './player.module.css';
-import { foza, matchSettings, matchTitle, payout } from './text';
+import { matchTitle } from '../matches/describe';
+import { foza, matchSettings, payout } from './text';
 
 interface CardProps {
     match: MatchSummary;
@@ -39,7 +40,7 @@ export function MatchCard({ match, pool, viewerId, balance, bet }: CardProps) {
                 {name(0)} <span>vs</span> {name(1)}
             </h3>
             <p className={styles.meta}>
-                {matchTitle(match)} · {matchSettings(match)}
+                {matchTitle(match, 'player')} · {matchSettings(match)}
             </p>
             {match.state === 'started' && (
                 <p className={styles.meta}>

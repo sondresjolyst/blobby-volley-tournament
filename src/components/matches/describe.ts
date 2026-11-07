@@ -1,13 +1,29 @@
+import { roundName } from '@/lib/bracket';
 import type { MatchGame, MatchSummary } from '@/lib/store/matches';
+import { boardRoundName } from '@/lib/tournaments/board';
 
-/** Such as `Friday cup, Final, match 1`, or `1v1` for a standalone match. */
-export function matchTitle(match: MatchSummary): string {
-    return match.tournamentName === null ? '1v1' : `${match.tournamentName}, ${match.roundLabel}`;
+/** Who reads the text: admins in English, or players in the Rogaland dialect of the LAN. */
+export type Reader = 'admin' | 'player';
+
+const WORDS = {
+    admin: { oneVsOne: '1v1', separator: ', ', match: 'match', open: 'To be decided', round: roundName },
+    player: { oneVsOne: '1v1-utfordring', separator: ' · ', match: 'kamp', open: 'Ikkje klart enno', round: boardRoundName },
+} as const;
+
+/**
+ * Such as `Friday cup, Final, match 1` for an admin or `Hovedcupen · Semifinala, kamp 1` for a
+ * player. A standalone match is `1v1` or `1v1-utfordring`.
+ */
+export function matchTitle(match: Pick<MatchSummary, 'tournamentName' | 'bracketRound'>, reader: Reader): string {
+    const words = WORDS[reader];
+    const round = match.bracketRound;
+    if (match.tournamentName === null || round === null) return words.oneVsOne;
+    return `${match.tournamentName}${words.separator}${words.round(round.format, round.section, round.round, round.lastRound)}, ${words.match} ${round.position}`;
 }
 
 /** Both players, with a placeholder for a slot that is not filled yet. */
-export function matchPlayers(match: MatchSummary): string {
-    const name = (slot: 0 | 1) => match.players[slot]?.nickname ?? 'To be decided';
+export function matchPlayers(match: Pick<MatchSummary, 'players'>, reader: Reader): string {
+    const name = (slot: 0 | 1) => match.players[slot]?.nickname ?? WORDS[reader].open;
     return `${name(0)} vs ${name(1)}`;
 }
 

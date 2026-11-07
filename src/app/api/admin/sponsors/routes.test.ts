@@ -2,7 +2,7 @@ import sharp from 'sharp';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BMP_HEADER_BYTES, readBmpInfo } from '@/lib/sponsors/bmp';
 
-const requireAdminApi = vi.fn();
+const requireAdminPost = vi.fn();
 const createSponsor = vi.fn();
 const updateSponsor = vi.fn();
 const moveSponsor = vi.fn();
@@ -10,7 +10,10 @@ const deleteSponsor = vi.fn();
 const getSponsorLogo = vi.fn();
 const setGameBoard = vi.fn();
 
-vi.mock('@/lib/auth/options', () => ({ requireAdminApi: (...args: unknown[]) => requireAdminApi(...args) }));
+vi.mock('@/lib/auth/options', () => ({
+    requireAdminPost: (...args: unknown[]) => requireAdminPost(...args),
+    requireAdminRead: (...args: unknown[]) => requireAdminPost(...args),
+}));
 vi.mock('@/lib/db', () => ({ getPool: () => ({}) }));
 vi.mock('@/lib/store/sponsors', () => ({
     createSponsor: (...args: unknown[]) => createSponsor(...args),
@@ -37,8 +40,8 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
-    for (const mock of [requireAdminApi, createSponsor, updateSponsor, moveSponsor, deleteSponsor, getSponsorLogo, setGameBoard]) mock.mockReset();
-    requireAdminApi.mockResolvedValue({ githubId: '1' });
+    for (const mock of [requireAdminPost, createSponsor, updateSponsor, moveSponsor, deleteSponsor, getSponsorLogo, setGameBoard]) mock.mockReset();
+    requireAdminPost.mockResolvedValue({ githubId: '1' });
 });
 
 function form(fields: Record<string, string>, file?: { bytes: Uint8Array; type: string; name: string }) {

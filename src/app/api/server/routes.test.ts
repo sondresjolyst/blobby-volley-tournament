@@ -11,7 +11,7 @@ const getLiveScore = vi.fn();
 const reportPlayersConnected = vi.fn();
 const reportServerGame = vi.fn();
 const listServerSponsors = vi.fn();
-const upgradeGameLogos = vi.fn();
+const upgradeGameLogosOnce = vi.fn();
 
 const getStoredGameServerToken = vi.fn();
 const markGameServerTokenUsed = vi.fn();
@@ -29,7 +29,7 @@ vi.mock('@/lib/store/game-server', () => ({
 }));
 vi.mock('@/lib/store/sponsors', () => ({
     listServerSponsors: (...args: unknown[]) => listServerSponsors(...args),
-    upgradeGameLogos: (...args: unknown[]) => upgradeGameLogos(...args),
+    upgradeGameLogosOnce: (...args: unknown[]) => upgradeGameLogosOnce(...args),
 }));
 vi.mock('@/lib/store/matches', () => ({
     reportPlayersConnected: (...args: unknown[]) => reportPlayersConnected(...args),
@@ -87,7 +87,7 @@ const gameBody = (change: Record<string, unknown> = {}) => ({
 const liveBody = { matchId: 7, game: 2, points: [{ playerId: 12, points: 3 }, { playerId: 17, points: 5 }] };
 
 const stored = (lastUsedAt: Date | null = new Date()): StoredGameServerToken => ({ hash: hashGameServerToken(TOKEN), createdAt: new Date('2026-11-20T12:00:00Z'), lastUsedAt });
-const STORES = [getServerSync, updateLiveScore, getLiveScore, reportPlayersConnected, reportServerGame, listServerSponsors, upgradeGameLogos];
+const STORES = [getServerSync, updateLiveScore, getLiveScore, reportPlayersConnected, reportServerGame, listServerSponsors, upgradeGameLogosOnce];
 
 beforeEach(() => {
     for (const mock of [getPool, getStoredGameServerToken, markGameServerTokenUsed, ...STORES]) mock.mockClear();
@@ -209,8 +209,8 @@ describe('GET /api/server/sponsors', () => {
         expect(new Uint8Array(Buffer.from(body.sponsors[0].logo.data, 'base64'))).toEqual(bmp);
         expect(listServerSponsors).toHaveBeenCalledWith({});
         // Old 24-bit game logos are made again before the list is read.
-        expect(upgradeGameLogos).toHaveBeenCalledWith({}, makeGameLogo);
-        expect(upgradeGameLogos.mock.invocationCallOrder[0]).toBeLessThan(listServerSponsors.mock.invocationCallOrder[0]);
+        expect(upgradeGameLogosOnce).toHaveBeenCalledWith({}, makeGameLogo);
+        expect(upgradeGameLogosOnce.mock.invocationCallOrder[0]).toBeLessThan(listServerSponsors.mock.invocationCallOrder[0]);
     });
 
     it('keeps the version while nothing changes and changes it with a logo', async () => {

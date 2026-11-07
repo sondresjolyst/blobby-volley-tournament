@@ -19,9 +19,9 @@ describe('stats format', () => {
         expect(ratingChange(1000, 1000)).toBe('0');
     });
 
-    it('writes odds with at most two decimals', () => {
-        expect(odds(4.2)).toBe('4.2×');
-        expect(odds(400 / 300)).toBe('1.33×');
-        expect(odds(2)).toBe('2×');
+    it('writes odds with two decimals and a decimal comma', () => {
+        expect(odds(4.2)).toBe('4,20×');
+        expect(odds(400 / 300)).toBe('1,33×');
+        expect(odds(2)).toBe('2,00×');
     });
 });
