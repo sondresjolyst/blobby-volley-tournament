@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.0](https://github.com/sondresjolyst/blobby-volley-tournament/compare/v0.1.0...v0.2.0) (2026-11-07)
+
+
+### Features
+
+* set the pause between games in a series ([#47](https://github.com/sondresjolyst/blobby-volley-tournament/issues/47)) ([c8464a0](https://github.com/sondresjolyst/blobby-volley-tournament/commit/c8464a0bfd5c20e2fab197f7d16fdc5a17509c99))
+* show matches waiting for an admin decision ([#46](https://github.com/sondresjolyst/blobby-volley-tournament/issues/46)) ([34d14f3](https://github.com/sondresjolyst/blobby-volley-tournament/commit/34d14f3cdde06e4050e0216b6262b94d9d74c26c))
+
 ## 0.1.0 (2026-11-07)
 
 
