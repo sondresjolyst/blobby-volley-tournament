@@ -1,3 +1,4 @@
+import { CopyJoinLink } from '@/components/player/CopyJoinLink';
 import { MatchCard } from '@/components/player/MatchCard';
 import { Pizza, PlayerShell } from '@/components/player/PlayerShell';
 import styles from '@/components/player/player.module.css';
@@ -88,14 +89,39 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                             {matchPlayers(current)}
                             {current.state === 'started' && ` · ${current.score1}-${current.score2}`}
                         </p>
-                        {join ? (
+                        {join && code && event?.serverHost && event.serverPort ? (
                             <>
-                                <a className={styles.joinButton} href={join}>
-                                    Bli med i kampen
-                                </a>
+                                <CopyJoinLink link={join} />
+                                <ol className={styles.joinSteps} aria-label="Sånn kjem du inn">
+                                    <li>Kopier lenkjå med knappen.</li>
+                                    <li>Opne Blobby Volley.</li>
+                                    <li>Trykk på &quot;join link&quot; øvst i hovudmenyen.</li>
+                                    <li>Svar Yes.</li>
+                                </ol>
                                 <p className={styles.heroNote}>
-                                    Lenkjå opne Bløbby Volley og sende deg rett inn på serveren. Ho e bare di, så ikkje del ho med nogen. Mista du sambandet, trykk på ho igjen.
+                                    Lenkjå og koden e bare dine, så ikkje del dei med nogen. Mista du sambandet, gjer det same igjen. Har du lenkjåtypen registrert på maskinå, kan du òg{' '}
+                                    <a className={styles.heroLink} href={join}>
+                                        opne lenkjå direkte
+                                    </a>
+                                    .
                                 </p>
+                                <div className={styles.joinManual}>
+                                    <p className={styles.heroNote}>
+                                        Vil du heller skriva det inn sjøl? Velg &quot;online game&quot; eller &quot;lan game&quot;, så &quot;direct connect&quot;. Skriv inn serveren, og bruk koden som namn.
+                                    </p>
+                                    <dl className={styles.joinFacts}>
+                                        <div>
+                                            <dt>Server</dt>
+                                            <dd>
+                                                {event.serverHost}:{event.serverPort}
+                                            </dd>
+                                        </div>
+                                        <div>
+                                            <dt>Kode</dt>
+                                            <dd>{code}</dd>
+                                        </div>
+                                    </dl>
+                                </div>
                             </>
                         ) : (
                             <p className={styles.heroNote}>Serveren e ikkje sett opp enno. Spør ein admin.</p>
