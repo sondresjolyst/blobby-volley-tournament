@@ -159,7 +159,7 @@ export default async function Home() {
                         )}
                     </div>
                     {upcoming.length === 0 ? (
-                        <p className={p.empty}>Ingen kampar på plakaten enno. Ta deg ei øl og nokon nædæ.</p>
+                        <p className={p.empty}>Ingen kampar enno. Ta deg ei øl og nokon nædæ.</p>
                     ) : (
                         <div className={p.cards}>
                             {upcoming.slice(0, UPCOMING_SHOWN).map((m) => (

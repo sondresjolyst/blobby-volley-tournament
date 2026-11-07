@@ -141,7 +141,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                         </a>
                     </div>
                     {ahead.length === 0 ? (
-                        <p className={styles.empty}>Ingen kampar på plakaten enno. Ta deg ei øl og nokon nædæ.</p>
+                        <p className={styles.empty}>Ingen kampar enno. Ta deg ei øl og nokon nædæ.</p>
                     ) : (
                         <div className={styles.cards}>
                             {ahead.map((m) => (
