@@ -14,7 +14,7 @@ export function EventHost({ port, event }: { port: number; event: { id: number; 
     if (!event.serverHost)
         return (
             <p>
-                The active event has no game server host yet, so players get no join link. Set it on the <Link href={`/admin/events/${event.id}`}>event page</Link>. If you change the port, start the game server container again with the new port.
+                The active event has no game server host yet, so players get no join link. Set it on the <Link href={`/admin/events/${event.id}`}>event page</Link>.
             </p>
         );
     return (

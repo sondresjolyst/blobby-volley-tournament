@@ -481,13 +481,20 @@
     gap: 8px 10px;
 }
 
-.main :global(.admin-guide) input[readonly] {
+.main :global(.admin-guide) input[readonly],
+.main :global(.admin-guide) textarea[readonly] {
     width: 100%;
     font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
     font-size: 14px;
 }
 
-.main :global(.admin-guide) label:has(input[readonly]) {
+.main :global(.admin-guide) textarea[readonly] {
+    padding: 10px 12px;
+    resize: vertical;
+    overflow-wrap: anywhere;
+}
+
+.main :global(.admin-guide) label:has(input[readonly], textarea[readonly]) {
     flex: 1 1 100%;
 }
 

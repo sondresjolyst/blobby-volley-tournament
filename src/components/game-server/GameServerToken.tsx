@@ -75,7 +75,7 @@ export function GameServerToken({
                     <p role="status">This is the only time the token shows. Copy the command now. Make a new token if it is lost.</p>
                     <p className="admin-command">
                         <label>
-                            Start command <input type="text" readOnly value={run} size={100} autoComplete="off" spellCheck={false} />
+                            Start command <textarea readOnly value={run} rows={4} autoComplete="off" spellCheck={false} />
                         </label>{' '}
                         <CopyButton text={run} label="Copy command" noun="command" />
                     </p>
