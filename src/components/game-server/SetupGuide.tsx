@@ -1,15 +1,31 @@
+import Link from 'next/link';
 import { firewallCommand, START_SCRIPTS } from '@/lib/game-server/commands';
 import { CopyButton } from '../CopyButton';
 
 const DOCKER = 'https://www.docker.com/products/docker-desktop/';
 const RELEASES = 'https://github.com/sondresjolyst/blobbyvolley2/releases/latest';
 
-/** The steps that start the game server on the computer at the LAN. The token form follows below it. */
-export function SetupGuide({ siteUrl, port }: { siteUrl: string | null; port: number }) {
+/**
+ * The steps that start the game server on the computer at the LAN. The token form follows below it.
+ * `event` is the active event, whose game server host the join links use.
+ */
+export function SetupGuide({ siteUrl, port, event }: { siteUrl: string | null; port: number; event: { id: number; serverHost?: string | null } | null }) {
     const firewall = firewallCommand(port);
     return (
         <section aria-labelledby="setup">
             <h2 id="setup">Set up the game server</h2>
+            {!event ? (
+                <p>There is no active event, so the join links have no game server address yet.</p>
+            ) : event.serverHost ? (
+                <p>
+                    The join links send the games of the players to <code>{`${event.serverHost}:${port}`}</code>. If the game server moves to another PC, change the host on the{' '}
+                    <Link href={`/admin/events/${event.id}`}>event page</Link>. If you change the port, start the game server container again with the new port.
+                </p>
+            ) : (
+                <p>
+                    The active event has no game server host yet, so players get no join link. Set it on the <Link href={`/admin/events/${event.id}`}>event page</Link>.
+                </p>
+            )}
             <ol className="admin-steps">
                 <li>
                     Install <a href={DOCKER}>Docker Desktop</a> and start it. On Linux, install Docker Engine.

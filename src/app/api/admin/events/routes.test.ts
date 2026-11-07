@@ -3,16 +3,24 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const requireAdminPost = vi.fn();
 const rotateBigScreenKey = vi.fn();
 const setBigScreenRotation = vi.fn();
+const isEventCodeTaken = vi.fn();
+const createEvent = vi.fn();
+const updateEvent = vi.fn();
 
 vi.mock('@/lib/auth/options', () => ({ requireAdminPost: (...args: unknown[]) => requireAdminPost(...args) }));
 vi.mock('@/lib/db', () => ({ getPool: () => ({}) }));
 vi.mock('@/lib/store/events', () => ({
     rotateBigScreenKey: (...args: unknown[]) => rotateBigScreenKey(...args),
     setBigScreenRotation: (...args: unknown[]) => setBigScreenRotation(...args),
+    isEventCodeTaken: (...args: unknown[]) => isEventCodeTaken(...args),
+    createEvent: (...args: unknown[]) => createEvent(...args),
+    updateEvent: (...args: unknown[]) => updateEvent(...args),
 }));
 
 import { POST as newKey } from './[id]/big-screen-key/route';
 import { POST as saveRotation } from './[id]/big-screen-rotation/route';
+import { POST as saveEvent } from './[id]/route';
+import { POST as newEvent } from './route';
 
 const params = (id: string) => ({ params: Promise.resolve({ id }) });
 const post = (fields: Record<string, string>) => new Request('https://bvt.example.test/api/admin/events/3/big-screen-key', { method: 'POST', body: new URLSearchParams(fields) });
@@ -21,6 +29,9 @@ beforeEach(() => {
     requireAdminPost.mockReset();
     rotateBigScreenKey.mockReset();
     setBigScreenRotation.mockReset();
+    isEventCodeTaken.mockReset();
+    createEvent.mockReset();
+    updateEvent.mockReset();
     requireAdminPost.mockResolvedValue({ githubId: '1' });
 });
 
@@ -79,5 +90,30 @@ describe('POST /api/admin/events/{id}/big-screen-rotation', () => {
         expect((await saveRotation(rotation({ show_overview: 'on', seconds: '60' }), params('x'))).status).toBe(404);
         setBigScreenRotation.mockResolvedValue(false);
         expect((await saveRotation(rotation({ show_overview: 'on', seconds: '60' }), params('9'))).status).toBe(404);
+    });
+});
+
+describe('the event code on save', () => {
+    const form = { name: 'LAN', startsOn: '2026-11-20', endsOn: '2026-11-22', code: 'lan-2026', startingFoza: '1000', dailyFoza: '100' };
+    const event = (path: string) => new Request(`https://bvt.example.test${path}`, { method: 'POST', body: new URLSearchParams(form) });
+
+    it('refuses a new event with a code another event has', async () => {
+        isEventCodeTaken.mockResolvedValue(true);
+        const res = await newEvent(event('/api/admin/events'));
+        expect(res.headers.get('location')).toBe('/admin/events/new?error=code-taken');
+        expect(isEventCodeTaken).toHaveBeenCalledWith({}, 'LAN-2026');
+        expect(createEvent).not.toHaveBeenCalled();
+    });
+
+    it('refuses an edit that takes the code of another event, and allows the own code', async () => {
+        isEventCodeTaken.mockResolvedValueOnce(true);
+        const res = await saveEvent(event('/api/admin/events/3'), params('3'));
+        expect(res.headers.get('location')).toBe('/admin/events/3?error=code-taken');
+        expect(isEventCodeTaken).toHaveBeenCalledWith({}, 'LAN-2026', 3);
+        expect(updateEvent).not.toHaveBeenCalled();
+
+        isEventCodeTaken.mockResolvedValueOnce(false);
+        updateEvent.mockResolvedValue(true);
+        expect((await saveEvent(event('/api/admin/events/3'), params('3'))).headers.get('location')).toBe('/admin/events/3?saved=1');
     });
 });

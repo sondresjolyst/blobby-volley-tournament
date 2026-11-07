@@ -68,6 +68,12 @@ export async function getActiveEvent(pool: Pool): Promise<EventRow | null> {
     return rows[0] ? toEvent(rows[0]) : null;
 }
 
+/** True when another event than `exceptId` already has this code. Codes are stored in upper case. */
+export async function isEventCodeTaken(pool: Pool, code: string, exceptId: number | null = null): Promise<boolean> {
+    const { rows } = await pool.query('SELECT 1 FROM events WHERE code = $1 AND id IS DISTINCT FROM $2 LIMIT 1', [code, exceptId]);
+    return rows.length > 0;
+}
+
 export async function createEvent(pool: Pool, input: EventInput): Promise<number> {
     const { rows } = await pool.query<{ id: number }>(
         `INSERT INTO events (name, starts_on, ends_on, code, starting_foza, daily_foza, server_host, server_port)

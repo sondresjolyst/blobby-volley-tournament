@@ -25,7 +25,7 @@ export default async function GameServer() {
                 game server syncs every few seconds while it runs. Green means the last recorded report is less than a minute old.
             </p>
             <GameServerHealth initialAge={age} />
-            <SetupGuide siteUrl={site} port={port} />
+            <SetupGuide siteUrl={site} port={port} event={event} />
             <h2>Token</h2>
             <p>The game server sends this token to the site API. There is one token for the whole site. The game server serves the active event.</p>
             {info ? (
