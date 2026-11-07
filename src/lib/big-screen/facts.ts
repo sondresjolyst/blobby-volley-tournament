@@ -1,11 +1,13 @@
 // The records of the stats screen, worked out from the stored results. No database access, so it
 // can be tested on its own. A record that has nothing to go on is left out.
+import { winsNeeded } from '@/lib/matches/state';
 import type { Leaderboard } from '@/lib/store/stats';
 
 /** One played series of the event, as the stats screen needs it. */
 export interface PlayedSeries {
     matchId: number;
     players: [number, number];
+    bestOf: number;
     /** Null while the series is still going. */
     winnerId: number | null;
     /** The finished games that count, in the order they were played. */
@@ -53,6 +55,19 @@ function best<T>(items: readonly T[], score: (item: T) => number): T | null {
     return top;
 }
 
+/** The games that count, up to the one that decided the series. A game played after that does not count. */
+export function countedGames(series: Pick<PlayedSeries, 'bestOf' | 'games'>): PlayedSeries['games'] {
+    const needed = winsNeeded(series.bestOf);
+    const won = [0, 0];
+    const counted: PlayedSeries['games'] = [];
+    for (const game of series.games) {
+        if (won[0] >= needed || won[1] >= needed) break;
+        won[game.winnerSlot - 1]++;
+        counted.push(game);
+    }
+    return counted;
+}
+
 /** The deepest hole the winner of a series came back from, in games, with the score at that point. */
 export function comeback(series: PlayedSeries): { behind: number; at: [number, number]; end: [number, number] } | null {
     if (series.winnerId === null || series.manual) return null;
@@ -60,7 +75,7 @@ export function comeback(series: PlayedSeries): { behind: number; at: [number, n
     let won = 0;
     let lost = 0;
     let worst = { behind: 0, at: [0, 0] as [number, number] };
-    for (const game of series.games) {
+    for (const game of countedGames(series)) {
         if (game.winnerSlot === winnerSlot) won++;
         else lost++;
         if (lost - won > worst.behind) worst = { behind: lost - won, at: [won, lost] };
@@ -80,7 +95,7 @@ export function screenFacts(leaderboard: Leaderboard, series: readonly PlayedSer
     const wins = leaderboard.wins[0];
     if (wins && wins.matchesWon > 0) facts.push({ key: 'wins', label: 'Flest sigra', value: `${wins.matchesWon} ${wins.matchesWon === 1 ? 'siger' : 'sigra'}`, who: name(wins.playerId) });
 
-    const games = series.flatMap((s) => s.games.filter((g) => g.points[0] !== g.points[1]).map((g) => ({ s, g })));
+    const games = series.flatMap((s) => countedGames(s).filter((g) => g.points[0] !== g.points[1]).map((g) => ({ s, g })));
     const blowout = best(games, ({ g }) => Math.abs(g.points[0] - g.points[1]) * 1000 + Math.max(...g.points));
     if (blowout) {
         const { s, g } = blowout;

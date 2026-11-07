@@ -153,6 +153,7 @@ describe('the other screens', () => {
         expect(await placeBet(pool, ostebit, { matchId: semi1.id, onPlayerId: blobfisk, amount: 100 }, NOW)).toMatchObject({ ok: true });
         expect(await placeBet(pool, skvett, { matchId: semi1.id, onPlayerId: ids[3], amount: 300 }, NOW)).toMatchObject({ ok: true });
         // semi1: Blobfisk wins 15-0 in one game. semi2: Ostebit comes back from 0-1 against Skvett.
+        await pool.query('UPDATE matches SET best_of = 3 WHERE id = $1', [semi2.id]);
         for (const m of [semi1, semi2]) expect(await callMatch(pool, m.id)).toMatchObject({ ok: true });
         expect(await enterGameResult(pool, semi1.id, { game: 1, winnerSlot: 1, points1: 15, points2: 0 })).toMatchObject({ ok: true });
         for (const [game, winnerSlot, points1, points2] of [
@@ -172,7 +173,7 @@ describe('the other screens', () => {
             { key: 'biggestWin', label: 'Største siger i eit sett', value: '15–0', who: 'Blobfisk mot Kantina' },
             { key: 'comeback', label: 'Største snuoperasjon', value: '0–1 te 2–1', who: 'Ostebit mot Skvett' },
             { key: 'longest', label: 'Lengste kamp', value: '23 min', who: 'Ostebit mot Skvett' },
-            { key: 'points', label: 'Flest poeng', value: '43 poeng', who: 'Ostebit' },
+            { key: 'points', label: 'Flest poeng', value: '42 poeng', who: 'Ostebit' },
         ]);
         expect(data.foza.bettors.map((b) => [b.nickname, b.net])).toEqual([
             ['Ostebit', 300],

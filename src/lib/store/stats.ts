@@ -104,8 +104,8 @@ async function playedMatches(pool: Pool, eventId: number, tournamentId: number |
  * for the series, in the order they were played.
  */
 export async function listPlayedSeries(pool: Pool, eventId: number): Promise<PlayedSeries[]> {
-    const { rows } = await pool.query<{ id: number; player1_id: number; player2_id: number; winner_id: number | null; manual: boolean; seconds: number | null; games: { w: 1 | 2; p1: number; p2: number }[] }>(
-        `SELECT m.id, m.player1_id, m.player2_id, m.winner_id, m.manual_after_game IS NOT NULL AS manual,
+    const { rows } = await pool.query<{ id: number; player1_id: number; player2_id: number; best_of: number; winner_id: number | null; manual: boolean; seconds: number | null; games: { w: 1 | 2; p1: number; p2: number }[] }>(
+        `SELECT m.id, m.player1_id, m.player2_id, m.best_of, m.winner_id, m.manual_after_game IS NOT NULL AS manual,
              CASE WHEN m.state = 'finished' THEN extract(epoch FROM m.finished_at - m.started_at)::int END AS seconds,
              coalesce(json_agg(json_build_object('w', g.winner_slot, 'p1', g.points1, 'p2', g.points2) ORDER BY g.number) FILTER (WHERE g.number IS NOT NULL), '[]') AS games
          FROM matches m
@@ -118,6 +118,7 @@ export async function listPlayedSeries(pool: Pool, eventId: number): Promise<Pla
     return rows.map((r) => ({
         matchId: r.id,
         players: [r.player1_id, r.player2_id],
+        bestOf: r.best_of,
         winnerId: r.winner_id,
         games: r.games.map((g) => ({ winnerSlot: g.w, points: [g.p1, g.p2] as [number, number] })),
         manual: r.manual,
