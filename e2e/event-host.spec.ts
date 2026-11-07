@@ -81,7 +81,7 @@ test('an admin moves the game server to another PC and the join link follows at 
     await expect(hero.getByRole('link', { name: 'opne lenkjå direkte' })).toHaveAttribute('href', /^blobby:\/\/join\?server=192\.168\.1\.77:1234&code=/);
     await expect(hero.getByRole('definition').filter({ hasText: '192.168.1.77:1234' })).toBeVisible();
     await page.goto('/admin/game-server');
-    const guide = page.getByRole('region', { name: 'Set up the game server' });
+    const guide = page.getByRole('region', { name: 'Start the game server' });
     await expect(guide).toContainText('192.168.1.77:1234');
     await expect(guide).toContainText('If you change the port, start the game server container again with the new port.');
 
