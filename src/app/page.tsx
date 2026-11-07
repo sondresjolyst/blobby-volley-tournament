@@ -115,7 +115,7 @@ export default async function Home() {
                     ) : (
                         <>
                             <p className={s.heroPitch}>
-                                Blobby Volley-turnering med pizza og ostepopp. Bli med, så får du {foza(event.startingFoza)} å satsa på kampane. Ingen ekte pengar, bare æra.
+                                Blobby Volley-turnering med pizza og ostepopp. Bli med, så får du {foza(event.startingFoza)} å satsa på kampane.
                             </p>
                             <div className={s.heroActions}>
                                 <Link href="/join" className={p.joinButton}>
