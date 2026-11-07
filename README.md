@@ -126,12 +126,12 @@ Every player starts at 1000. After each finished match, not each game, the winne
 - Up to three other matches, live ones first, then the next ones open for bets with their odds.
 - The bracket of the tournament on the floor. `?t=<id>` picks a tournament. A round shows at most 4 matches, the live and open ones first, and at most 4 rounds show. A double elimination bracket shows the side with the most urgent match.
 - The leaderboards Flest rette (most correct bets), Flest sigra (most wins) and Elo, five players each. They take turns every 12 seconds and skip an empty board.
-- A QR code for `<NEXTAUTH_URL>/join` and the event code, only with the big screen key. Without it the card asks players to get the code from an admin. The QR code is drawn on the server with [lean-qr](https://github.com/davidje13/lean-qr).
+- A sign-up card with a QR code for `<NEXTAUTH_URL>/join` and the event code, only with the big screen key. Without it the card is left out and the leaderboards take its place. The QR code is drawn on the server with [lean-qr](https://github.com/davidje13/lean-qr).
 - The sponsors of the footer, in a strip at the bottom that scrolls when they do not fit.
 
 The page reads `GET /api/big` every 5 seconds and updates without a page load. It takes the same `?t=` and `?key=`. When another event goes active, the page loads again. With reduced motion set in the browser, nothing scrolls or fades. The page and the route hold nicknames and numbers only, and the event code only with the key.
 
-Set `BIG_SCREEN_KEY` to a long random string, such as the output of `openssl rand -hex 32`, to show the event code and the QR code. Open the TV on `/big?key=<BIG_SCREEN_KEY>`. The link Big screen on `/admin` adds the key. The key is compared in constant time. That address holds the key, so treat it like a password and do not share it. The page and the route send `Referrer-Policy: no-referrer` and `Cache-Control: no-store`, so the key does not leave the browser in a referrer or stay in a cache. Without the variable, or with another key, the screen shows everything else but never the code.
+Set `BIG_SCREEN_KEY` to a long random string, such as the output of `openssl rand -hex 32`, to show the event code and the QR code. Open the TV on `/big?key=<BIG_SCREEN_KEY>`. The link Big screen on `/admin` adds the key. The key is compared in constant time. That address holds the key, so treat it like a password and do not share it. The page and the route send `Referrer-Policy: no-referrer` and `Cache-Control: no-store`, so the key does not leave the browser in a referrer or stay in a cache. Without the variable, or with another key, the screen is a plain info screen with no sign-up card and no code.
 
 ## Sponsors
 

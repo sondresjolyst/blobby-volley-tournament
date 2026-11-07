@@ -14,10 +14,9 @@ describe('big screen text', () => {
         expect(poolLine({ open: false, pool: 4300 })).toBe('4 300 Foza i potten');
     });
 
-    it('sends a player to an admin when the code is not on the screen', () => {
-        expect(joinLine(false, false)).toBe('Spør ein admin om koden, så gå te /join.');
-        expect(joinLine(true, true)).toBe('Skann, så bruka koden');
-        expect(joinLine(true, false)).toBe('Gå te /join, så bruka koden');
+    it('tells a player to scan, or to go to /join without a QR code', () => {
+        expect(joinLine(true)).toBe('Skann, så bruka koden');
+        expect(joinLine(false)).toBe('Gå te /join, så bruka koden');
     });
 
     it('leaves the score out before a match starts', () => {

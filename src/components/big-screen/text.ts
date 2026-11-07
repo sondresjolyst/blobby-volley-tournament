@@ -30,11 +30,8 @@ export const SIDE_NAMES = { main: 'Vinnarsida', losers: 'Tapersida' } as const;
 /** The note under a round with matches left out, such as `+ 4 kampar te`. */
 export const moreMatches = (n: number) => `+ ${n} ${n === 1 ? 'kamp' : 'kampar'} te`;
 
-/** The line on the sign-up card. Without the key the code is not on the screen, so a player asks an admin. */
-export function joinLine(hasCode: boolean, hasQr: boolean): string {
-    if (!hasCode) return 'Spør ein admin om koden, så gå te /join.';
-    return hasQr ? 'Skann, så bruka koden' : 'Gå te /join, så bruka koden';
-}
+/** The line on the sign-up card, with or without the QR code. */
+export const joinLine = (hasQr: boolean) => (hasQr ? 'Skann, så bruka koden' : 'Gå te /join, så bruka koden');
 
 /** A place on a leaderboard nobody has taken yet. */
 export const FREE_PLACE = 'Ledig plass';

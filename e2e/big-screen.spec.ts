@@ -23,7 +23,7 @@ async function signUp(browser: Browser, nickname: string) {
 }
 
 /** The page fits the window: nothing scrolls and every part is inside it. */
-async function expectFits(page: Page) {
+async function expectFits(page: Page, regions = ['Kampen no', 'Kampoppsett', 'Toppliste', 'Bli med']) {
     const size = await page.evaluate(() => ({
         scrollWidth: document.documentElement.scrollWidth,
         scrollHeight: document.documentElement.scrollHeight,
@@ -32,7 +32,7 @@ async function expectFits(page: Page) {
     }));
     expect(size.scrollWidth).toBeLessThanOrEqual(size.width);
     expect(size.scrollHeight).toBeLessThanOrEqual(size.height);
-    for (const name of ['Kampen no', 'Kampoppsett', 'Toppliste', 'Bli med']) {
+    for (const name of regions) {
         const box = (await page.getByRole('region', { name }).boundingBox())!;
         expect(box.y + box.height, name).toBeLessThanOrEqual(size.height + 1);
         expect(box.x + box.width, name).toBeLessThanOrEqual(size.width + 1);
@@ -204,13 +204,23 @@ test('the big screen shows the event code and the QR code only with the right ke
         const res = await page.goto(address);
         expect(res!.headers()['referrer-policy']).toBe('no-referrer');
         expect(res!.headers()['cache-control']).toContain('no-store');
-        const signUpBox = page.getByRole('region', { name: 'Bli med' });
-        await expect(signUpBox).toContainText('Spør ein admin om koden');
-        await expect(signUpBox.getByRole('img')).toHaveCount(0);
+        await expect(page.getByRole('region', { name: 'Toppliste' })).toBeVisible();
+        await expect(page.getByRole('region', { name: 'Bli med' })).toHaveCount(0);
+        await expect(page.getByRole('img', { name: /^QR-kode/ })).toHaveCount(0);
         expect(await page.content()).not.toContain(code);
-        await expectFits(page);
+        await expectFits(page, ['Kampoppsett', 'Toppliste']);
     }
-    if (shots) await page.screenshot({ path: join(shots, 'big-no-key-1920x1080.png') });
+    // The leaderboard takes the whole right column, down to the sponsors.
+    const board = (await page.getByRole('region', { name: 'Toppliste' }).boundingBox())!;
+    const bracket = (await page.getByRole('region', { name: 'Kampoppsett' }).boundingBox())!;
+    expect(board.y + board.height).toBeGreaterThanOrEqual(bracket.y + bracket.height - 40);
+    if (shots) {
+        await page.screenshot({ path: join(shots, 'big-no-key-1920x1080.png') });
+        await page.setViewportSize({ width: 1280, height: 720 });
+        await expectFits(page, ['Kampoppsett', 'Toppliste']);
+        await page.screenshot({ path: join(shots, 'big-no-key-1280x720.png') });
+        await page.setViewportSize({ width: 1920, height: 1080 });
+    }
 
     for (const address of ['/api/big', '/api/big?key=e2e-placeholder-wrong']) {
         const res = await page.request.get(address);
@@ -228,5 +238,6 @@ test('the big screen shows the event code and the QR code only with the right ke
     const signUpBox = page.getByRole('region', { name: 'Bli med' });
     await expect(signUpBox).toContainText(code);
     await expect(signUpBox.getByRole('img', { name: 'QR-kode te https://localhost/join' })).toBeVisible();
+    await expectFits(page);
     await screen.close();
 });
