@@ -25,6 +25,9 @@ jobs:
 
   deploy-dev:
     name: Deploy Dev
+    concurrency:
+      group: deploy-dev
+      cancel-in-progress: false
     permissions:
       contents: read
       packages: read
