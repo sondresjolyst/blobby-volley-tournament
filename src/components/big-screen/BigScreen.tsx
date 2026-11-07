@@ -177,21 +177,20 @@ function Boards({ data, boardKey }: { data: BigScreenData; boardKey: BoardKey | 
     );
 }
 
-function Join({ code, qr }: { code: string | null; qr: JoinQr | null }) {
+/** The sign-up card. It only shows with the big screen key, since it holds the event code. */
+function Join({ code, qr }: { code: string; qr: JoinQr | null }) {
     return (
         <section className={`${styles.card} ${styles.join}`} aria-label="Bli med">
-            {code && qr ? (
+            {qr && (
                 <svg className={styles.qr} viewBox={`-2 -2 ${qr.size + 4} ${qr.size + 4}`} role="img" aria-label={`QR-kode te ${qr.url}`}>
                     <rect x="-2" y="-2" width={qr.size + 4} height={qr.size + 4} fill="#fff8ec" />
                     <path d={qr.path} fill="#2a1a12" />
                 </svg>
-            ) : (
-                <Pizza size={140} className={styles.joinPizza} />
             )}
             <div className={styles.joinText}>
                 <span className={styles.joinTitle}>Bli med å spel</span>
-                <span className={styles.muted}>{joinLine(code !== null, qr !== null)}</span>
-                {code && <span className={styles.joinCode}>{code}</span>}
+                <span className={styles.muted}>{joinLine(qr !== null)}</span>
+                <span className={styles.joinCode}>{code}</span>
             </div>
         </section>
     );
@@ -314,7 +313,7 @@ export function BigScreen({ initial, tournament, screenKey, qr }: { initial: Big
                 </div>
                 <aside className={styles.right}>
                     <Boards data={data} boardKey={boardKey} />
-                    <Join code={data.eventCode} qr={qr} />
+                    {data.eventCode !== null && <Join code={data.eventCode} qr={qr} />}
                 </aside>
             </div>
             <SponsorStrip sponsors={data.sponsors} />
