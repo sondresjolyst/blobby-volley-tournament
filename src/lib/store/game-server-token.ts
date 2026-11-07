@@ -44,6 +44,18 @@ export async function getGameServerTokenInfo(pool: Pool): Promise<GameServerToke
     return stored ? { createdAt: stored.createdAt, lastUsedAt: stored.lastUsedAt } : null;
 }
 
+/**
+ * Whole seconds since the last recorded use, by the database clock, so the clock of the site does
+ * not matter. Null when there is no token or it was never used.
+ */
+export async function getGameServerReportAge(pool: Pool): Promise<number | null> {
+    const { rows } = await pool.query<{ age: number | null }>(
+        // greatest skips nulls, so a token that was never used is handled first.
+        'SELECT CASE WHEN last_used_at IS NULL THEN NULL ELSE greatest(0, floor(EXTRACT(EPOCH FROM now() - last_used_at)))::int END AS age FROM game_server_token',
+    );
+    return rows[0]?.age ?? null;
+}
+
 /** The stored hash and times, for the check of a game server call. Null when there is no token. */
 export async function getStoredGameServerToken(pool: Pool): Promise<StoredGameServerToken | null> {
     const { rows } = await pool.query<{ token_hash: Buffer; created_at: Date; last_used_at: Date | null }>('SELECT token_hash, created_at, last_used_at FROM game_server_token');

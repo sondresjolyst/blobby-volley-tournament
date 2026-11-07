@@ -369,19 +369,23 @@ describe('unlockPlayer', () => {
 });
 
 describe('the network PIN limit', () => {
-    it('shows the busiest client of this hour, and a reset lets every client try PINs again', async () => {
-        await activeEventWithPlayer('Ola', '1234');
+    it('shows the busiest client of this hour, and a reset lets every client try PINs again and keeps the other counts', async () => {
+        const { eventId } = await activeEventWithPlayer('Ola', '1234');
         expect(await busiestPinClient(pool, now)).toBe(0);
         await setAttempts(pinBucket(client), CLIENT_WRONG_PINS_PER_HOUR);
         await setAttempts(pinBucket('ip:192.0.2.11'), 3);
         await setAttempts(pinBucket(client), 7, new Date(now.getTime() - 60 * MINUTE));
         await setAttempts(client, 9);
+        await setAttempts(signUpBucket(client), 4);
+        await setAttempts(eventBucket(eventId), 11);
         expect(await busiestPinClient(pool, now)).toBe(CLIENT_WRONG_PINS_PER_HOUR);
         expect(await signIn('ola', '1234')).toEqual({ ok: false, error: 'pins' });
 
         await resetPinLimits(pool);
         expect(await busiestPinClient(pool, now)).toBe(0);
         expect(await readAttempts(pool, client, now)).toBe(9);
+        expect(await readAttempts(pool, signUpBucket(client), now)).toBe(4);
+        expect(await readAttempts(pool, eventBucket(eventId), now)).toBe(11);
         expect((await signIn('ola', '1234')).ok).toBe(true);
     });
 });

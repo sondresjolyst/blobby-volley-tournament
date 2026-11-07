@@ -3,6 +3,7 @@
 // page load, and the leaderboards take turns on a timer.
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { Pizza } from '@/components/pizza/Pizza';
+import { usePolling } from '@/components/usePolling';
 import { foza, payout } from '@/components/player/text';
 import { currentBoard, nextBoard, REFRESH_MS, ROTATION_MS } from '@/lib/big-screen/rotation';
 import { BOARD_ROWS, type BigScreenData, type BoardKey, type ScreenBracket, type ScreenMatch, type ScreenSponsor } from '@/lib/big-screen/view';
@@ -247,36 +248,17 @@ export function BigScreen({ initial, tournament, screenKey, qr }: { initial: Big
         latest.current = data;
     }, [data]);
 
-    useEffect(() => {
-        let stopped = false;
-        let timer: ReturnType<typeof setTimeout>;
-        const refresh = async () => {
-            try {
-                const params = new URLSearchParams();
-                if (tournament !== null) params.set('t', String(tournament));
-                if (screenKey !== null) params.set('key', screenKey);
-                const query = params.toString();
-                const res = await fetch(`/api/big${query ? `?${query}` : ''}`, { cache: 'no-store', referrerPolicy: 'no-referrer' });
-                if (res.ok) {
-                    const next = (await res.json()) as BigScreenData;
-                    // Another event went live. The code and the QR code come from the server, so load the page again.
-                    if (next.eventId !== initial.eventId) {
-                        window.location.reload();
-                        return;
-                    }
-                    if (!stopped) setData(next);
-                }
-            } catch {
-                // The screen keeps the last numbers and tries again.
-            }
-            if (!stopped) timer = setTimeout(refresh, REFRESH_MS);
-        };
-        timer = setTimeout(refresh, REFRESH_MS);
-        return () => {
-            stopped = true;
-            clearTimeout(timer);
-        };
-    }, [initial.eventId, tournament, screenKey]);
+    const params = new URLSearchParams();
+    if (tournament !== null) params.set('t', String(tournament));
+    if (screenKey !== null) params.set('key', screenKey);
+    const query = params.toString();
+    usePolling<BigScreenData>(`/api/big${query ? `?${query}` : ''}`, REFRESH_MS, (result) => {
+        // On a failed read the screen keeps the last numbers and tries again.
+        if (!result.ok) return;
+        // Another event went live. The code and the QR code come from the server, so load the page again.
+        if (result.data.eventId !== initial.eventId) window.location.reload();
+        else setData(result.data);
+    });
 
     useEffect(() => {
         const timer = setInterval(() => setBoardKey((key) => nextBoard(latest.current.boards, currentBoard(latest.current.boards, key)?.key ?? null)), ROTATION_MS);

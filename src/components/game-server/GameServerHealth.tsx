@@ -1,43 +1,30 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { HEALTH_REFRESH_MS, healthLine } from '@/lib/game-server/health';
+import { HEALTH_REFRESH_MS, healthLine, type HealthState } from '@/lib/game-server/health';
+import { usePolling } from '../usePolling';
 
 /**
- * The time since the last call of the game server. It counts up every second and asks the site
- * again every few seconds without a page load, as the big screen does.
+ * The time since the last recorded call of the game server. It counts up every second and asks the
+ * site again every few seconds without a page load. When a check fails it says so and stops counting
+ * until a check works again.
  */
 export function GameServerHealth({ initialAge }: { initialAge: number | null }) {
-    const [age, setAge] = useState(initialAge);
+    const [state, setState] = useState<HealthState>({ kind: 'age', ageSeconds: initialAge });
+    const counting = state.kind === 'age' && state.ageSeconds !== null;
 
     useEffect(() => {
-        const tick = setInterval(() => setAge((value) => (value === null ? null : value + 1)), 1000);
+        if (!counting) return;
+        const tick = setInterval(() => setState((s) => (s.kind === 'age' && s.ageSeconds !== null ? { kind: 'age', ageSeconds: s.ageSeconds + 1 } : s)), 1000);
         return () => clearInterval(tick);
-    }, []);
+    }, [counting]);
 
-    useEffect(() => {
-        let stopped = false;
-        let timer: ReturnType<typeof setTimeout>;
-        const refresh = async () => {
-            try {
-                const res = await fetch('/api/admin/game-server/health', { cache: 'no-store' });
-                if (res.ok) {
-                    const body = (await res.json()) as { ageSeconds: number | null };
-                    if (!stopped) setAge(body.ageSeconds);
-                }
-            } catch {
-                // The line keeps counting and tries again.
-            }
-            if (!stopped) timer = setTimeout(refresh, HEALTH_REFRESH_MS);
-        };
-        timer = setTimeout(refresh, HEALTH_REFRESH_MS);
-        return () => {
-            stopped = true;
-            clearTimeout(timer);
-        };
-    }, []);
+    usePolling<{ ageSeconds: number | null }>('/api/admin/game-server/health', HEALTH_REFRESH_MS, (result) => {
+        if (result.ok) setState({ kind: 'age', ageSeconds: result.data.ageSeconds });
+        else setState({ kind: result.status === 401 || result.status === 403 ? 'signed-out' : 'failed' });
+    });
 
-    const { text, ok } = healthLine(age);
+    const { text, ok } = healthLine(state);
     return (
         <p className="admin-health" data-ok={ok}>
             {text}

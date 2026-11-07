@@ -283,7 +283,11 @@ export async function listPlayers(pool: Pool, eventId: number): Promise<PlayerRo
     }));
 }
 
-/** Forgets the wrong PINs of a player and lifts any lock, so the player can sign in again. The PIN and the sessions stay. */
+/**
+ * Forgets the wrong PINs of a player and lifts any lock, so the player can sign in again. The lock
+ * level goes back to 0 on purpose. An unlock by an admin is a fresh start, so the next lock is the
+ * shortest again. The PIN and the sessions stay.
+ */
 export async function unlockPlayer(pool: Pool, playerId: number): Promise<{ eventId: number } | null> {
     const { rows } = await pool.query<{ event_id: number }>(`UPDATE players SET ${CLEAR_PIN_LOCK} WHERE id = $1 RETURNING event_id`, [playerId]);
     return rows[0] ? { eventId: rows[0].event_id } : null;

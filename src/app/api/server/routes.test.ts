@@ -2,7 +2,7 @@ import { readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { hashGameServerToken, LAST_USED_STEP_MS, type StoredGameServerToken } from '@/lib/store/game-server-token';
+import { hashGameServerToken, type StoredGameServerToken } from '@/lib/store/game-server-token';
 
 const getPool = vi.fn(() => ({}));
 const getServerSync = vi.fn();
@@ -126,15 +126,9 @@ describe('every /api/server route', () => {
 });
 
 describe('the last use of the token', () => {
-    it('is written when it is 15 seconds old or more, and not on every call', async () => {
-        expect(LAST_USED_STEP_MS).toBe(15_000);
+    it('is passed to the store on each accepted call, which only writes when it is old enough', async () => {
         getServerSync.mockResolvedValue({});
         getStoredGameServerToken.mockResolvedValueOnce(stored(new Date()));
-        expect((await sync(request('sync'))).status).toBe(200);
-        getStoredGameServerToken.mockResolvedValueOnce(stored(new Date(Date.now() - LAST_USED_STEP_MS + 2000)));
-        expect((await sync(request('sync'))).status).toBe(200);
-        expect(markGameServerTokenUsed).not.toHaveBeenCalled();
-        getStoredGameServerToken.mockResolvedValueOnce(stored(new Date(Date.now() - LAST_USED_STEP_MS - 1000)));
         expect((await sync(request('sync'))).status).toBe(200);
         getStoredGameServerToken.mockResolvedValueOnce(stored(null));
         expect((await sync(request('sync'))).status).toBe(200);
