@@ -1,8 +1,9 @@
 // The data of the big screen. It only reads, through the other stores.
 import type { Pool } from 'pg';
+import { bigScreenKeyMatches } from '@/lib/big-screen/key';
 import { buildBigScreen, EMPTY_SCREEN, pickTournament, type BigScreenData } from '@/lib/big-screen/view';
 import { listMatchPools } from './bets';
-import { getActiveEvent } from './events';
+import { getActiveEvent, getBigScreenKey } from './events';
 import { getLiveScore, type LiveScore } from './game-server';
 import { listMatches } from './matches';
 import { listShownSponsors } from './sponsors';
@@ -12,17 +13,18 @@ import { getTournament, listTournaments } from './tournaments';
 /**
  * Everything the big screen shows for the active event. `wanted` picks the tournament of the
  * bracket. Without it, or when it is not a tournament of the event, the screen picks one. The
- * event code is left out unless `withCode` is set, which only a request with the big screen key may do.
+ * event code is left out unless `key` is the big screen key of the same event.
  */
-export async function getBigScreen(pool: Pool, wanted: number | null = null, withCode = false): Promise<BigScreenData> {
+export async function getBigScreen(pool: Pool, wanted: number | null = null, key: string | null = null): Promise<BigScreenData> {
     const event = await getActiveEvent(pool);
     if (!event) return EMPTY_SCREEN;
-    const [matches, pools, leaderboard, tournaments, sponsors] = await Promise.all([
+    const [matches, pools, leaderboard, tournaments, sponsors, expected] = await Promise.all([
         listMatches(pool, event.id),
         listMatchPools(pool, event.id),
         getLeaderboard(pool, event.id),
         listTournaments(pool, event.id),
         listShownSponsors(pool),
+        getBigScreenKey(pool, event.id),
     ]);
     // Only a few matches are on the floor at once, so one read each is fine.
     const floor = matches.filter((m) => m.state === 'called' || m.state === 'started');
@@ -43,5 +45,5 @@ export async function getBigScreen(pool: Pool, wanted: number | null = null, wit
         tournament: saved ? { id: saved.id, name: saved.name, format: saved.format, matches: saved.matches } : null,
         sponsors,
     });
-    return withCode ? { ...data, eventCode: event.code } : data;
+    return bigScreenKeyMatches(key, expected) ? { ...data, eventCode: event.code } : data;
 }

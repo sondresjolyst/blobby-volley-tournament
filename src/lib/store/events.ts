@@ -88,6 +88,26 @@ export async function setGameBoard(pool: Pool, id: number, board: GameBoard): Pr
     return rowCount === 1;
 }
 
+// The big screen key is read on its own and never part of EventRow, so it cannot reach a page by accident.
+
+/** The big screen key of an event, or null when the event does not exist. Only for admin pages and the big screen check. */
+export async function getBigScreenKey(pool: Pool, id: number): Promise<string | null> {
+    const { rows } = await pool.query<{ big_screen_key: string }>('SELECT big_screen_key FROM events WHERE id = $1', [id]);
+    return rows[0]?.big_screen_key ?? null;
+}
+
+/** The big screen key of the active event, or null when no event is active. */
+export async function getActiveBigScreenKey(pool: Pool): Promise<string | null> {
+    const { rows } = await pool.query<{ big_screen_key: string }>('SELECT big_screen_key FROM events WHERE is_active');
+    return rows[0]?.big_screen_key ?? null;
+}
+
+/** Gives an event a new big screen key, so the old address stops showing the join card. Returns false when the event does not exist. */
+export async function rotateBigScreenKey(pool: Pool, id: number): Promise<boolean> {
+    const { rowCount } = await pool.query('UPDATE events SET big_screen_key = DEFAULT WHERE id = $1', [id]);
+    return rowCount === 1;
+}
+
 /** Makes one event the active one and every other event inactive. Returns false when the event does not exist. */
 export async function setActiveEvent(pool: Pool, id: number): Promise<boolean> {
     const client = await pool.connect();
