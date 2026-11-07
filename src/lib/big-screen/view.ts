@@ -96,6 +96,8 @@ export interface BigScreenData {
     /** Null when no event is active. The page loads again when it changes. */
     eventId: number | null;
     eventName: string | null;
+    /** The event code. Only set for a request with the big screen key, null otherwise. */
+    eventCode: string | null;
     /** The match in the big box: the first live one, or else the next one to play. */
     featured: ScreenMatch | null;
     /** Other live matches first, then the next ones open for bets. */
@@ -105,7 +107,7 @@ export interface BigScreenData {
     sponsors: ScreenSponsor[];
 }
 
-export const EMPTY_SCREEN: BigScreenData = { eventId: null, eventName: null, featured: null, others: [], bracket: null, boards: [], sponsors: [] };
+export const EMPTY_SCREEN: BigScreenData = { eventId: null, eventName: null, eventCode: null, featured: null, others: [], bracket: null, boards: [], sponsors: [] };
 
 export interface ScreenTournament {
     id: number;
@@ -266,6 +268,7 @@ export function buildBigScreen(input: ScreenInput): BigScreenData {
     return {
         eventId: input.event.id,
         eventName: input.event.name,
+        eventCode: null,
         featured,
         others: others.slice(0, OTHER_MATCHES),
         bracket: input.tournament ? screenBracket(input.tournament, input.matches) : null,

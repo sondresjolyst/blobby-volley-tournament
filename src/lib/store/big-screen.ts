@@ -11,9 +11,10 @@ import { getTournament, listTournaments } from './tournaments';
 
 /**
  * Everything the big screen shows for the active event. `wanted` picks the tournament of the
- * bracket. Without it, or when it is not a tournament of the event, the screen picks one.
+ * bracket. Without it, or when it is not a tournament of the event, the screen picks one. The
+ * event code is left out unless `withCode` is set, which only a request with the big screen key may do.
  */
-export async function getBigScreen(pool: Pool, wanted: number | null = null): Promise<BigScreenData> {
+export async function getBigScreen(pool: Pool, wanted: number | null = null, withCode = false): Promise<BigScreenData> {
     const event = await getActiveEvent(pool);
     if (!event) return EMPTY_SCREEN;
     const [matches, pools, leaderboard, tournaments, sponsors] = await Promise.all([
@@ -33,7 +34,7 @@ export async function getBigScreen(pool: Pool, wanted: number | null = null): Pr
         wanted,
     );
     const saved = tournamentId === null ? null : await getTournament(pool, tournamentId);
-    return buildBigScreen({
+    const data = buildBigScreen({
         event: { id: event.id, name: event.name },
         matches,
         pools,
@@ -42,4 +43,5 @@ export async function getBigScreen(pool: Pool, wanted: number | null = null): Pr
         tournament: saved ? { id: saved.id, name: saved.name, format: saved.format, matches: saved.matches } : null,
         sponsors,
     });
+    return withCode ? { ...data, eventCode: event.code } : data;
 }

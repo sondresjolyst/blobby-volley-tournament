@@ -99,7 +99,10 @@ describe('getBigScreen', () => {
         expect(data.sponsors.map((s) => s.name)).toEqual(['Pizzabakeren']);
         expect(data.sponsors[0].src).toBe(`/api/sponsors/${sponsor.id}/logo?v=${createHash('sha256').update(logo.value.bytes).digest('hex')}`);
         // Nothing but nicknames and numbers leaves the store.
+        expect(data.eventCode).toBeNull();
         expect(JSON.stringify(data)).not.toMatch(/OSTAPOPP|join_?code|pin/i);
+        // Only a request with the big screen key gets the code.
+        expect((await getBigScreen(pool, null, true)).eventCode).toBe('OSTAPOPP');
     });
 
     it('counts finished matches and settled bets on the boards, and follows a wanted tournament', async () => {

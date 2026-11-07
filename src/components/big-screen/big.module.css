@@ -504,6 +504,12 @@
     shape-rendering: crispEdges;
 }
 
+.joinPizza {
+    flex: none;
+    width: calc(140 * var(--u));
+    height: calc(140 * var(--u));
+}
+
 .joinText {
     display: flex;
     flex-direction: column;

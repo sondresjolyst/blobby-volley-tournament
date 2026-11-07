@@ -7,6 +7,8 @@ const auth = () => ({ authorization: `Bearer ${process.env.E2E_GAME_SERVER_TOKEN
 // Set BIG_SCREEN_SHOTS to a folder to add sponsors and save screenshots there. Run the spec on its own
 // then, since the sponsors show under every page.
 const shots = process.env.BIG_SCREEN_SHOTS;
+const key = process.env.E2E_BIG_SCREEN_KEY ?? '';
+const code = process.env.E2E_EVENT_CODE ?? '';
 
 async function signUp(browser: Browser, nickname: string) {
     const context = await browser.newContext({ baseURL: process.env.E2E_BASE_URL });
@@ -114,7 +116,7 @@ test('the big screen shows the live score, the odds, the bracket and the sign-up
 
     const screen = await browser.newContext({ baseURL: process.env.E2E_BASE_URL, viewport: { width: 1920, height: 1080 } });
     const page = await screen.newPage();
-    await page.goto(`/big?t=${tournamentId}`);
+    await page.goto(`/big?t=${tournamentId}&key=${key}`);
     await expect(page.getByRole('heading', { level: 1, name: 'E2E LAN' })).toBeVisible();
 
     const bracket = page.getByRole('region', { name: 'Kampoppsett' });
@@ -128,7 +130,7 @@ test('the big screen shows the live score, the odds, the bracket and the sign-up
     await expect(liveBox).toContainText(/11\s*(:|–)\s*8/);
 
     const signUpBox = page.getByRole('region', { name: 'Bli med' });
-    await expect(signUpBox).toContainText(process.env.E2E_EVENT_CODE ?? '');
+    await expect(signUpBox).toContainText(code);
     await expect(signUpBox.getByRole('img', { name: 'QR-kode te https://localhost/join' })).toBeVisible();
     await expect(page.getByRole('region', { name: 'Toppliste' })).toBeVisible();
     await expectFits(page);
@@ -140,11 +142,14 @@ test('the big screen shows the live score, the odds, the bracket and the sign-up
     await again.close();
     await expect(liveBox).toContainText(/12\s*(:|–)\s*8/, { timeout: 15_000 });
     expect(await page.evaluate(() => (window as unknown as { stillHere?: boolean }).stillHere)).toBe(true);
+    // The refresh carries the key, so the code stays on the screen.
+    await expect(signUpBox).toContainText(code);
 
-    // The JSON route holds nicknames and numbers only.
+    // Without the key the JSON route holds nicknames and numbers only.
     const data = await (await page.request.get(`/api/big?t=${tournamentId}`)).json();
     expect(data.bracket.tournamentId).toBe(Number(tournamentId));
-    expect(JSON.stringify(data)).not.toContain(process.env.E2E_EVENT_CODE ?? '');
+    expect(data.eventCode).toBeNull();
+    expect(JSON.stringify(data)).not.toContain(code);
 
     if (shots) {
         await page.screenshot({ path: join(shots, 'big-1920x1080.png') });
@@ -180,7 +185,7 @@ test('a double elimination bracket of 16 players fits the screen', async ({ brow
 
     const screen = await browser.newContext({ baseURL: process.env.E2E_BASE_URL, viewport: { width: 1920, height: 1080 } });
     const page = await screen.newPage();
-    await page.goto(`/big?t=${tournamentId}`);
+    await page.goto(`/big?t=${tournamentId}&key=${key}`);
     await expect(page.getByRole('region', { name: 'Kampoppsett' })).toContainText('Vinnarsida');
     await expect(page.getByRole('region', { name: 'Kampoppsett' })).toContainText('+ 4 kampar te');
     await expectFits(page);
@@ -188,5 +193,40 @@ test('a double elimination bracket of 16 players fits the screen', async ({ brow
     await page.setViewportSize({ width: 1280, height: 720 });
     await expectFits(page);
     await page.screenshot({ path: join(shots!, 'big-de16-1280x720.png') });
+    await screen.close();
+});
+
+test('the big screen shows the event code and the QR code only with the right key', async ({ browser }) => {
+    expect(key).not.toBe('');
+    const screen = await browser.newContext({ baseURL: process.env.E2E_BASE_URL, viewport: { width: 1920, height: 1080 } });
+    const page = await screen.newPage();
+    for (const address of ['/big', '/big?key=e2e-placeholder-wrong', '/big?key=']) {
+        const res = await page.goto(address);
+        expect(res!.headers()['referrer-policy']).toBe('no-referrer');
+        expect(res!.headers()['cache-control']).toContain('no-store');
+        const signUpBox = page.getByRole('region', { name: 'Bli med' });
+        await expect(signUpBox).toContainText('Spør ein admin om koden');
+        await expect(signUpBox.getByRole('img')).toHaveCount(0);
+        expect(await page.content()).not.toContain(code);
+        await expectFits(page);
+    }
+    if (shots) await page.screenshot({ path: join(shots, 'big-no-key-1920x1080.png') });
+
+    for (const address of ['/api/big', '/api/big?key=e2e-placeholder-wrong']) {
+        const res = await page.request.get(address);
+        expect(res.headers()['referrer-policy']).toBe('no-referrer');
+        const body = await res.text();
+        expect(body).not.toContain(code);
+        expect(body).not.toContain(key);
+        expect(JSON.parse(body).eventCode).toBeNull();
+    }
+    const keyed = await (await page.request.get(`/api/big?key=${key}`)).json();
+    expect(keyed.eventCode).toBe(code);
+    expect(JSON.stringify(keyed)).not.toContain(key);
+
+    await page.goto(`/big?key=${key}`);
+    const signUpBox = page.getByRole('region', { name: 'Bli med' });
+    await expect(signUpBox).toContainText(code);
+    await expect(signUpBox.getByRole('img', { name: 'QR-kode te https://localhost/join' })).toBeVisible();
     await screen.close();
 });

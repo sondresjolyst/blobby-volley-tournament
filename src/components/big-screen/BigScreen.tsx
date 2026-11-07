@@ -6,13 +6,13 @@ import { Pizza } from '@/components/player/PlayerShell';
 import { foza, payout } from '@/components/player/text';
 import { currentBoard, nextBoard, REFRESH_MS, ROTATION_MS } from '@/lib/big-screen/rotation';
 import { BOARD_ROWS, type BigScreenData, type BoardKey, type ScreenBracket, type ScreenMatch, type ScreenSponsor } from '@/lib/big-screen/view';
-import { BOARD_TEXT, FREE_PLACE, matchPill, moreMatches, SIDE_NAMES, NO_BRACKET, NO_EVENT, NO_MATCH, poolLine, slotScore } from './text';
+import { BOARD_TEXT, FREE_PLACE, joinLine, matchPill, moreMatches, SIDE_NAMES, NO_BRACKET, NO_EVENT, NO_MATCH, poolLine, slotScore } from './text';
 import styles from './big.module.css';
 
-export interface JoinInfo {
-    code: string;
-    url: string | null;
-    qr: { size: number; path: string } | null;
+export interface JoinQr {
+    url: string;
+    size: number;
+    path: string;
 }
 
 function Hero({ match }: { match: ScreenMatch | null }) {
@@ -177,19 +177,21 @@ function Boards({ data, boardKey }: { data: BigScreenData; boardKey: BoardKey | 
     );
 }
 
-function Join({ join }: { join: JoinInfo }) {
+function Join({ code, qr }: { code: string | null; qr: JoinQr | null }) {
     return (
         <section className={`${styles.card} ${styles.join}`} aria-label="Bli med">
-            {join.qr && (
-                <svg className={styles.qr} viewBox={`-2 -2 ${join.qr.size + 4} ${join.qr.size + 4}`} role="img" aria-label={`QR-kode te ${join.url}`}>
-                    <rect x="-2" y="-2" width={join.qr.size + 4} height={join.qr.size + 4} fill="#fff8ec" />
-                    <path d={join.qr.path} fill="#2a1a12" />
+            {code && qr ? (
+                <svg className={styles.qr} viewBox={`-2 -2 ${qr.size + 4} ${qr.size + 4}`} role="img" aria-label={`QR-kode te ${qr.url}`}>
+                    <rect x="-2" y="-2" width={qr.size + 4} height={qr.size + 4} fill="#fff8ec" />
+                    <path d={qr.path} fill="#2a1a12" />
                 </svg>
+            ) : (
+                <Pizza size={140} className={styles.joinPizza} />
             )}
             <div className={styles.joinText}>
                 <span className={styles.joinTitle}>Bli med å spel</span>
-                <span className={styles.muted}>{join.qr ? 'Skann, så bruka koden' : 'Gå te /join, så bruka koden'}</span>
-                <span className={styles.joinCode}>{join.code}</span>
+                <span className={styles.muted}>{joinLine(code !== null, qr !== null)}</span>
+                {code && <span className={styles.joinCode}>{code}</span>}
             </div>
         </section>
     );
@@ -234,8 +236,11 @@ function SponsorStrip({ sponsors }: { sponsors: ScreenSponsor[] }) {
     );
 }
 
-/** The whole screen. `tournament` is the `?t=` of the address, kept for the refresh. */
-export function BigScreen({ initial, tournament, join }: { initial: BigScreenData; tournament: number | null; join: JoinInfo | null }) {
+/**
+ * The whole screen. `tournament` is the `?t=` of the address and `screenKey` its `?key=`, kept for
+ * the refresh. The key is only passed in when it matched, and the QR code only drawn then.
+ */
+export function BigScreen({ initial, tournament, screenKey, qr }: { initial: BigScreenData; tournament: number | null; screenKey: string | null; qr: JoinQr | null }) {
     const [data, setData] = useState(initial);
     const [boardKey, setBoardKey] = useState<BoardKey | null>(null);
     const latest = useRef(data);
@@ -248,7 +253,11 @@ export function BigScreen({ initial, tournament, join }: { initial: BigScreenDat
         let timer: ReturnType<typeof setTimeout>;
         const refresh = async () => {
             try {
-                const res = await fetch(`/api/big${tournament === null ? '' : `?t=${tournament}`}`, { cache: 'no-store' });
+                const params = new URLSearchParams();
+                if (tournament !== null) params.set('t', String(tournament));
+                if (screenKey !== null) params.set('key', screenKey);
+                const query = params.toString();
+                const res = await fetch(`/api/big${query ? `?${query}` : ''}`, { cache: 'no-store', referrerPolicy: 'no-referrer' });
                 if (res.ok) {
                     const next = (await res.json()) as BigScreenData;
                     // Another event went live. The code and the QR code come from the server, so load the page again.
@@ -268,7 +277,7 @@ export function BigScreen({ initial, tournament, join }: { initial: BigScreenDat
             stopped = true;
             clearTimeout(timer);
         };
-    }, [initial.eventId, tournament]);
+    }, [initial.eventId, tournament, screenKey]);
 
     useEffect(() => {
         const timer = setInterval(() => setBoardKey((key) => nextBoard(latest.current.boards, currentBoard(latest.current.boards, key)?.key ?? null)), ROTATION_MS);
@@ -305,7 +314,7 @@ export function BigScreen({ initial, tournament, join }: { initial: BigScreenDat
                 </div>
                 <aside className={styles.right}>
                     <Boards data={data} boardKey={boardKey} />
-                    {join && <Join join={join} />}
+                    <Join code={data.eventCode} qr={qr} />
                 </aside>
             </div>
             <SponsorStrip sponsors={data.sponsors} />
