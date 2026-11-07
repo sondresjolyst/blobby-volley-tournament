@@ -19,9 +19,8 @@ function Spots({ spots, className }: { spots: Spot[]; className: string }) {
 
 const HEADER: Spot[] = [
     { variant: 'ham', size: 220, className: styles.headerA },
-    { variant: 'taco', size: 260, className: styles.headerB },
-    { variant: 'sliced', size: 200, className: styles.headerC },
-    { variant: 'deluxe', size: 180, className: styles.headerD },
+    { variant: 'taco', size: 220, className: styles.headerB },
+    { variant: 'sliced', size: 220, className: styles.headerC },
 ];
 
 const EDGES: Spot[] = [

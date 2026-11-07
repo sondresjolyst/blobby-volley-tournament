@@ -8,6 +8,8 @@
 /* The header. Multiply only darkens the red under the pizzas, so white text keeps its contrast. */
 
 .header {
+    /* Where the content of the header starts and ends, so the pizzas stay clear of the menu. */
+    --inset: max(32px, calc((100vw - 1280px) / 2 + 32px));
     position: absolute;
     inset: 0;
     overflow: hidden;
@@ -15,28 +17,32 @@
     mix-blend-mode: multiply;
 }
 
+/* Behind the logo at the left edge. */
 .headerA {
-    left: 17%;
-    top: -128px;
+    left: calc(var(--inset) - 150px);
+    top: -110px;
     transform: rotate(18deg);
 }
 
+/* In the gap between the name and the menu, on wide screens only. */
 .headerB {
-    left: 44%;
-    top: -34px;
+    display: none;
+    left: calc(var(--inset) + 260px);
+    top: -44px;
     transform: rotate(-12deg);
 }
 
-.headerC {
-    right: -64px;
-    top: -96px;
-    transform: rotate(8deg);
+@media (min-width: 1300px) {
+    .headerB {
+        display: block;
+    }
 }
 
-.headerD {
-    left: 70%;
-    top: 34px;
-    transform: rotate(-24deg);
+/* In the margin right of the menu. */
+.headerC {
+    right: calc(var(--inset) - 8px - 220px);
+    top: -90px;
+    transform: rotate(8deg);
 }
 
 /* The page edges. The layer sits under the content of the shell, which isolates it. */
@@ -54,6 +60,7 @@
 /* Cream pages only get the pizzas where the margin beside the content is wide enough. */
 .edges {
     display: none;
+    opacity: 0.6;
 }
 
 @media (min-width: 1360px) {
@@ -118,8 +125,7 @@
         top: -150px;
     }
 
-    .headerB,
-    .headerD {
+    .headerB {
         display: none;
     }
 
