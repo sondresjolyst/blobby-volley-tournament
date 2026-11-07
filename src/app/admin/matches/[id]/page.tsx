@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { AdminShell } from '@/components/admin/AdminShell';
 import { notFound } from 'next/navigation';
 import { matchOutcome, matchPlayers, matchTitle, stoppedGame } from '@/components/matches/describe';
 import { requireAdmin } from '@/lib/auth/options';
@@ -36,17 +37,13 @@ export default async function AdminMatch({ params, searchParams }: { params: Pro
     const open = match.state === 'upcoming' || match.state === 'called' || match.state === 'started';
     const scorable = match.result !== 'forfeit' && (match.state === 'called' || match.state === 'started' || match.state === 'finished');
     return (
-        <main>
+        <AdminShell section="matches">
             <h1>Match {match.id}</h1>
-            <p>
-                <Link href="/admin/matches">Matches</Link>
-                {match.tournamentId !== null && (
-                    <>
-                        {' '}
-                        | <Link href={`/admin/tournaments/${match.tournamentId}`}>Tournament</Link>
-                    </>
-                )}
-            </p>
+            {match.tournamentId !== null && (
+                <p>
+                    <Link href={`/admin/tournaments/${match.tournamentId}`}>Tournament</Link>
+                </p>
+            )}
             {error && (
                 <p role="alert">
                     {error}
@@ -81,28 +78,30 @@ export default async function AdminMatch({ params, searchParams }: { params: Pro
             {match.games.length === 0 ? (
                 <p>No games yet.</p>
             ) : (
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Game</th>
-                            <th>Result</th>
-                            <th>Points</th>
-                            <th>Entered by</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {match.games.map((g) => (
-                            <tr key={g.number}>
-                                <td>{g.number}</td>
-                                <td>{g.winnerSlot !== null ? `${name(g.winnerSlot)} won` : g.leftSlot !== null ? `Abandoned, ${name(g.leftSlot)} left` : 'Abandoned'}</td>
-                                <td>
-                                    {g.points1}-{g.points2}
-                                </td>
-                                <td>{g.source === 'admin' ? 'Admin' : 'Game server'}</td>
+                <div className="admin-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Game</th>
+                                <th>Result</th>
+                                <th>Points</th>
+                                <th>Entered by</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {match.games.map((g) => (
+                                <tr key={g.number}>
+                                    <td>{g.number}</td>
+                                    <td>{g.winnerSlot !== null ? `${name(g.winnerSlot)} won` : g.leftSlot !== null ? `Abandoned, ${name(g.leftSlot)} left` : 'Abandoned'}</td>
+                                    <td>
+                                        {g.points1}-{g.points2}
+                                    </td>
+                                    <td>{g.source === 'admin' ? 'Admin' : 'Game server'}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             )}
 
             <h2>Tools</h2>
@@ -187,6 +186,6 @@ export default async function AdminMatch({ params, searchParams }: { params: Pro
                     <button type="submit">Cancel match</button>
                 </form>
             )}
-        </main>
+        </AdminShell>
     );
 }

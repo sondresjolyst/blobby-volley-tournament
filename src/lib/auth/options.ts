@@ -55,7 +55,7 @@ export const authOptions: NextAuthOptions = {
         }),
     ],
     session: { strategy: 'jwt', maxAge: 60 * 60 * 12 },
-    pages: { signIn: '/signin', error: '/auth-error' },
+    pages: { signIn: '/login', error: '/auth-error' },
     callbacks: {
         signIn({ user }) {
             return isAllowedUser(user.id, process.env.ALLOWED_GITHUB_USER_IDS) ? true : '/denied';
@@ -83,7 +83,7 @@ export async function requireAdmin(): Promise<Session> {
         throw new Error('NEXTAUTH_URL must be an https URL in production');
     }
     const session = await getServerSession(authOptions);
-    if (!session) redirect('/signin');
+    if (!session) redirect('/login');
     if (!isAllowedUser(session.githubId, process.env.ALLOWED_GITHUB_USER_IDS)) redirect('/denied');
     return session;
 }

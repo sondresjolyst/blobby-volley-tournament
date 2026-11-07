@@ -79,56 +79,58 @@ export function SponsorSection({ eventId, gameBoard, sponsors }: { eventId: numb
             {sponsors.length === 0 ? (
                 <p>No sponsors yet.</p>
             ) : (
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Logo</th>
-                            <th>Sponsor</th>
-                            <th>Order</th>
-                            <th>Delete</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {sponsors.map((sponsor, index) => (
-                            <tr key={sponsor.id}>
-                                <td>
-                                    {/* The logo is served as it was stored. The image optimizer of Next is not used. */}
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img src={`/api/admin/sponsors/${sponsor.id}/logo?v=${sponsor.logoHash}`} alt={`Logo of ${sponsor.name}`} height={40} width={Math.round((40 * sponsor.logoWidth) / sponsor.logoHeight)} />
-                                    {!sponsor.enabled && <p>Off</p>}
-                                </td>
-                                <td>
-                                    <form method="post" action={`/api/admin/sponsors/${sponsor.id}`} encType="multipart/form-data">
-                                        <SponsorFields sponsor={sponsor} subject={sponsor.name} />{' '}
-                                        <label>
-                                            New logo of {sponsor.name} <input name="logo" type="file" accept={ACCEPT} />
-                                        </label>{' '}
-                                        <button type="submit" aria-label={`Save ${sponsor.name}`}>
-                                            Save
-                                        </button>
-                                    </form>
-                                </td>
-                                <td>
-                                    <form method="post" action={`/api/admin/sponsors/${sponsor.id}/move`}>
-                                        <button type="submit" name="direction" value="up" disabled={index === 0} aria-label={`Move ${sponsor.name} up`}>
-                                            Up
-                                        </button>{' '}
-                                        <button type="submit" name="direction" value="down" disabled={index === sponsors.length - 1} aria-label={`Move ${sponsor.name} down`}>
-                                            Down
-                                        </button>
-                                    </form>
-                                </td>
-                                <td>
-                                    <form method="post" action={`/api/admin/sponsors/${sponsor.id}/delete`}>
-                                        <button type="submit" aria-label={`Delete ${sponsor.name}`}>
-                                            Delete
-                                        </button>
-                                    </form>
-                                </td>
+                <div className="admin-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Logo</th>
+                                <th>Sponsor</th>
+                                <th>Order</th>
+                                <th>Delete</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {sponsors.map((sponsor, index) => (
+                                <tr key={sponsor.id}>
+                                    <td>
+                                        {/* The logo is served as it was stored. The image optimizer of Next is not used. */}
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img src={`/api/admin/sponsors/${sponsor.id}/logo?v=${sponsor.logoHash}`} alt={`Logo of ${sponsor.name}`} height={40} width={Math.round((40 * sponsor.logoWidth) / sponsor.logoHeight)} />
+                                        {!sponsor.enabled && <p>Off</p>}
+                                    </td>
+                                    <td>
+                                        <form method="post" action={`/api/admin/sponsors/${sponsor.id}`} encType="multipart/form-data">
+                                            <SponsorFields sponsor={sponsor} subject={sponsor.name} />{' '}
+                                            <label>
+                                                New logo of {sponsor.name} <input name="logo" type="file" accept={ACCEPT} />
+                                            </label>{' '}
+                                            <button type="submit" aria-label={`Save ${sponsor.name}`}>
+                                                Save
+                                            </button>
+                                        </form>
+                                    </td>
+                                    <td>
+                                        <form method="post" action={`/api/admin/sponsors/${sponsor.id}/move`}>
+                                            <button type="submit" name="direction" value="up" disabled={index === 0} aria-label={`Move ${sponsor.name} up`}>
+                                                Up
+                                            </button>{' '}
+                                            <button type="submit" name="direction" value="down" disabled={index === sponsors.length - 1} aria-label={`Move ${sponsor.name} down`}>
+                                                Down
+                                            </button>
+                                        </form>
+                                    </td>
+                                    <td>
+                                        <form method="post" action={`/api/admin/sponsors/${sponsor.id}/delete`}>
+                                            <button type="submit" aria-label={`Delete ${sponsor.name}`}>
+                                                Delete
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             )}
 
             <h3>Add a sponsor</h3>

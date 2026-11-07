@@ -1,15 +1,18 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { AuthLayout } from '@/components/auth/AuthLayout';
+import { AuthPage } from '@/components/site/AuthPage';
+import s from '@/components/site/site.module.css';
 
 export default async function AuthError({ searchParams }: { searchParams: Promise<{ error?: string | string[] }> }) {
     const { error } = await searchParams;
     // A rejected account is sent to the denied page. Every other error is a failed sign-in.
     if (error === 'AccessDenied') redirect('/denied');
     return (
-        <AuthLayout>
-            <p>Sign-in failed.</p>
-            <Link href="/signin">Try again</Link>
-        </AuthLayout>
+        <AuthPage title="Det gjekk ikkje" adminLink={false}>
+            <p className={s.authText}>Innlogginga med GitHub gjekk ikkje.</p>
+            <p className={s.authSwitch}>
+                <Link href="/login">Prøv igjen</Link>
+            </p>
+        </AuthPage>
     );
 }

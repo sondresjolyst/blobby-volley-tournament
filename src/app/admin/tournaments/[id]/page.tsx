@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { AdminShell } from '@/components/admin/AdminShell';
 import { notFound } from 'next/navigation';
 import { BracketView } from '@/components/tournaments/BracketView';
 import { requireAdmin } from '@/lib/auth/options';
@@ -22,11 +22,8 @@ export default async function TournamentPage({ params, searchParams }: { params:
     const { saved, error } = await searchParams;
     const nickname = new Map(tournament.players.map((p) => [p.playerId, p.nickname]));
     return (
-        <main>
+        <AdminShell section="tournaments">
             <h1>{tournament.name}</h1>
-            <p>
-                <Link href="/admin/tournaments">Tournaments</Link>
-            </p>
             {saved === '1' && <p role="status">Saved.</p>}
             {error === 'next-game-delay' && (
                 <p role="alert">
@@ -67,6 +64,6 @@ export default async function TournamentPage({ params, searchParams }: { params:
             )}
             <h2>Bracket</h2>
             <BracketView rounds={describeBracket(tournament.format, tournament.matches, (playerId) => nickname.get(playerId) ?? `Player ${playerId}`)} />
-        </main>
+        </AdminShell>
     );
 }

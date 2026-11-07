@@ -48,10 +48,10 @@ test('an admin resets the PIN of a player', async ({ page, browser }) => {
     const player = await browser.newContext({ baseURL: process.env.E2E_BASE_URL });
     const playerPage = await player.newPage();
     await playerPage.goto('/join');
-    await playerPage.getByLabel('Event code').fill(process.env.E2E_EVENT_CODE ?? '');
-    await playerPage.getByLabel('Nickname').fill(nickname);
-    await playerPage.getByLabel('PIN (4 digits)').fill('1234');
-    await playerPage.getByRole('button', { name: 'Sign up' }).click();
+    await playerPage.getByLabel('LAN-kode').fill(process.env.E2E_EVENT_CODE ?? '');
+    await playerPage.getByLabel('Kallenavn').fill(nickname);
+    await playerPage.getByLabel('PIN-kode (4 siffer)').fill('1234');
+    await playerPage.getByRole('button', { name: 'Bli med på LANet' }).click();
     await expect(playerPage).toHaveURL(/\/me$/);
 
     await page.goto('/admin/events');
@@ -65,9 +65,9 @@ test('an admin resets the PIN of a player', async ({ page, browser }) => {
     // The reset signs the player out on every device.
     await playerPage.goto('/me');
     await expect(playerPage).toHaveURL(/\/login$/);
-    await playerPage.getByLabel('Nickname').fill(nickname);
-    await playerPage.getByLabel('PIN').fill('5678');
-    await playerPage.getByRole('button', { name: 'Sign in' }).click();
+    await playerPage.getByLabel('Kallenavn').fill(nickname);
+    await playerPage.getByLabel('PIN-kode', { exact: true }).fill('5678');
+    await playerPage.getByRole('button', { name: 'Logg inn', exact: true }).click();
     await expect(playerPage).toHaveURL(/\/me$/);
     await player.close();
 });

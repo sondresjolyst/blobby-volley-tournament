@@ -1,0 +1,476 @@
+/* The pizza theme of the admin pages: a dark menu on the left and plain forms and tables on cream.
+   The pages keep their own markup, so the rules below style the elements inside .main. */
+
+.admin {
+    --red: #c8321f;
+    --red-dark: #a82a1a;
+    --yellow: #f6c445;
+    --cream: #fff8ec;
+    --ink: #2a1a12;
+    --muted: #6b5444;
+    --line: #f1dfc2;
+    --chip: #fcebc0;
+    --white: #ffffff;
+    --display: var(--font-lilita-one), 'Arial Rounded MT Bold', system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-wrap: wrap;
+    background: var(--cream);
+    color: var(--ink);
+    font-family: var(--font-inter), system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.45;
+}
+
+:global(body):has(.admin) {
+    margin: 0;
+    background: #fff8ec;
+}
+
+:global(body):has(.admin) > :global(footer) {
+    background: #2a1a12;
+    color: #fff8ec;
+    padding: 20px 32px 28px;
+    font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+:global(body):has(.admin) > :global(footer) li {
+    background: #fff8ec;
+    border-radius: 12px;
+    padding: 10px 14px;
+}
+
+.admin :focus-visible {
+    outline: 3px solid var(--yellow);
+    outline-offset: 2px;
+}
+
+/* Menu */
+
+.side {
+    flex: 1 1 220px;
+    max-width: 260px;
+    box-sizing: border-box;
+    background: var(--ink);
+    color: var(--cream);
+    padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.brand {
+    display: block;
+    padding: 0 10px 16px;
+    font-family: var(--display);
+    font-size: 26px;
+    line-height: 1.1;
+    color: var(--yellow);
+    overflow-wrap: anywhere;
+}
+
+.links {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.admin a.link {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 12px;
+    border-radius: 10px;
+    color: var(--cream);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.admin a.link:hover {
+    background: rgb(255 248 236 / 0.1);
+    color: var(--white);
+}
+
+.admin a.link[aria-current] {
+    background: var(--yellow);
+    color: var(--ink);
+    font-weight: 700;
+}
+
+.sideFoot {
+    margin-top: auto;
+    padding: 24px 10px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.admin a.siteLink {
+    color: var(--chip);
+    font-size: 14px;
+}
+
+.signOut {
+    align-self: flex-start;
+    min-height: 40px;
+    padding: 0 14px;
+    border: 2px solid rgb(255 248 236 / 0.5);
+    border-radius: 10px;
+    background: transparent;
+    color: var(--cream);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* Content */
+
+.main {
+    flex: 999 1 560px;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 32px 40px 48px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+}
+
+.main > * {
+    max-width: 100%;
+}
+
+.main h1 {
+    margin: 0 0 4px;
+    font-family: var(--display);
+    font-weight: 400;
+    font-size: 40px;
+    line-height: 1.1;
+    overflow-wrap: anywhere;
+}
+
+.main h2 {
+    margin: 22px 0 0;
+    font-family: var(--display);
+    font-weight: 400;
+    font-size: 27px;
+    line-height: 1.15;
+}
+
+.main h3 {
+    margin: 14px 0 0;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.main p {
+    margin: 0;
+    max-width: 75ch;
+}
+
+/* A field with its button, such as an address and Copy. */
+.main p:has(> label) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 10px 12px;
+}
+
+.main a {
+    color: var(--red-dark);
+    font-weight: 600;
+}
+
+.main a:hover {
+    color: #7e1f12;
+}
+
+.main section {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    width: 100%;
+}
+
+.main section > * {
+    max-width: 100%;
+}
+
+.main form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 10px 12px;
+    margin: 0;
+}
+
+/* Long forms with one field to a line stack their fields. */
+.main form:has(> p) {
+    flex-direction: column;
+    align-items: flex-start;
+    background: var(--white);
+    border: 2px solid var(--line);
+    border-radius: 20px;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.main label {
+    display: inline-flex;
+    max-width: 100%;
+    min-width: 0;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+/* A checkbox sits on the line of its text. */
+.main label:has(> input[type='checkbox']),
+.main label:has(> input[type='radio']) {
+    flex-direction: row;
+    align-items: center;
+    font-weight: 600;
+}
+
+.main input:not([type='checkbox'], [type='radio'], [type='hidden'], [type='file']),
+.main select,
+.main textarea {
+    min-height: 44px;
+    box-sizing: border-box;
+    max-width: 100%;
+    border: 2px solid var(--line);
+    border-radius: 10px;
+    padding: 0 12px;
+    background: var(--white);
+    color: var(--ink);
+    font: inherit;
+    font-size: 16px;
+    font-weight: 400;
+}
+
+.main input[type='file'] {
+    max-width: 100%;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 400;
+}
+
+.main input:focus-visible,
+.main select:focus-visible {
+    border-color: var(--red);
+}
+
+.main input[type='checkbox'],
+.main input[type='radio'] {
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    accent-color: var(--red);
+}
+
+.main button {
+    min-height: 44px;
+    padding: 0 16px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--red);
+    color: var(--white);
+    font: inherit;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.main button:hover {
+    background: var(--red-dark);
+}
+
+.main button:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+/* Small buttons inside tables are quiet, so a row of them does not shout. */
+.main td button,
+.main [role='tab'] {
+    border: 2px solid var(--line);
+    background: var(--white);
+    color: var(--ink);
+}
+
+.main td button:hover,
+.main [role='tab']:hover {
+    border-color: var(--red);
+    background: var(--white);
+}
+
+.main [role='tab'][aria-selected='true'] {
+    border-color: var(--ink);
+    background: var(--ink);
+    color: var(--yellow);
+}
+
+.main [role='tablist'] {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.main fieldset {
+    margin: 0;
+    padding: 16px;
+    border: 2px solid var(--line);
+    border-radius: 16px;
+    background: var(--white);
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.main legend {
+    padding: 0 6px;
+    font-weight: 700;
+}
+
+.main [role='alert'] {
+    padding: 12px 16px;
+    border: 2px solid var(--red);
+    border-radius: 14px;
+    background: #fde3de;
+    color: #7e1f12;
+    font-weight: 600;
+}
+
+.main [role='status'] {
+    padding: 12px 16px;
+    border: 2px solid var(--yellow);
+    border-radius: 14px;
+    background: var(--chip);
+    font-weight: 600;
+}
+
+.main dl {
+    margin: 0;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 6px 20px;
+}
+
+.main dt {
+    font-weight: 700;
+}
+
+.main dd {
+    margin: 0;
+}
+
+.main code {
+    font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+    font-size: 14px;
+    background: var(--chip);
+    border-radius: 6px;
+    padding: 1px 6px;
+    overflow-wrap: anywhere;
+}
+
+.main ol,
+.main ul {
+    margin: 0;
+    padding-left: 1.5em;
+}
+
+/* Tables scroll inside their card, never the page. */
+.main :global(.admin-table) {
+    width: 100%;
+    overflow-x: auto;
+    box-sizing: border-box;
+    background: var(--white);
+    border: 2px solid var(--line);
+    border-radius: 20px;
+}
+
+.main table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 15px;
+}
+
+.main th,
+.main td {
+    padding: 12px 16px;
+    text-align: left;
+    vertical-align: middle;
+}
+
+.main th {
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    white-space: nowrap;
+}
+
+.main tbody tr {
+    border-top: 2px solid var(--line);
+}
+
+.main td form {
+    flex-wrap: nowrap;
+}
+
+@media (max-width: 760px) {
+    /* One line, or the widest table would set the width of the menu and the page. */
+    .admin {
+        flex-direction: column;
+        flex-wrap: nowrap;
+    }
+
+    .side {
+        flex: none;
+        max-width: none;
+        padding: 14px 16px;
+    }
+
+    .brand {
+        padding: 0 0 8px;
+        font-size: 22px;
+    }
+
+    .links {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .admin a.link {
+        min-height: 40px;
+        padding: 0 10px;
+    }
+
+    .sideFoot {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 0 0;
+    }
+
+    .main {
+        flex: 1;
+        padding: 20px 16px 32px;
+    }
+
+    .main h1 {
+        font-size: 32px;
+    }
+
+    :global(body):has(.admin) > :global(footer) {
+        padding: 16px;
+    }
+}

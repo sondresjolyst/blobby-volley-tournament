@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { AdminShell } from '@/components/admin/AdminShell';
 import { notFound } from 'next/navigation';
 import { BigScreenSection, bigScreenErrorMessage } from '@/components/events/BigScreenSection';
 import { EventForm, eventErrorMessage } from '@/components/events/EventForm';
@@ -46,11 +46,8 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
     const savedSponsor = sponsors.find((sponsor) => sponsor.id === savedSponsorId);
     const now = new Date();
     return (
-        <main>
+        <AdminShell section="events">
             <h1>{event.name}</h1>
-            <p>
-                <Link href="/admin/events">Events</Link>
-            </p>
             <p>{event.isActive ? 'This is the active event.' : 'This event is not active.'}</p>
             {!event.isActive && (
                 <form method="post" action={`/api/admin/events/${event.id}/activate`}>
@@ -78,62 +75,64 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
             {players.length === 0 ? (
                 <p>No players yet.</p>
             ) : (
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Nickname</th>
-                            <th>Foza</th>
-                            <th>Locked</th>
-                            <th>Reset PIN</th>
-                            <th>Adjust Foza</th>
-                            <th>Join code</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {players.map((player) => (
-                            <tr key={player.id}>
-                                <td>{player.nickname}</td>
-                                <td>{player.fozaBalance}</td>
-                                <td>{player.lockedUntil && player.lockedUntil > now ? `Until ${player.lockedUntil.toISOString()}` : ''}</td>
-                                <td>
-                                    <form method="post" action={`/api/admin/players/${player.id}/pin`}>
-                                        <input type="hidden" name="eventId" value={event.id} />
-                                        <label>
-                                            New PIN for {player.nickname}{' '}
-                                            <input name="pin" type="password" required inputMode="numeric" pattern="[0-9]{4}" minLength={4} maxLength={4} autoComplete="off" />
-                                        </label>{' '}
-                                        <button type="submit">Reset PIN</button>
-                                    </form>
-                                </td>
-                                <td>
-                                    <form method="post" action={`/api/admin/players/${player.id}/foza`}>
-                                        <input type="hidden" name="eventId" value={event.id} />
-                                        <label>
-                                            Foza change for {player.nickname}{' '}
-                                            <input name="amount" type="text" required inputMode="numeric" pattern="[+\-]?[1-9][0-9]{0,6}" autoComplete="off" />
-                                        </label>{' '}
-                                        <label>
-                                            Reason for {player.nickname} <input name="reason" type="text" required minLength={1} maxLength={200} autoComplete="off" />
-                                        </label>{' '}
-                                        <button type="submit">Adjust Foza</button>
-                                    </form>
-                                </td>
-                                <td>
-                                    <form method="post" action={`/api/admin/players/${player.id}/join-code`}>
-                                        <button type="submit" aria-label={`New join code for ${player.nickname}`}>
-                                            New join code
-                                        </button>
-                                    </form>
-                                </td>
+                <div className="admin-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nickname</th>
+                                <th>Foza</th>
+                                <th>Locked</th>
+                                <th>Reset PIN</th>
+                                <th>Adjust Foza</th>
+                                <th>Join code</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {players.map((player) => (
+                                <tr key={player.id}>
+                                    <td>{player.nickname}</td>
+                                    <td>{player.fozaBalance}</td>
+                                    <td>{player.lockedUntil && player.lockedUntil > now ? `Until ${player.lockedUntil.toISOString()}` : ''}</td>
+                                    <td>
+                                        <form method="post" action={`/api/admin/players/${player.id}/pin`}>
+                                            <input type="hidden" name="eventId" value={event.id} />
+                                            <label>
+                                                New PIN for {player.nickname}{' '}
+                                                <input name="pin" type="password" required inputMode="numeric" pattern="[0-9]{4}" minLength={4} maxLength={4} autoComplete="off" />
+                                            </label>{' '}
+                                            <button type="submit">Reset PIN</button>
+                                        </form>
+                                    </td>
+                                    <td>
+                                        <form method="post" action={`/api/admin/players/${player.id}/foza`}>
+                                            <input type="hidden" name="eventId" value={event.id} />
+                                            <label>
+                                                Foza change for {player.nickname}{' '}
+                                                <input name="amount" type="text" required inputMode="numeric" pattern="[+\-]?[1-9][0-9]{0,6}" autoComplete="off" />
+                                            </label>{' '}
+                                            <label>
+                                                Reason for {player.nickname} <input name="reason" type="text" required minLength={1} maxLength={200} autoComplete="off" />
+                                            </label>{' '}
+                                            <button type="submit">Adjust Foza</button>
+                                        </form>
+                                    </td>
+                                    <td>
+                                        <form method="post" action={`/api/admin/players/${player.id}/join-code`}>
+                                            <button type="submit" aria-label={`New join code for ${player.nickname}`}>
+                                                New join code
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             )}
 
             {bigScreenKey && <BigScreenSection eventId={event.id} address={bigScreenUrl(bigScreenKey, process.env)} isActive={event.isActive} />}
 
             <SponsorSection eventId={event.id} gameBoard={event.gameBoard} sponsors={sponsors} />
-        </main>
+        </AdminShell>
     );
 }

@@ -37,7 +37,7 @@ describe('proxy', () => {
         const res = await call('/admin/players');
         expect(res.status).toBe(307);
         const location = new URL(res.headers.get('location')!);
-        expect(location.pathname).toBe('/signin');
+        expect(location.pathname).toBe('/login');
         expect(location.searchParams.get('callbackUrl')).toBe('/admin/players');
     });
 
@@ -76,7 +76,7 @@ describe('proxy', () => {
         expect((await call('/api/admin/x')).status).toBe(503);
     });
 
-    it.each(['/api/auth/callback/github', '/api/auth/signin', '/signin', '/auth-error'])('returns 503 for %s when the auth address is misconfigured', async (path) => {
+    it.each(['/api/auth/callback/github', '/api/auth/signin', '/auth-error'])('returns 503 for %s when the auth address is misconfigured', async (path) => {
         vi.stubEnv('NODE_ENV', 'production');
         vi.stubEnv('NEXTAUTH_URL', 'http://bvt.example.test');
         vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -90,5 +90,7 @@ describe('proxy', () => {
         vi.stubEnv('NEXTAUTH_URL', 'http://bvt.example.test');
         expect(passes(await call('/'))).toBe(true);
         expect(passes(await call('/health'))).toBe(true);
+        // Players sign in on /login too, so it stays open.
+        expect(passes(await call('/login'))).toBe(true);
     });
 });
