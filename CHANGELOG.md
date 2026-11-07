@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/sondresjolyst/blobby-volley-tournament/compare/v0.2.0...v0.3.0) (2026-11-07)
+
+
+### Features
+
+* style the front page, sign-in and admin pages ([#50](https://github.com/sondresjolyst/blobby-volley-tournament/issues/50)) ([408a7b1](https://github.com/sondresjolyst/blobby-volley-tournament/commit/408a7b15745936886a34ae585ca40d07f9075933))
+
 ## [0.2.0](https://github.com/sondresjolyst/blobby-volley-tournament/compare/v0.1.0...v0.2.0) (2026-11-07)
 
 
