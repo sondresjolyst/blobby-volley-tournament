@@ -71,7 +71,11 @@ Every match change is in `src/lib/store/matches.ts`. Each change runs in one tra
 
 ## Player pages
 
-The player pages are written in Norwegian, in the jokey Rogaland dialect of the LAN. Both need a signed in player of the active event.
+The public pages and the player pages are written in Norwegian, in the jokey Rogaland dialect of the LAN, and the site sets `lang="nn"`. The admin pages stay in English and set `lang="en"`.
+
+The front page `/` is public. It shows the active event with its dates, the live and next matches with their odds, and links to `/bracket`, `/leaderboard` and `/big` without a key. A signed out visitor gets buttons to `/join` and `/login`, and a signed in player a link to `/me`. When no event is open, `/`, `/join` and `/login` say that an admin must open one first and link to `/admin`. Every public page has a small Admin link at the bottom.
+
+`/me` and `/bracket` need a signed in player of the active event.
 
 - `/me` shows the Foza balance, the matches still to play with their pools and bet forms, the player's bets and the 1v1 matches. The player's own matches are marked. When the player's match is called or started, the page shows how to join, as long as the event has a game server host and port. The main button copies the join link. A short guide says to paste it with "join link" in the main menu of the game and answer Yes. The page also shows the server and the join code for typing in by hand, and the link can be opened directly where the link type is registered.
 - `/bracket` shows the bracket of each tournament of the event, with the state and series score of every match. `?t=<id>` picks a tournament. The newest is shown by default.
@@ -359,7 +363,7 @@ Public, for the big screen. No token. `live` is `null` when no game is being pla
 
 ## Admin login
 
-Pages under `/admin` and routes under `/api/admin` need a GitHub login. All other pages are public. Set these in `.env.local`, see `.env.example`.
+Pages under `/admin` and routes under `/api/admin` need a GitHub login. All other pages are public. There is one sign-in page, `/login`. Players sign in there with nickname and PIN, and admins with the button Admin? Logg inn med GitHub below the form. The button works also when no event is open, so an admin can sign in and open one. An admin page sends a signed out visitor to `/login?callbackUrl=<path>`. The player session and the admin session are separate cookies, so signing in or out as one does not touch the other. Set these in `.env.local`, see `.env.example`.
 
 - `NEXTAUTH_URL`: the public address of the site. In production it must start with `https://`. Otherwise the admin pages and sign-in return 503.
 - `NEXTAUTH_SECRET`: a long random string that signs the session.
@@ -379,6 +383,8 @@ The token of the game server API is made on `/admin/game-server`, not set here. 
     npm run test:e2e
 
 Set `BIG_SCREEN_SHOTS` to a folder and run `npm run test:e2e -- e2e/big-screen.spec.ts` to save screenshots of the big screen there. It adds sponsors, so run that spec on its own.
+
+Set `SITE_SHOTS` to a folder and run `npm run test:e2e -- e2e/site-pages.spec.ts` to save screenshots of `/`, `/join`, `/login` and the admin pages at 1440 and 390 pixels wide.
 
 `npm run test:db` and `npm run test:e2e` need Docker. Each starts a throwaway Postgres container and removes it afterwards. The end-to-end test needs `npm run build` first. It runs the migrations, adds a test event, copies the static files and starts the standalone server on port 3100.
 

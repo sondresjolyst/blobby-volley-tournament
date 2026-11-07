@@ -1,0 +1,476 @@
+/* The front page and the sign-up and sign-in pages. They sit inside .shell of player.module.css,
+   so they share its colours, fonts and header. Selectors start with .site to win over `.shell a`. */
+
+.site a.navCta {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 18px;
+    border-radius: 12px;
+    background: var(--yellow);
+    color: var(--ink);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.site a.navCta:hover {
+    background: #ffd35c;
+    color: var(--ink);
+}
+
+.site a.walletLink {
+    text-decoration: none;
+    color: var(--yellow);
+}
+
+.site a.walletLink:hover {
+    color: var(--white);
+}
+
+/* Front page hero */
+
+.hero {
+    flex: 1 1 100%;
+    min-width: 0;
+    position: relative;
+    overflow: hidden;
+    box-sizing: border-box;
+    background: var(--red);
+    color: var(--white);
+    border-radius: 28px;
+    padding: 40px 44px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 24px;
+}
+
+.heroText {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    max-width: 680px;
+}
+
+.heroDates {
+    margin: 0;
+    font-weight: 700;
+    color: var(--chip);
+}
+
+.heroTitle {
+    margin: 0;
+    font-family: var(--display);
+    font-weight: 400;
+    font-size: 84px;
+    line-height: 0.95;
+    color: var(--yellow);
+    text-shadow: 0 5px 0 var(--red-dark);
+    overflow-wrap: anywhere;
+}
+
+.heroPitch {
+    margin: 0;
+    font-size: 20px;
+    line-height: 1.45;
+    max-width: 34em;
+}
+
+.heroActions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 16px;
+    margin-top: 6px;
+}
+
+.site a.heroSecondary {
+    display: inline-flex;
+    align-items: center;
+    min-height: 56px;
+    padding: 0 24px;
+    box-sizing: border-box;
+    border-radius: 16px;
+    border: 3px solid rgb(255 255 255 / 0.75);
+    color: var(--white);
+    font-family: var(--display);
+    font-size: 22px;
+    text-decoration: none;
+}
+
+.site a.heroSecondary:hover {
+    border-color: var(--white);
+    background: rgb(255 255 255 / 0.12);
+    color: var(--white);
+}
+
+.heroPizza {
+    width: 260px;
+    height: 260px;
+    margin: -20px -10px -20px 0;
+    transform: rotate(-12deg);
+    filter: drop-shadow(0 10px 0 var(--red-dark));
+}
+
+.heroNote {
+    margin: 0;
+    font-size: 15px;
+    color: var(--chip);
+}
+
+.site .heroNote a {
+    color: var(--yellow);
+    font-weight: 700;
+}
+
+/* Front page panels */
+
+.links {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.site a.linkCard {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: var(--cream);
+    color: var(--ink);
+    text-decoration: none;
+}
+
+.site a.linkCard:hover {
+    background: var(--white);
+    color: var(--ink);
+}
+
+.linkTitle {
+    font-family: var(--display);
+    font-size: 21px;
+}
+
+.linkText {
+    font-size: 14px;
+    color: var(--muted);
+}
+
+.steps {
+    margin: 0;
+    padding-left: 1.4em;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.steps li::marker {
+    font-family: var(--display);
+    color: var(--red);
+}
+
+.odds {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 4px 12px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.site a.cardLink {
+    align-self: flex-start;
+    font-weight: 700;
+}
+
+.adminLink {
+    margin: 0;
+    padding: 12px 32px 16px;
+    text-align: right;
+    font-size: 13px;
+}
+
+.site .adminLink a {
+    color: var(--muted);
+}
+
+/* Sign-up and sign-in */
+
+.auth {
+    position: relative;
+    overflow: hidden;
+    background: var(--red);
+    color: var(--white);
+}
+
+.authPizzaA,
+.authPizzaB {
+    position: absolute;
+    pointer-events: none;
+}
+
+.authPizzaA {
+    left: -90px;
+    top: 120px;
+    transform: rotate(18deg);
+}
+
+.authPizzaB {
+    right: -50px;
+    bottom: 40px;
+    transform: rotate(-20deg);
+}
+
+.authMain {
+    position: relative;
+    flex: 1;
+    width: 100%;
+    max-width: 460px;
+    box-sizing: border-box;
+    margin: 0 auto;
+    padding: 48px 24px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.authHead {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    text-align: center;
+}
+
+.site a.authHome {
+    display: inline-flex;
+    border-radius: 50%;
+}
+
+.authTitle {
+    margin: 0;
+    font-family: var(--display);
+    font-weight: 400;
+    font-size: 48px;
+    line-height: 1;
+    color: var(--yellow);
+    text-shadow: 0 4px 0 var(--red-dark);
+    overflow-wrap: anywhere;
+}
+
+.authIntro {
+    margin: 0;
+    font-size: 17px;
+    line-height: 1.45;
+}
+
+.authCard {
+    background: var(--cream);
+    color: var(--ink);
+    border-radius: 22px;
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    box-shadow: 0 6px 0 var(--red-dark);
+}
+
+.authCardTitle {
+    margin: 0;
+    font-family: var(--display);
+    font-weight: 400;
+    font-size: 28px;
+}
+
+.authField {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.authLabel {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.authInput {
+    height: 48px;
+    box-sizing: border-box;
+    width: 100%;
+    border-radius: 12px;
+    border: 2px solid var(--line);
+    padding: 0 14px;
+    background: var(--white);
+    color: var(--ink);
+    font: inherit;
+    font-size: 18px;
+}
+
+.authInput:focus-visible {
+    border-color: var(--red);
+}
+
+.authCode {
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+.authPin {
+    font-size: 22px;
+    letter-spacing: 8px;
+}
+
+.authHint {
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.authSubmit {
+    min-height: 52px;
+    border-radius: 14px;
+    border: 0;
+    background: var(--ink);
+    color: var(--yellow);
+    font-family: var(--display);
+    font-size: 22px;
+    cursor: pointer;
+}
+
+.authSubmit:hover {
+    background: #3e2a1f;
+}
+
+.authSwitch {
+    margin: 0;
+    text-align: center;
+    font-weight: 700;
+}
+
+.site .authSwitch a,
+.site .authText a {
+    color: var(--white);
+}
+
+.site .authSwitch a:hover,
+.site .authText a:hover {
+    color: var(--yellow);
+}
+
+.authText {
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.45;
+}
+
+.authAlert {
+    margin: 0;
+    padding: 12px 16px;
+    border-radius: 14px;
+    background: var(--white);
+    border: 3px solid var(--yellow);
+    color: #7e1f12;
+    font-weight: 700;
+}
+
+/* The GitHub sign-in of the admins, below the player form. */
+.adminBox {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding-top: 18px;
+    border-top: 2px dashed rgb(255 255 255 / 0.4);
+}
+
+.adminButton {
+    min-height: 44px;
+    padding: 0 16px;
+    border-radius: 12px;
+    border: 2px solid rgb(255 255 255 / 0.6);
+    background: transparent;
+    color: var(--white);
+    font: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.adminButton:hover {
+    border-color: var(--white);
+    background: rgb(255 255 255 / 0.12);
+}
+
+.adminButton:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+.adminHint {
+    margin: 0;
+    font-size: 13px;
+    color: var(--chip);
+    text-align: center;
+}
+
+.auth .adminLink {
+    text-align: center;
+}
+
+.site.auth .adminLink a {
+    color: var(--chip);
+}
+
+@media (max-width: 760px) {
+    .hero {
+        grid-template-columns: minmax(0, 1fr);
+        padding: 24px 20px;
+        border-radius: 22px;
+    }
+
+    .heroTitle {
+        font-size: 52px;
+    }
+
+    .heroPitch {
+        font-size: 17px;
+    }
+
+    .heroPizza {
+        position: absolute;
+        right: -50px;
+        top: -50px;
+        width: 150px;
+        height: 150px;
+        margin: 0;
+        opacity: 0.4;
+    }
+
+    .adminLink {
+        padding: 8px 16px 16px;
+    }
+
+    .authMain {
+        padding: 32px 16px 16px;
+    }
+
+    .authTitle {
+        font-size: 40px;
+    }
+
+    .authPizzaA {
+        left: -70px;
+        top: 20px;
+        width: 120px;
+        height: 120px;
+        opacity: 0.5;
+    }
+
+    .authPizzaB {
+        display: none;
+    }
+}

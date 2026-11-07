@@ -8,10 +8,10 @@ const uniqueNickname = () => `Spiller${randomBytes(3).toString('hex')}`;
 
 async function signUp(page: Page, nickname: string, pin: string) {
     await page.goto('/join');
-    await page.getByLabel('Event code').fill(eventCode.toLowerCase());
-    await page.getByLabel('Nickname').fill(nickname);
-    await page.getByLabel('PIN (4 digits)').fill(pin);
-    await page.getByRole('button', { name: 'Sign up' }).click();
+    await page.getByLabel('LAN-kode').fill(eventCode.toLowerCase());
+    await page.getByLabel('Kallenavn').fill(nickname);
+    await page.getByLabel('PIN-kode (4 siffer)').fill(pin);
+    await page.getByRole('button', { name: 'Bli med på LANet' }).click();
 }
 
 test('a player signs up with the event code and sees the starting Foza', async ({ page, context }) => {
@@ -39,12 +39,12 @@ test('a player signs up with the event code and sees the starting Foza', async (
 
 test('sign-up refuses a wrong event code', async ({ page }) => {
     await page.goto('/join');
-    await page.getByLabel('Event code').fill('WRONG-CODE');
-    await page.getByLabel('Nickname').fill(uniqueNickname());
-    await page.getByLabel('PIN (4 digits)').fill('1234');
-    await page.getByRole('button', { name: 'Sign up' }).click();
+    await page.getByLabel('LAN-kode').fill('WRONG-CODE');
+    await page.getByLabel('Kallenavn').fill(uniqueNickname());
+    await page.getByLabel('PIN-kode (4 siffer)').fill('1234');
+    await page.getByRole('button', { name: 'Bli med på LANet' }).click();
     await expect(page).toHaveURL(/\/join\?error=code$/);
-    await expect(page.getByRole('alert').filter({ hasText: 'The event code is wrong.' })).toBeVisible();
+    await expect(page.getByRole('alert').filter({ hasText: 'Den LAN-koden stemme ikkje.' })).toBeVisible();
 });
 
 test('sign-in with a wrong PIN is refused and the right PIN works', async ({ page, context }) => {
@@ -54,16 +54,16 @@ test('sign-in with a wrong PIN is refused and the right PIN works', async ({ pag
     await page.getByRole('button', { name: 'Logg ut' }).click();
     await expect(page).toHaveURL(/\/login$/);
 
-    await page.getByLabel('Nickname').fill(nickname.toUpperCase());
-    await page.getByLabel('PIN').fill('9999');
-    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.getByLabel('Kallenavn').fill(nickname.toUpperCase());
+    await page.getByLabel('PIN-kode', { exact: true }).fill('9999');
+    await page.getByRole('button', { name: 'Logg inn', exact: true }).click();
     await expect(page).toHaveURL(/\/login\?error=wrong$/);
-    await expect(page.getByRole('alert').filter({ hasText: 'Wrong nickname or PIN.' })).toBeVisible();
+    await expect(page.getByRole('alert').filter({ hasText: 'Feil kallenavn eller PIN-kode.' })).toBeVisible();
     expect((await context.cookies()).find((c) => c.name === 'bvt_player')).toBeUndefined();
 
-    await page.getByLabel('Nickname').fill(nickname);
-    await page.getByLabel('PIN').fill('1234');
-    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.getByLabel('Kallenavn').fill(nickname);
+    await page.getByLabel('PIN-kode', { exact: true }).fill('1234');
+    await page.getByRole('button', { name: 'Logg inn', exact: true }).click();
     await expect(page).toHaveURL(/\/me$/);
     await expect(page.getByRole('heading', { name: nickname })).toBeVisible();
 });

@@ -5,10 +5,10 @@ async function signUp(browser: Browser, nickname: string) {
     const context = await browser.newContext({ baseURL: process.env.E2E_BASE_URL });
     const page = await context.newPage();
     await page.goto('/join');
-    await page.getByLabel('Event code').fill(process.env.E2E_EVENT_CODE ?? '');
-    await page.getByLabel('Nickname').fill(nickname);
-    await page.getByLabel('PIN (4 digits)').fill('1234');
-    await page.getByRole('button', { name: 'Sign up' }).click();
+    await page.getByLabel('LAN-kode').fill(process.env.E2E_EVENT_CODE ?? '');
+    await page.getByLabel('Kallenavn').fill(nickname);
+    await page.getByLabel('PIN-kode (4 siffer)').fill('1234');
+    await page.getByRole('button', { name: 'Bli med på LANet' }).click();
     await expect(page).toHaveURL(/\/me$/);
     return { context, page };
 }

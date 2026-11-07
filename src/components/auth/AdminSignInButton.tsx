@@ -3,7 +3,8 @@
 import { signIn } from 'next-auth/react';
 import { useState } from 'react';
 
-export function SignInButton({ callbackUrl }: { callbackUrl: string }) {
+/** Starts the GitHub sign-in of an admin. The player session is not touched. */
+export function AdminSignInButton({ callbackUrl, className }: { callbackUrl: string; className?: string }) {
     const [pending, setPending] = useState(false);
 
     async function start() {
@@ -16,8 +17,8 @@ export function SignInButton({ callbackUrl }: { callbackUrl: string }) {
     }
 
     return (
-        <button type="button" disabled={pending} aria-busy={pending} onClick={start}>
-            Sign in with GitHub
+        <button type="button" className={className} disabled={pending} aria-busy={pending} onClick={start}>
+            Admin? Logg inn med GitHub
         </button>
     );
 }

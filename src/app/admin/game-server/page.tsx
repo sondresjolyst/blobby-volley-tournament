@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { AdminShell } from '@/components/admin/AdminShell';
 import { GameServerToken } from '@/components/game-server/GameServerToken';
 import { requireAdmin } from '@/lib/auth/options';
 import { getPool } from '@/lib/db';
@@ -14,11 +14,8 @@ export default async function GameServer() {
     const pool = getPool();
     const [info, event] = await Promise.all([getGameServerTokenInfo(pool), getActiveEvent(pool)]);
     return (
-        <main>
+        <AdminShell section="game-server">
             <h1>Game server</h1>
-            <p>
-                <Link href="/admin">Admin</Link>
-            </p>
             <p>The game server sends this token to the site API. There is one token for the whole site. The game server serves the active event.</p>
             {info ? (
                 <dl>
@@ -31,6 +28,6 @@ export default async function GameServer() {
                 <p>There is no token yet. The game server API refuses every call until there is one.</p>
             )}
             <GameServerToken hasToken={info !== null} siteUrl={siteUrl(process.env)} port={event?.serverPort ?? CONTAINER_PORT} />
-        </main>
+        </AdminShell>
     );
 }

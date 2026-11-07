@@ -36,8 +36,8 @@ describe('every /admin page', () => {
     it.each(pages)('%s calls requireAdmin before it does anything else', async (page) => {
         const mod = (await import(/* @vite-ignore */ `./${page}`)) as { default: (props: unknown) => Promise<unknown> };
         // requireAdmin redirects by throwing, so a page that calls it first stops there.
-        requireAdmin.mockRejectedValueOnce(new Error('redirect:/signin'));
-        await expect(mod.default({ params: Promise.resolve({ id: '1' }), searchParams: Promise.resolve({}) })).rejects.toThrow('redirect:/signin');
+        requireAdmin.mockRejectedValueOnce(new Error('redirect:/login'));
+        await expect(mod.default({ params: Promise.resolve({ id: '1' }), searchParams: Promise.resolve({}) })).rejects.toThrow('redirect:/login');
         expect(requireAdmin).toHaveBeenCalledTimes(1);
         expect(getPool).not.toHaveBeenCalled();
     });

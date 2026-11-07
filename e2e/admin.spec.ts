@@ -2,16 +2,16 @@ import { expect, test } from '@playwright/test';
 
 test('admin page redirects to sign-in without a session', async ({ page }) => {
     await page.goto('/admin');
-    await expect(page).toHaveURL(/\/signin\?callbackUrl=%2Fadmin$/);
-    await expect(page.getByRole('button', { name: 'Sign in with GitHub' })).toBeVisible();
+    await expect(page).toHaveURL(/\/login\?callbackUrl=%2Fadmin$/);
+    await expect(page.getByRole('button', { name: 'Admin? Logg inn med GitHub' })).toBeVisible();
 });
 
 for (const path of ['/admin/events', '/admin/events/new', '/admin/events/1', '/admin/tournaments', '/admin/tournaments/new', '/admin/tournaments/1', '/admin/matches', '/admin/matches/1']) {
     test(`${path} redirects to sign-in without a session`, async ({ page }) => {
         await page.goto(path);
-        await expect(page).toHaveURL(/\/signin\?/);
+        await expect(page).toHaveURL(/\/login\?/);
         expect(new URL(page.url()).searchParams.get('callbackUrl')).toBe(path);
-        await expect(page.getByRole('button', { name: 'Sign in with GitHub' })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Admin? Logg inn med GitHub' })).toBeVisible();
     });
 }
 
@@ -27,9 +27,9 @@ for (const [path, heading] of [
     ['/admin/tournaments/new', 'New tournament'],
     ['/admin/matches', 'Matches'],
 ]) {
-    test(`${path} needs a login and opens for an admin`, async ({ page, context, baseURL }) => {
+    test(`${path} needs a login? and opens for an admin`, async ({ page, context, baseURL }) => {
         await page.goto(path);
-        await expect(page).toHaveURL(/\/signin\?/);
+        await expect(page).toHaveURL(/\/login\?/);
         await expect(page.getByRole('heading', { level: 1, name: heading })).toHaveCount(0);
 
         await context.addCookies([

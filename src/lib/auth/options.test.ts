@@ -115,7 +115,7 @@ describe('requireAdmin', () => {
     it('redirects to sign-in without a session', async () => {
         vi.mocked(getServerSession).mockResolvedValue(null);
         vi.stubEnv('ALLOWED_GITHUB_USER_IDS', '12345');
-        await expect(requireAdmin()).rejects.toThrow('redirect:/signin');
+        await expect(requireAdmin()).rejects.toThrow('redirect:/login');
     });
 
     it('redirects to the denied page for another ID', async () => {

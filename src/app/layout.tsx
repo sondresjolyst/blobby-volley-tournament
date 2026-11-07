@@ -5,12 +5,12 @@ import { fontVariables } from './fonts';
 
 export const metadata: Metadata = {
     title: 'Blobby Volley Tournament',
-    description: 'Tournament and Foza betting site for Blobby Volley 2.',
+    description: 'Turnering og Foza-spel for Blobby Volley 2.',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
     return (
-        <html lang="en" className={fontVariables}>
+        <html lang="nn" className={fontVariables}>
             <body>
                 {children}
                 <SponsorFooter />
