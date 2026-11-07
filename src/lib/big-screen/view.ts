@@ -9,7 +9,10 @@ import type { LiveScore } from '@/lib/store/game-server';
 import type { MatchSummary } from '@/lib/store/matches';
 import type { SponsorRow } from '@/lib/store/sponsors';
 import type { Leaderboard } from '@/lib/store/stats';
-import { boardRoundName, buildBoard, type BoardBracketMatch } from '@/lib/tournaments/board';
+import { compareCorrect } from '@/lib/stats/betting';
+import { boardRoundName, buildBoard, type BoardBracketMatch, type BoardRound } from '@/lib/tournaments/board';
+import { screenFacts, type PlayedSeries, type ScreenFact } from './facts';
+import { DEFAULT_ROTATION, type ScreenRotation } from './screens';
 
 /** How many players each leaderboard shows. */
 export const BOARD_ROWS = 5;
@@ -19,6 +22,12 @@ export const OTHER_MATCHES = 3;
 export const BRACKET_ROUNDS = 4;
 /** How many matches of one round show at once. */
 export const ROUND_MATCHES = 4;
+/** How many matches the up next screen lists. */
+export const UP_NEXT = 8;
+/** How many bettors the Foza screen ranks. */
+export const FOZA_ROWS = 8;
+/** How many of the biggest wins the Foza screen lists. */
+export const FOZA_WINS = 5;
 
 export interface ScreenSide {
     nickname: string;
@@ -77,6 +86,38 @@ export interface ScreenBracket {
     rows: number;
 }
 
+/** One side of a bracket with every round, for the bracket screen. */
+export interface ScreenBracketSection {
+    key: 'main' | 'losers';
+    rounds: ScreenRound[];
+    /** The most matches in one round of the side. */
+    rows: number;
+}
+
+/** The whole bracket, every round of every side. */
+export interface ScreenFullBracket {
+    tournamentId: number;
+    name: string;
+    sections: ScreenBracketSection[];
+}
+
+export interface ScreenFoza {
+    /** The bettors with a settled bet, the most Foza won net first. */
+    bettors: { nickname: string; net: number; correct: number; bets: number }[];
+    /** The biggest single wins, one per bettor, the biggest first. `profit` is what came on top of the stake. */
+    wins: { nickname: string; on: string; profit: number }[];
+}
+
+export interface ScreenWinner {
+    tournamentId: number;
+    tournamentName: string;
+    champion: string;
+    /** Second and third place. Two players share third place when there is no bronze final. */
+    podium: { place: number; names: string[] }[];
+    /** The match that decided it. Null after a no-show. */
+    final: { round: string; sides: [{ name: string; score: number }, { name: string; score: number }] } | null;
+}
+
 export type BoardKey = 'rette' | 'sigra' | 'elo';
 
 export interface ScreenBoard {
@@ -105,9 +146,35 @@ export interface BigScreenData {
     bracket: ScreenBracket | null;
     boards: ScreenBoard[];
     sponsors: ScreenSponsor[];
+    /** The screens the big screen takes turns on. The open page follows a change on its next refresh. */
+    rotation: ScreenRotation;
+    /** Every round of the bracket, for the bracket screen. */
+    fullBracket: ScreenFullBracket | null;
+    /** The matches on the floor, then the next ones to play. */
+    upNext: ScreenMatch[];
+    foza: ScreenFoza;
+    /** The records of the event. Only those with something to show. */
+    facts: ScreenFact[];
+    /** The champion of a tournament. Null until a tournament has one. */
+    winner: ScreenWinner | null;
 }
 
-export const EMPTY_SCREEN: BigScreenData = { eventId: null, eventName: null, eventCode: null, featured: null, others: [], bracket: null, boards: [], sponsors: [] };
+export const EMPTY_SCREEN: BigScreenData = {
+    eventId: null,
+    eventName: null,
+    eventCode: null,
+    featured: null,
+    others: [],
+    bracket: null,
+    boards: [],
+    sponsors: [],
+    rotation: DEFAULT_ROTATION,
+    fullBracket: null,
+    upNext: [],
+    foza: { bettors: [], wins: [] },
+    facts: [],
+    winner: null,
+};
 
 export interface ScreenTournament {
     id: number;
@@ -127,6 +194,9 @@ export interface ScreenInput {
     leaderboard: Leaderboard;
     tournament: ScreenTournament | null;
     sponsors: readonly SponsorRow[];
+    /** The played series of the event, for the records. */
+    series: readonly PlayedSeries[];
+    rotation: ScreenRotation;
 }
 
 const STATE_ORDER: Partial<Record<MatchState, number>> = { started: 0, called: 1 };
@@ -220,15 +290,13 @@ export function pickSide<T extends { key: 'main' | 'losers'; rounds: readonly { 
     return main;
 }
 
-function screenBracket(tournament: ScreenTournament, matches: readonly MatchSummary[]): ScreenBracket {
-    const own = matches.filter((m) => m.tournamentId === tournament.id);
-    const sections = buildBoard(tournament.format, tournament.matches, own, null, new Set());
-    const section = pickSide(sections);
-    const rounds = roundWindow(section.rounds).map((round) => ({
+/** A round of the bracket with at most `max` of its matches. */
+function screenRound(round: BoardRound, max: number): ScreenRound {
+    return {
         key: round.key,
         name: round.name,
-        more: Math.max(0, round.matches.length - ROUND_MATCHES),
-        matches: focusMatches(round.matches).map((m) => ({
+        more: Math.max(0, round.matches.length - max),
+        matches: focusMatches(round.matches, max).map((m) => ({
             matchId: m.matchId,
             state: m.state,
             slots: [
@@ -236,9 +304,84 @@ function screenBracket(tournament: ScreenTournament, matches: readonly MatchSumm
                 { name: m.slots[1].name, score: m.slots[1].score, outcome: m.slots[1].outcome },
             ] as [ScreenSlot, ScreenSlot],
         })),
-    }));
-    const rows = Math.max(1, ...rounds.map((r) => r.matches.length));
-    return { tournamentId: tournament.id, name: tournament.name, side: sections.length > 1 ? section.key : null, rounds, rows };
+    };
+}
+
+const mostRows = (rounds: readonly ScreenRound[]) => Math.max(1, ...rounds.map((r) => r.matches.length));
+
+function bracketSections(tournament: ScreenTournament, matches: readonly MatchSummary[]) {
+    const own = matches.filter((m) => m.tournamentId === tournament.id);
+    return buildBoard(tournament.format, tournament.matches, own, null, new Set());
+}
+
+function screenBracket(tournament: ScreenTournament, matches: readonly MatchSummary[]): ScreenBracket {
+    const sections = bracketSections(tournament, matches);
+    const section = pickSide(sections);
+    const rounds = roundWindow(section.rounds).map((round) => screenRound(round, ROUND_MATCHES));
+    return { tournamentId: tournament.id, name: tournament.name, side: sections.length > 1 ? section.key : null, rounds, rows: mostRows(rounds) };
+}
+
+/** Every round of every side of the bracket. */
+export function fullBracket(tournament: ScreenTournament, matches: readonly MatchSummary[]): ScreenFullBracket {
+    const sections = bracketSections(tournament, matches).map((section) => {
+        const rounds = section.rounds.map((round) => screenRound(round, round.matches.length));
+        return { key: section.key, rounds, rows: mostRows(rounds) };
+    });
+    return { tournamentId: tournament.id, name: tournament.name, sections };
+}
+
+/**
+ * The matches on the floor, then the next ones to play in play order, at most UP_NEXT. A match
+ * needs both players, and a 1v1 match must be accepted, since it cannot be called before that.
+ */
+export function upNextMatches(matches: readonly MatchSummary[], live: readonly LiveScore[]): MatchSummary[] {
+    const next = matches.filter((m) => m.state === 'upcoming' && m.players[0] && m.players[1] && (m.tournamentId !== null || m.acceptedAt !== null));
+    return [...floorMatches(matches, live), ...next].slice(0, UP_NEXT);
+}
+
+/** The best bettors by Foza won net, and the biggest single wins, one per bettor. */
+export function screenFoza(leaderboard: Leaderboard): ScreenFoza {
+    const name = (id: number) => leaderboard.nicknames.get(id) ?? `Spelar ${id}`;
+    const bettors = [...leaderboard.bettors]
+        .sort((a, b) => b.net - a.net || compareCorrect(a, b))
+        .slice(0, FOZA_ROWS)
+        .map((b) => ({ nickname: name(b.playerId), net: b.net, correct: b.correct, bets: b.bets }));
+    const wins = leaderboard.bettors
+        .filter((b) => b.biggestWin !== null && b.biggestWin.value > 0)
+        .sort((a, b) => b.biggestWin!.value - a.biggestWin!.value)
+        .slice(0, FOZA_WINS)
+        .map((b) => ({ nickname: name(b.playerId), on: name(b.biggestWin!.onPlayerId), profit: b.biggestWin!.value }));
+    return { bettors, wins };
+}
+
+/**
+ * The champion to show: of the tournament on screen when it has one, otherwise of the newest
+ * tournament that has one. Null while no tournament of the event is decided.
+ */
+export function screenWinner(leaderboard: Leaderboard, matches: readonly MatchSummary[], shownTournamentId: number | null): ScreenWinner | null {
+    const champions = leaderboard.placings.filter((p) => p.place === 1);
+    const champion = champions.find((p) => p.tournamentId === shownTournamentId) ?? [...champions].sort((a, b) => b.tournamentId - a.tournamentId)[0];
+    if (!champion) return null;
+    const name = (id: number) => leaderboard.nicknames.get(id) ?? `Spelar ${id}`;
+    const placed = leaderboard.placings.filter((p) => p.tournamentId === champion.tournamentId);
+    const podium = [2, 3]
+        .map((place) => ({ place, names: placed.filter((p) => p.place === place).map((p) => name(p.playerId)) }))
+        .filter((p) => p.names.length > 0);
+    const decider = matches.findLast(
+        (m) => m.tournamentId === champion.tournamentId && m.state === 'finished' && m.winnerId === champion.playerId && m.result === 'played' && m.bracketRound !== null,
+    );
+    const round = decider?.bracketRound;
+    const final: ScreenWinner['final'] =
+        decider && round
+            ? {
+                  round: boardRoundName(round.format, round.section, round.round, round.lastRound),
+                  sides: [
+                      { name: decider.players[0]?.nickname ?? '', score: decider.score1 },
+                      { name: decider.players[1]?.nickname ?? '', score: decider.score2 },
+                  ],
+              }
+            : null;
+    return { tournamentId: champion.tournamentId, tournamentName: champion.tournamentName, champion: name(champion.playerId), podium, final };
 }
 
 /** The three leaderboards, top five each. Bets are ranked by correct bets, not by Foza held. */
@@ -274,5 +417,11 @@ export function buildBigScreen(input: ScreenInput): BigScreenData {
         bracket: input.tournament ? screenBracket(input.tournament, input.matches) : null,
         boards: screenBoards(input.leaderboard),
         sponsors: input.sponsors.map((s) => ({ id: s.id, name: s.name, src: `/api/sponsors/${s.id}/logo?v=${s.logoHash}`, width: s.logoWidth, height: s.logoHeight })),
+        rotation: input.rotation,
+        fullBracket: input.tournament ? fullBracket(input.tournament, input.matches) : null,
+        upNext: upNextMatches(input.matches, input.live).map(show),
+        foza: screenFoza(input.leaderboard),
+        facts: screenFacts(input.leaderboard, input.series),
+        winner: screenWinner(input.leaderboard, input.matches, input.tournament?.id ?? null),
     };
 }

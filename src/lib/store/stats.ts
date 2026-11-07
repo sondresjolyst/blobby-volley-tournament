@@ -2,6 +2,7 @@
 // results, games, bets and placings when it is read, so a corrected result, a reset or a reversed
 // settlement shows up at once, also in past events.
 import type { Pool } from 'pg';
+import type { PlayedSeries } from '@/lib/big-screen/facts';
 import { compareCorrect, bettorStats, type BettorStats, type SettledBet } from '@/lib/stats/betting';
 import { ELO_START, eloChanges, replayElo, type RatedMatch } from '@/lib/stats/elo';
 import { compareWins, playerStats, type PlayedMatch, type PlayerStats } from '@/lib/stats/players';
@@ -94,6 +95,33 @@ async function playedMatches(pool: Pool, eventId: number, tournamentId: number |
         winnerId: r.winner_id,
         score: [r.score1, r.score2],
         points: [r.points1, r.points2],
+    }));
+}
+
+/**
+ * The series of an event that are being played or were played out, for the records of the big
+ * screen. No-shows and cancelled matches are left out. The games are the finished ones that count
+ * for the series, in the order they were played.
+ */
+export async function listPlayedSeries(pool: Pool, eventId: number): Promise<PlayedSeries[]> {
+    const { rows } = await pool.query<{ id: number; player1_id: number; player2_id: number; winner_id: number | null; manual: boolean; seconds: number | null; games: { w: 1 | 2; p1: number; p2: number }[] }>(
+        `SELECT m.id, m.player1_id, m.player2_id, m.winner_id, m.manual_after_game IS NOT NULL AS manual,
+             CASE WHEN m.state = 'finished' THEN extract(epoch FROM m.finished_at - m.started_at)::int END AS seconds,
+             coalesce(json_agg(json_build_object('w', g.winner_slot, 'p1', g.points1, 'p2', g.points2) ORDER BY g.number) FILTER (WHERE g.number IS NOT NULL), '[]') AS games
+         FROM matches m
+         LEFT JOIN match_games g ON g.match_id = m.id AND g.status = 'finished' AND g.number > coalesce(m.manual_after_game, 0)
+         WHERE m.event_id = $1 AND m.state IN ('started', 'finished') AND m.result IS DISTINCT FROM 'forfeit'
+         GROUP BY m.id
+         ORDER BY coalesce(m.started_at, m.finished_at), m.id`,
+        [eventId],
+    );
+    return rows.map((r) => ({
+        matchId: r.id,
+        players: [r.player1_id, r.player2_id],
+        winnerId: r.winner_id,
+        games: r.games.map((g) => ({ winnerSlot: g.w, points: [g.p1, g.p2] as [number, number] })),
+        manual: r.manual,
+        seconds: r.seconds,
     }));
 }
 

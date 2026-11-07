@@ -330,7 +330,7 @@
 
 .roundName {
     font-family: var(--display);
-    font-size: calc(22 * var(--u));
+    font-size: calc(var(--round-name, 22) * var(--u));
     line-height: 1;
     color: var(--yellow);
 }
@@ -345,7 +345,7 @@
 }
 
 .bracketCard {
-    --size: min(calc(20 * var(--u)), calc((100cqh - 100 * var(--u)) / var(--rows) / 4.6));
+    --size: min(calc(var(--card-max, 20) * var(--u)), calc((100cqh - 100 * var(--u)) / var(--rows) / 4.6));
     display: flex;
     flex-direction: column;
     gap: calc(var(--size) * 0.2);
@@ -449,6 +449,12 @@
     gap: calc(20 * var(--u));
     font-size: calc(34 * var(--u));
     font-weight: 700;
+}
+
+.boardDetail {
+    font-size: 0.7em;
+    font-weight: 600;
+    opacity: 0.75;
 }
 
 .boardFree {

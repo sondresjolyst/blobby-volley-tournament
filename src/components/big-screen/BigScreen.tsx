@@ -1,12 +1,15 @@
 'use client';
 // The big screen for the TV in the room. It reads the scores again every few seconds without a
-// page load, and the leaderboards take turns on a timer.
+// page load, the leaderboards take turns on a timer, and so do the screens the admin picked.
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { Pizza } from '@/components/pizza/Pizza';
 import { foza, payout } from '@/components/player/text';
-import { currentBoard, nextBoard, REFRESH_MS, ROTATION_MS } from '@/lib/big-screen/rotation';
+import { currentBoard, currentScreen, nextBoard, nextScreen, REFRESH_MS, ROTATION_MS, screenMs, shownScreen } from '@/lib/big-screen/rotation';
+import type { ScreenType } from '@/lib/big-screen/screens';
 import { BOARD_ROWS, type BigScreenData, type BoardKey, type ScreenBracket, type ScreenMatch, type ScreenSponsor } from '@/lib/big-screen/view';
-import { BOARD_TEXT, FREE_PLACE, joinLine, matchPill, moreMatches, SIDE_NAMES, NO_BRACKET, NO_EVENT, NO_MATCH, poolLine, slotScore } from './text';
+import { BoardPanel, BracketRounds, RankRows, ScreenTop, SponsorLogo } from './parts';
+import { OtherScreen } from './screens';
+import { BOARD_TEXT, joinLine, livePoints, matchOdds, matchPill, SIDE_NAMES, NO_BRACKET, NO_EVENT, NO_MATCH, poolLine, SPONSOR_LABEL } from './text';
 import styles from './big.module.css';
 
 export interface JoinQr {
@@ -91,9 +94,7 @@ function Others({ matches }: { matches: ScreenMatch[] }) {
                     <span className={styles.otherNames}>
                         {m.sides[0].nickname} <span className={styles.muted}>vs</span> {m.sides[1].nickname}
                     </span>
-                    <span className={styles.otherOdds}>
-                        {m.live ? `${m.live.points[0]}–${m.live.points[1]}` : m.pool > 0 ? `${payout(m.sides[0].multiplier).replace('betale ', '')} / ${payout(m.sides[1].multiplier).replace('betale ', '')}` : 'Ingen spel enno'}
-                    </span>
+                    <span className={styles.otherOdds}>{m.live ? livePoints(m.live) : matchOdds(m)}</span>
                 </article>
             ))}
         </section>
@@ -115,26 +116,7 @@ function Bracket({ bracket }: { bracket: ScreenBracket | null }) {
                 KAMPOPPSETT · {bracket.name}
                 {bracket.side ? ` · ${SIDE_NAMES[bracket.side]}` : ''}
             </p>
-            <div className={styles.bracketBody} style={{ '--rows': bracket.rows, '--cols': Math.max(bracket.rounds.length, 1) } as CSSProperties}>
-                {bracket.rounds.map((round) => (
-                    <div key={round.key} className={styles.round}>
-                        <span className={styles.roundName}>{round.name}</span>
-                        <div className={styles.roundMatches}>
-                            {round.matches.map((m) => (
-                                <div key={m.matchId} className={`${styles.bracketCard} ${m.state === 'started' ? styles.bracketLive : ''}`}>
-                                    {m.slots.map((slot, i) => (
-                                        <div key={i} className={`${styles.slot} ${slot.outcome === 'won' ? styles.slotWon : slot.outcome === 'lost' ? styles.slotLost : ''}`}>
-                                            <span>{slot.name}</span>
-                                            <span>{slotScore(slot.score)}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            ))}
-                        </div>
-                        {round.more > 0 && <span className={styles.roundMore}>{moreMatches(round.more)}</span>}
-                    </div>
-                ))}
-            </div>
+            <BracketRounds rounds={bracket.rounds} rows={bracket.rows} />
         </section>
     );
 }
@@ -144,8 +126,7 @@ function Boards({ data, boardKey }: { data: BigScreenData; boardKey: BoardKey | 
     if (!board) return null;
     const text = BOARD_TEXT[board.key];
     return (
-        <section className={styles.boards} aria-label="Toppliste">
-            <h2 className={styles.boardTitle}>{text.title}</h2>
+        <BoardPanel label="Toppliste" title={text.title}>
             <div className={styles.boardTabs}>
                 {data.boards.map((b) => (
                     <span key={b.key} className={b.key === board.key ? styles.boardTabOn : styles.boardTab}>
@@ -153,27 +134,8 @@ function Boards({ data, boardKey }: { data: BigScreenData; boardKey: BoardKey | 
                     </span>
                 ))}
             </div>
-            {board.rows.length === 0 ? (
-                <p className={styles.boardEmpty}>{text.empty}</p>
-            ) : (
-                <ol key={board.key} className={styles.boardRows} aria-label={text.title}>
-                    {board.rows.map((row) => (
-                        <li key={row.rank} className={styles.boardRow}>
-                            <span className={styles.boardRank}>{row.rank}</span>
-                            <span className={styles.boardName}>{row.nickname}</span>
-                            <span>{row.value}</span>
-                        </li>
-                    ))}
-                    {/* Free places keep the board the same height, so the box never looks half empty. */}
-                    {Array.from({ length: BOARD_ROWS - board.rows.length }, (_, i) => (
-                        <li key={`free-${i}`} className={`${styles.boardRow} ${styles.boardFree}`} aria-hidden="true">
-                            <span className={styles.boardRank}>{board.rows.length + i + 1}</span>
-                            <span className={styles.boardName}>{FREE_PLACE}</span>
-                        </li>
-                    ))}
-                </ol>
-            )}
-        </section>
+            {board.rows.length === 0 ? <p className={styles.boardEmpty}>{text.empty}</p> : <RankRows key={board.key} rows={board.rows} size={BOARD_ROWS} label={text.title} />}
+        </BoardPanel>
     );
 }
 
@@ -208,17 +170,10 @@ function SponsorStrip({ sponsors }: { sponsors: ScreenSponsor[] }) {
         return () => observer.disconnect();
     }, [sponsors]);
     if (sponsors.length === 0) return null;
-    const items = (copy: boolean) =>
-        sponsors.map((s) => (
-            <li key={s.id} className={styles.sponsor}>
-                {/* The logo is served as it was stored. The image optimizer of Next is not used. */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={s.src} alt={copy ? '' : s.name} width={s.width} height={s.height} />
-            </li>
-        ));
+    const items = (copy: boolean) => sponsors.map((s) => <SponsorLogo key={s.id} sponsor={s} copy={copy} />);
     return (
         <footer className={styles.sponsors} aria-label="Sponsora">
-            <span className={styles.sponsorLabel}>Stolt sponsa av</span>
+            <span className={styles.sponsorLabel}>{SPONSOR_LABEL}</span>
             <div ref={box} className={styles.sponsorBox}>
                 <div className={`${styles.sponsorTrack} ${moving ? styles.sponsorMoving : ''}`} style={{ '--count': sponsors.length } as CSSProperties}>
                     <ul ref={list} className={styles.sponsorList}>
@@ -238,10 +193,24 @@ function SponsorStrip({ sponsors }: { sponsors: ScreenSponsor[] }) {
 /**
  * The whole screen. `tournament` is the `?t=` of the address and `screenKey` its `?key=`, kept for
  * the refresh. The key is only passed in when it matched, and the QR code only drawn then.
+ * `pinned` is the `?screen=` of the address, which keeps this TV on one screen.
  */
-export function BigScreen({ initial, tournament, screenKey, qr }: { initial: BigScreenData; tournament: number | null; screenKey: string | null; qr: JoinQr | null }) {
+export function BigScreen({
+    initial,
+    tournament,
+    screenKey,
+    qr,
+    pinned = null,
+}: {
+    initial: BigScreenData;
+    tournament: number | null;
+    screenKey: string | null;
+    qr: JoinQr | null;
+    pinned?: ScreenType | null;
+}) {
     const [data, setData] = useState(initial);
     const [boardKey, setBoardKey] = useState<BoardKey | null>(null);
+    const [screen, setScreen] = useState<ScreenType | null>(null);
     const latest = useRef(data);
     useEffect(() => {
         latest.current = data;
@@ -283,6 +252,15 @@ export function BigScreen({ initial, tournament, screenKey, qr }: { initial: Big
         return () => clearInterval(timer);
     }, []);
 
+    // The screens take turns. The timer starts over when the admin changes the screens or the time.
+    const ms = screenMs(data);
+    const turn = data.rotation.screens.join(',');
+    useEffect(() => {
+        if (pinned !== null) return;
+        const timer = setInterval(() => setScreen((type) => nextScreen(latest.current, currentScreen(latest.current, type))), ms);
+        return () => clearInterval(timer);
+    }, [pinned, ms, turn]);
+
     if (data.eventId === null) {
         return (
             <main className={styles.screen} lang="nn">
@@ -295,28 +273,29 @@ export function BigScreen({ initial, tournament, screenKey, qr }: { initial: Big
         );
     }
 
+    const shown = shownScreen(data, screen, pinned);
     const pill = data.featured ? matchPill(data.featured) : null;
     return (
-        <main className={styles.screen} lang="nn">
-            <div className={styles.grid}>
-                <div className={styles.left}>
-                    <header className={styles.top}>
-                        <h1 className={styles.brand}>
-                            <Pizza size={72} className={styles.brandPizza} />
-                            {data.eventName}
-                        </h1>
-                        {pill && <span className={`${styles.pill} ${data.featured?.state === 'started' ? styles.pillLive : ''}`}>{`${pill.state} · ${pill.label}`}</span>}
-                    </header>
-                    <Hero match={data.featured} />
-                    <Others matches={data.others} />
-                    <Bracket bracket={data.bracket} />
+        <main className={styles.screen} lang="nn" data-screen={shown}>
+            {shown === 'overview' ? (
+                <div className={styles.grid}>
+                    <div className={styles.left}>
+                        <ScreenTop name={data.eventName}>
+                            {pill && <span className={`${styles.pill} ${data.featured?.state === 'started' ? styles.pillLive : ''}`}>{`${pill.state} · ${pill.label}`}</span>}
+                        </ScreenTop>
+                        <Hero match={data.featured} />
+                        <Others matches={data.others} />
+                        <Bracket bracket={data.bracket} />
+                    </div>
+                    <aside className={styles.right}>
+                        <Boards data={data} boardKey={boardKey} />
+                        {data.eventCode !== null && <Join code={data.eventCode} qr={qr} />}
+                    </aside>
                 </div>
-                <aside className={styles.right}>
-                    <Boards data={data} boardKey={boardKey} />
-                    {data.eventCode !== null && <Join code={data.eventCode} qr={qr} />}
-                </aside>
-            </div>
-            <SponsorStrip sponsors={data.sponsors} />
+            ) : (
+                <OtherScreen type={shown} data={data} />
+            )}
+            {shown !== 'sponsors' && <SponsorStrip sponsors={data.sponsors} />}
         </main>
     );
 }

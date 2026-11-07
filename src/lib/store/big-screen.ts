@@ -7,7 +7,7 @@ import { getActiveEvent, getBigScreenKey } from './events';
 import { getLiveScore, type LiveScore } from './game-server';
 import { listMatches } from './matches';
 import { listShownSponsors } from './sponsors';
-import { getLeaderboard } from './stats';
+import { getLeaderboard, listPlayedSeries } from './stats';
 import { getTournament, listTournaments } from './tournaments';
 
 /**
@@ -18,13 +18,14 @@ import { getTournament, listTournaments } from './tournaments';
 export async function getBigScreen(pool: Pool, wanted: number | null = null, key: string | null = null): Promise<BigScreenData> {
     const event = await getActiveEvent(pool);
     if (!event) return EMPTY_SCREEN;
-    const [matches, pools, leaderboard, tournaments, sponsors, expected] = await Promise.all([
+    const [matches, pools, leaderboard, tournaments, sponsors, expected, series] = await Promise.all([
         listMatches(pool, event.id),
         listMatchPools(pool, event.id),
         getLeaderboard(pool, event.id),
         listTournaments(pool, event.id),
         listShownSponsors(pool),
         getBigScreenKey(pool, event.id),
+        listPlayedSeries(pool, event.id),
     ]);
     // Only a few matches are on the floor at once, so one read each is fine.
     const floor = matches.filter((m) => m.state === 'called' || m.state === 'started');
@@ -44,6 +45,8 @@ export async function getBigScreen(pool: Pool, wanted: number | null = null, key
         leaderboard: leaderboard!,
         tournament: saved ? { id: saved.id, name: saved.name, format: saved.format, matches: saved.matches } : null,
         sponsors,
+        series,
+        rotation: event.bigScreen,
     });
     return bigScreenKeyMatches(key, expected) ? { ...data, eventCode: event.code } : data;
 }
