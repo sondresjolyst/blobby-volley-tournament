@@ -19,6 +19,9 @@ test('an admin makes a new game server token, sees it once with the start comman
     await page.goto('/admin');
     await page.getByRole('link', { name: 'Game server' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Game server' })).toBeVisible();
+    const guide = page.getByRole('region', { name: 'Set up the game server' });
+    await expect(guide.getByText('-Protocol UDP -LocalPort 1234 -Action Allow')).toBeVisible();
+    await expect(guide.getByRole('link', { name: 'Start script for Windows' })).toHaveAttribute('href', /tournament-server\.ps1$/);
     await expect(page.getByText('Token made')).toBeVisible();
     await expect(page.locator('dd').nth(1)).not.toHaveText('Never');
     // Only the hash is stored, so no token shows before a new one is made.

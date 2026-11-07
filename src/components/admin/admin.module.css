@@ -416,6 +416,43 @@
     padding-left: 1.5em;
 }
 
+/* A numbered guide, with room between the steps and their commands. */
+.main :global(.admin-steps) {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    max-width: 75ch;
+}
+
+.main :global(.admin-steps) li::marker {
+    font-weight: 700;
+    color: var(--red-dark);
+}
+
+.main :global(.admin-steps) p,
+.main :global(.admin-steps) ul {
+    margin-top: 8px;
+}
+
+/* The copy buttons of the guide are quiet, like the buttons in tables. */
+.main :global(.admin-steps) button {
+    border: 2px solid var(--line);
+    background: var(--white);
+    color: var(--ink);
+}
+
+.main :global(.admin-steps) button:hover {
+    border-color: var(--red);
+    background: var(--white);
+}
+
+.main :global(.admin-steps) p:has(code) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 10px;
+}
+
 /* Tables scroll inside their card, never the page. */
 .main :global(.admin-table) {
     width: 100%;

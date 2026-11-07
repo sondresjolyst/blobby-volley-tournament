@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { serverRunCommand, SERVER_HELP, shellArg, siteUrl } from './commands';
+import { firewallCommand, serverRunCommand, SERVER_HELP, shellArg, siteUrl, START_SCRIPTS } from './commands';
 
 // A placeholder, not a real token.
 const TOKEN = 'test-placeholder-token_AZaz09';
@@ -33,5 +33,21 @@ describe('siteUrl', () => {
 describe('SERVER_HELP', () => {
     it('holds no token', () => {
         expect(SERVER_HELP.map((h) => h.command).join(' ')).not.toMatch(/TOKEN/);
+    });
+});
+
+describe('firewallCommand', () => {
+    it('opens the UDP port of the event', () => {
+        expect(firewallCommand(4321)).toBe('New-NetFirewallRule -DisplayName "Blobby tournament server" -Direction Inbound -Protocol UDP -LocalPort 4321 -Action Allow');
+    });
+});
+
+describe('START_SCRIPTS', () => {
+    it('link the scripts in the game repository and start them', () => {
+        expect(START_SCRIPTS.map((s) => s.href)).toEqual([
+            'https://raw.githubusercontent.com/sondresjolyst/blobbyvolley2/main/scripts/tournament-server.ps1',
+            'https://raw.githubusercontent.com/sondresjolyst/blobbyvolley2/main/scripts/tournament-server.sh',
+        ]);
+        expect(START_SCRIPTS.map((s) => s.command)).toEqual(['powershell -ExecutionPolicy Bypass -File .\\tournament-server.ps1 start', 'bash tournament-server.sh start']);
     });
 });

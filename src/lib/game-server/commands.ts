@@ -50,3 +50,16 @@ export const SERVER_HELP: { label: string; command: string }[] = [
     { label: 'Logs', command: `docker logs -f ${SERVER_CONTAINER}` },
     { label: 'Update', command: `docker rm -f ${SERVER_CONTAINER}` },
 ];
+
+/** The Windows command, run as administrator, that opens the UDP port of the game server in the firewall. */
+export function firewallCommand(port: number): string {
+    return `New-NetFirewallRule -DisplayName "Blobby tournament server" -Direction Inbound -Protocol UDP -LocalPort ${port} -Action Allow`;
+}
+
+const SCRIPTS = 'https://raw.githubusercontent.com/sondresjolyst/blobbyvolley2/main/scripts';
+
+/** The start scripts in the game repository. They ask for the site address and the token. */
+export const START_SCRIPTS: { system: string; href: string; command: string }[] = [
+    { system: 'Windows', href: `${SCRIPTS}/tournament-server.ps1`, command: 'powershell -ExecutionPolicy Bypass -File .\\tournament-server.ps1 start' },
+    { system: 'Linux', href: `${SCRIPTS}/tournament-server.sh`, command: 'bash tournament-server.sh start' },
+];
