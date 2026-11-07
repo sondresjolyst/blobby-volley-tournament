@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.5.0](https://github.com/sondresjolyst/blobby-volley-tournament/compare/v0.4.0...v0.5.0) (2026-11-07)
+
+
+### Features
+
+* add admin PIN unlock, network PIN limit reset and live game server health ([#61](https://github.com/sondresjolyst/blobby-volley-tournament/issues/61)) ([a65700a](https://github.com/sondresjolyst/blobby-volley-tournament/commit/a65700a0d2bfaa01904871ed64d9b325dfc29418))
+* add big screen types that take turns on the TV ([#63](https://github.com/sondresjolyst/blobby-volley-tournament/issues/63)) ([0658c20](https://github.com/sondresjolyst/blobby-volley-tournament/commit/0658c20a2e0f3313f713a25bd157e50a1e1158b4))
+* add the pizza as the browser tab icon ([#58](https://github.com/sondresjolyst/blobby-volley-tournament/issues/58)) ([5a15771](https://github.com/sondresjolyst/blobby-volley-tournament/commit/5a157714bd607059aa7cb65d46f5b54a0d90b1e5))
+
+
+### Bug Fixes
+
+* add per-client PIN and sign-up limits and update the game server commands ([#60](https://github.com/sondresjolyst/blobby-volley-tournament/issues/60)) ([9f53dee](https://github.com/sondresjolyst/blobby-volley-tournament/commit/9f53deeb7963fe64e340e1e2154fca8e56e24d3c))
+* shorten texts on the front and join pages ([#65](https://github.com/sondresjolyst/blobby-volley-tournament/issues/65)) ([7d77861](https://github.com/sondresjolyst/blobby-volley-tournament/commit/7d77861aef5017e4e80af96516958641d30b601f))
+* time out database connections and handle dropped idle connections ([#64](https://github.com/sondresjolyst/blobby-volley-tournament/issues/64)) ([f956d7f](https://github.com/sondresjolyst/blobby-volley-tournament/commit/f956d7f65be7bb268c96055be5698198e309b391))
+
 ## [0.4.0](https://github.com/sondresjolyst/blobby-volley-tournament/compare/v0.3.0...v0.4.0) (2026-11-07)
 
 
