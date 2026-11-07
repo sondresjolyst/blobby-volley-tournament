@@ -44,6 +44,77 @@ async function signUp(browser: Browser, nickname: string) {
     return context;
 }
 
+// Players for the tournaments of the screen tests. The site takes 50 sign-ups an hour from one
+// network, so the tests share them.
+const fieldTag = randomBytes(2).toString('hex');
+const field: string[] = [];
+
+/** The first `n` shared players, signed up when needed. */
+async function bigField(browser: Browser, n: number): Promise<string[]> {
+    while (field.length < n) {
+        const nickname = `F${field.length + 1}${fieldTag}`;
+        await (await signUp(browser, nickname)).close();
+        field.push(nickname);
+    }
+    return field.slice(0, n);
+}
+
+/** Saves a tournament of players who signed up already. Returns its id. */
+async function newTournament(browser: Browser, baseURL: string | undefined, name: string, nicknames: string[], options: { format?: string; bestOf?: string } = {}) {
+    const admin = await adminContext(browser, baseURL);
+    const adminPage = await admin.newPage();
+    await adminPage.goto('/admin/tournaments/new');
+    await adminPage.getByLabel('Name').fill(name);
+    if (options.format) await adminPage.getByLabel('Format').selectOption({ label: options.format });
+    for (const nickname of nicknames) await adminPage.getByRole('checkbox', { name: nickname }).check();
+    await adminPage.getByRole('button', { name: 'Preview' }).click();
+    if (options.bestOf) for (const select of await adminPage.getByLabel(/^Best of for /).all()) await select.selectOption(options.bestOf);
+    await adminPage.getByRole('button', { name: 'Save tournament' }).click();
+    await expect(adminPage.getByRole('heading', { level: 1, name })).toBeVisible();
+    const id = adminPage.url().match(/\/admin\/tournaments\/(\d+)/)![1];
+    await admin.close();
+    return id;
+}
+
+/** The big screen screens form on the page of the E2E event. */
+async function openScreensForm(page: Page) {
+    await page.goto('/admin/events');
+    await page.getByRole('row', { name: /E2E LAN/ }).getByRole('link').click();
+    await expect(page.getByRole('heading', { name: 'Screens' })).toBeVisible();
+}
+
+const SCREEN_NAMES = { overview: 'Overview', bracket: 'Bracket', foza: 'Foza', next: 'Up next', stats: 'Stats', sponsors: 'Sponsors', winner: 'Winner' } as const;
+type Screen = keyof typeof SCREEN_NAMES;
+
+/** Saves the screens of the big screen, in this order, and the seconds on each. */
+async function saveScreens(page: Page, screens: Screen[], seconds: number) {
+    await openScreensForm(page);
+    const all = Object.keys(SCREEN_NAMES) as Screen[];
+    const order = [...screens, ...all.filter((s) => !screens.includes(s))];
+    for (const [i, type] of order.entries()) {
+        await page.getByLabel(`Use the ${SCREEN_NAMES[type]} screen`).setChecked(screens.includes(type));
+        await page.getByLabel(`Order of the ${SCREEN_NAMES[type]} screen`).fill(String(i + 1));
+    }
+    await page.getByLabel('Seconds on each screen').fill(String(seconds));
+    await page.getByRole('button', { name: 'Set screens' }).click();
+    await expect(page.getByRole('status')).toHaveText('Saved the big screen screens.');
+}
+
+/** Calls a match and enters its games from the admin match page. Each game is the slot that won and the points of both. */
+async function playMatch(page: Page, matchId: number, games: [1 | 2, number, number][]) {
+    await page.goto(`/admin/matches/${matchId}`);
+    await page.getByRole('button', { name: 'Call match' }).click();
+    for (const [winner, points1, points2] of games) {
+        await expect(page.getByRole('button', { name: 'Save game' })).toBeVisible();
+        await page.getByLabel('Result').selectOption(String(winner));
+        const points = page.getByLabel(/^Points for /);
+        await points.nth(0).fill(String(points1));
+        await points.nth(1).fill(String(points2));
+        await page.getByRole('button', { name: 'Save game' }).click();
+        await expect(page.getByRole('status')).toHaveText('The game result is saved.');
+    }
+}
+
 /** The page fits the window: nothing scrolls and every part is inside it. */
 async function expectFits(page: Page, regions = ['Kampen no', 'Kampoppsett', 'Toppliste', 'Bli med']) {
     const size = await page.evaluate(() => ({
@@ -186,19 +257,8 @@ test('a double elimination bracket of 16 players fits the screen', async ({ brow
     test.skip(!shots, 'Only for the screenshots.');
     test.slow();
     const tag = randomBytes(2).toString('hex');
-    const nicknames = Array.from({ length: 16 }, (_, i) => `D${i + 1}${tag}`);
-    for (const nickname of nicknames) await (await signUp(browser, nickname)).close();
-    const admin = await adminContext(browser, baseURL);
-    const adminPage = await admin.newPage();
-    await adminPage.goto('/admin/tournaments/new');
-    await adminPage.getByLabel('Name').fill(`Storcupen ${tag}`);
-    await adminPage.getByLabel('Format').selectOption({ label: 'Double elimination' });
-    for (const nickname of nicknames) await adminPage.getByRole('checkbox', { name: nickname }).check();
-    await adminPage.getByRole('button', { name: 'Preview' }).click();
-    await adminPage.getByRole('button', { name: 'Save tournament' }).click();
-    await expect(adminPage.getByRole('heading', { level: 1, name: `Storcupen ${tag}` })).toBeVisible();
-    const tournamentId = adminPage.url().match(/\/admin\/tournaments\/(\d+)/)![1];
-    await admin.close();
+    const nicknames = await bigField(browser, 16);
+    const tournamentId = await newTournament(browser, baseURL, `Storcupen ${tag}`, nicknames, { format: 'Double elimination' });
 
     const key = await currentKey(browser, baseURL);
     const screen = await browser.newContext({ baseURL: process.env.E2E_BASE_URL, viewport: { width: 1920, height: 1080 } });
@@ -211,6 +271,31 @@ test('a double elimination bracket of 16 players fits the screen', async ({ brow
     await page.setViewportSize({ width: 1280, height: 720 });
     await expectFits(page);
     await page.screenshot({ path: join(shots!, 'big-de16-1280x720.png') });
+
+    // The bracket screen shows both sides with every round.
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await page.goto(`/big?t=${tournamentId}&key=${key}&screen=bracket`);
+    const full = page.getByRole('region', { name: 'Heile kampoppsettet' });
+    await expect(full).toContainText('Tapersida');
+    await expect(full).not.toContainText('kampar te');
+    await expectFits(page, ['Heile kampoppsettet']);
+    await page.screenshot({ path: join(shots!, 'screen-bracket-de16-1920x1080.png') });
+    await screen.close();
+});
+
+test('a single elimination bracket of 32 players fits the bracket screen', async ({ browser, baseURL }) => {
+    test.skip(!shots, 'Only for the screenshots.');
+    test.slow();
+    const tag = randomBytes(2).toString('hex');
+    const nicknames = await bigField(browser, 32);
+    const tournamentId = await newTournament(browser, baseURL, `Kjempecupen ${tag}`, nicknames);
+    const screen = await browser.newContext({ baseURL: process.env.E2E_BASE_URL, viewport: { width: 1920, height: 1080 } });
+    const page = await screen.newPage();
+    await page.goto(`/big?t=${tournamentId}&screen=bracket`);
+    const full = page.getByRole('region', { name: 'Heile kampoppsettet' });
+    for (const nickname of [nicknames[0], nicknames[31]]) await expect(full).toContainText(nickname);
+    await expectFits(page, ['Heile kampoppsettet']);
+    await page.screenshot({ path: join(shots!, 'screen-bracket-se32-1920x1080.png') });
     await screen.close();
 });
 
@@ -292,5 +377,133 @@ test('an admin sees the big screen address and makes a new key, and the old addr
     await page.goto(`/big?key=${fresh}`);
     await expect(page.getByRole('region', { name: 'Bli med' })).toContainText(code);
     expect((await (await page.request.get(`/api/big?key=${fresh}`)).json()).eventCode).toBe(code);
+    await screen.close();
+});
+
+test('an admin picks the screens of the big screen, and an open big screen follows without a reload', async ({ browser, baseURL }) => {
+    test.slow();
+    const tag = randomBytes(2).toString('hex');
+    await newTournament(browser, baseURL, `Rundecupen ${tag}`, await bigField(browser, 2));
+    const admin = await adminContext(browser, baseURL);
+    const adminPage = await admin.newPage();
+    await adminPage.setViewportSize({ width: 1920, height: 1080 });
+    const screen = await browser.newContext({ baseURL: process.env.E2E_BASE_URL, viewport: { width: 1920, height: 1080 } });
+    const page = await screen.newPage();
+    const main = page.locator('main');
+    try {
+        // Nothing changes for an event until the admin picks more screens.
+        await openScreensForm(adminPage);
+        await expect(adminPage.getByLabel('Use the Overview screen')).toBeChecked();
+        await expect(adminPage.getByLabel('Use the Bracket screen')).not.toBeChecked();
+        await expect(adminPage.getByLabel('Seconds on each screen')).toHaveValue('60');
+        await page.goto('/big');
+        await expect(main).toHaveAttribute('data-screen', 'overview');
+        await page.evaluate(() => Object.assign(window, { stillHere: true }));
+
+        // One screen alone stays up.
+        await saveScreens(adminPage, ['next'], 10);
+        await expect(main).toHaveAttribute('data-screen', 'next', { timeout: 15_000 });
+
+        // Two screens take turns in the order set, ten seconds each.
+        await saveScreens(adminPage, ['bracket', 'overview'], 10);
+        await expect(adminPage.getByLabel('Order of the Bracket screen')).toHaveValue('1');
+        await expect(adminPage.getByLabel('Use the Up next screen')).not.toBeChecked();
+        await expect(main).toHaveAttribute('data-screen', 'bracket', { timeout: 15_000 });
+        await expect(page.getByRole('region', { name: 'Heile kampoppsettet' })).toBeVisible();
+        await expect(main).toHaveAttribute('data-screen', 'overview', { timeout: 15_000 });
+        await expect(main).toHaveAttribute('data-screen', 'bracket', { timeout: 15_000 });
+        expect(await page.evaluate(() => (window as unknown as { stillHere?: boolean }).stillHere)).toBe(true);
+        expect((await (await page.request.get('/api/big')).json()).rotation).toEqual({ screens: ['bracket', 'overview'], seconds: 10 });
+
+        // A screen in the address keeps a second TV on it.
+        const second = await screen.newPage();
+        await second.goto('/big?screen=stats');
+        await expect(second.locator('main')).toHaveAttribute('data-screen', 'stats');
+        await second.goto('/big?screen=nope');
+        await expect(second.locator('main')).toHaveAttribute('data-screen', /^(bracket|overview)$/);
+
+        // The form refuses no screens.
+        await openScreensForm(adminPage);
+        for (const type of Object.keys(SCREEN_NAMES) as Screen[]) await adminPage.getByLabel(`Use the ${SCREEN_NAMES[type]} screen`).setChecked(false);
+        await adminPage.getByRole('button', { name: 'Set screens' }).click();
+        await expect(adminPage.getByRole('alert')).toHaveText('Turn on at least one screen for the big screen.');
+
+        if (shots) {
+            await openScreensForm(adminPage);
+            await adminPage.locator('#big-screen-rotation').evaluate((el) => el.scrollIntoView({ block: 'start' }));
+            await adminPage.screenshot({ path: join(shots, 'admin-screens-1920x1080.png') });
+        }
+    } finally {
+        await saveScreens(adminPage, ['overview'], 60);
+        await admin.close();
+        await screen.close();
+    }
+});
+
+test('the other screens show the records and the champion, and never the code without the key', async ({ browser, baseURL }) => {
+    test.slow();
+    const tag = randomBytes(2).toString('hex');
+    const name = `Vinnarcupen ${tag}`;
+    const tournamentId = await newTournament(browser, baseURL, name, await bigField(browser, 4), { bestOf: '3' });
+    const key = await currentKey(browser, baseURL);
+    const screen = await browser.newContext({ baseURL: process.env.E2E_BASE_URL, viewport: { width: 1920, height: 1080 } });
+    const page = await screen.newPage();
+    const big = async () => (await page.request.get(`/api/big?t=${tournamentId}`)).json();
+
+    // The semifinals come from the bracket screen data, in bracket order.
+    const semis = (await big()).fullBracket.sections[0].rounds[0].matches as { matchId: number; slots: { name: string }[] }[];
+    const admin = await adminContext(browser, baseURL);
+    const adminPage = await admin.newPage();
+    await playMatch(adminPage, semis[0].matchId, [
+        [1, 15, 0],
+        [1, 15, 7],
+    ]);
+    await playMatch(adminPage, semis[1].matchId, [
+        [1, 15, 11],
+        [2, 9, 15],
+        [2, 13, 15],
+    ]);
+    const before = await big();
+    expect(before.winner === null || before.winner.tournamentId !== Number(tournamentId)).toBe(true);
+    const champion = semis[1].slots[1].name;
+    const final = before.fullBracket.sections[0].rounds[1].matches[0].matchId as number;
+    await playMatch(adminPage, final, [
+        [2, 10, 15],
+        [2, 12, 15],
+    ]);
+    await admin.close();
+
+    await page.goto(`/big?t=${tournamentId}&screen=winner`);
+    const winner = page.getByRole('region', { name: 'Vinnaren' });
+    await expect(winner).toContainText(`Vinnaren av ${name}`);
+    await expect(winner).toContainText(champion);
+    await expect(winner).toContainText('0–2');
+    await page.goto(`/big?t=${tournamentId}&screen=stats`);
+    await expect(page.getByRole('region', { name: 'Rekordar' })).toContainText('Største snuoperasjon');
+
+    const regions: Record<Screen, string[]> = {
+        overview: ['Kampen no', 'Kampoppsett', 'Toppliste', 'Bli med'],
+        bracket: ['Heile kampoppsettet'],
+        foza: ['Foza-toppen'],
+        next: ['Neste kampar'],
+        stats: ['Rekordar'],
+        sponsors: ['Sponsorane'],
+        winner: ['Vinnaren'],
+    };
+    for (const type of Object.keys(SCREEN_NAMES) as Screen[]) {
+        await page.goto(`/big?t=${tournamentId}&screen=${type}`);
+        await expect(page.locator('main')).toHaveAttribute('data-screen', type);
+        expect(await page.content()).not.toContain(code);
+        await expect(page.getByRole('region', { name: 'Bli med' })).toHaveCount(0);
+        await page.goto(`/big?t=${tournamentId}&key=${key}&screen=${type}`);
+        await expect(page.locator('main')).toContainText(code);
+        await expectFits(page, regions[type]);
+        if (shots) {
+            // The boards slide in. Without motion the shot shows them in place.
+            await page.emulateMedia({ reducedMotion: 'reduce' });
+            await page.screenshot({ path: join(shots, `screen-${type}-1920x1080.png`) });
+            await page.emulateMedia({ reducedMotion: null });
+        }
+    }
     await screen.close();
 });

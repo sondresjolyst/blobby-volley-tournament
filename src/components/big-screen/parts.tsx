@@ -64,12 +64,13 @@ export function RankRows({ rows, size, label }: { rows: readonly RankRow[]; size
 /**
  * The rounds of a bracket side by side. The cards shrink with the number of rows, so a bigger round
  * still fits. `cardMax` is the biggest text size of a card, in pixels of the 1920 by 1080 drawing.
- * The round names grow with it.
+ * The round names grow with it. `dense` puts both players of a match on one line, so a round with
+ * many matches keeps a readable size.
  */
-export function BracketRounds({ rounds, rows, cardMax }: { rounds: readonly ScreenRound[]; rows: number; cardMax?: number }) {
+export function BracketRounds({ rounds, rows, cardMax, dense = false }: { rounds: readonly ScreenRound[]; rows: number; cardMax?: number; dense?: boolean }) {
     const style = { '--rows': rows, '--cols': Math.max(rounds.length, 1), ...(cardMax ? { '--card-max': cardMax, '--round-name': Math.round(cardMax * 0.9) } : {}) } as CSSProperties;
     return (
-        <div className={styles.bracketBody} style={style}>
+        <div className={dense ? `${styles.bracketBody} ${styles.bracketDense}` : styles.bracketBody} style={style}>
             {rounds.map((round) => (
                 <div key={round.key} className={styles.round}>
                     <span className={styles.roundName}>{round.name}</span>

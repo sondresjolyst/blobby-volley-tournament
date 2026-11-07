@@ -39,8 +39,8 @@ function RotationForm({ eventId, rotation }: { eventId: number; rotation: Screen
             <h3 id="big-screen-rotation">Screens</h3>
             <p>
                 The big screen takes turns on the screens that are on, in order. With one screen on, it stays there. A screen with nothing to show yet is skipped. Changes reach an
-                open big screen within a few seconds, without a reload. To keep one TV on one screen, add <code>&amp;screen=</code> and the screen key to its address, such as{' '}
-                <code>&amp;screen=bracket</code>.
+                open big screen within a few seconds, without a reload. To keep one TV on one screen whatever the turns are, add <code>&amp;screen=</code> and the code of the screen to its
+                address, such as <code>&amp;screen=bracket</code>.
             </p>
             <form method="post" action={`/api/admin/events/${eventId}/big-screen-rotation`}>
                 <div className="admin-table">
@@ -81,7 +81,7 @@ function RotationForm({ eventId, rotation }: { eventId: number; rotation: Screen
                         Seconds on each screen{' '}
                         <input type="number" name="seconds" min={MIN_SCREEN_SECONDS} max={MAX_SCREEN_SECONDS} step={1} defaultValue={rotation.seconds} required />
                     </label>{' '}
-                    <button type="submit">Save screens</button>
+                    <button type="submit">Set screens</button>
                 </p>
             </form>
         </>
