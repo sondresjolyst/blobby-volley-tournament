@@ -1,8 +1,11 @@
 import { createHash } from 'node:crypto';
+import { copyFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { Pool } from 'pg';
 import sharp from 'sharp';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { migrate } from '../../../scripts/migrate.mjs';
+import { migrate, MIGRATIONS_DIR, readMigrations } from '../../../scripts/migrate.mjs';
 import { generateBracket } from '@/lib/bracket';
 import type { EventInput } from '@/lib/events/input';
 import { newJoinCode } from '@/lib/players/join-code';
@@ -10,7 +13,7 @@ import { encodeBmp32 } from '@/lib/sponsors/bmp';
 import { checkLogo } from '@/lib/sponsors/logo';
 import { placeBet } from './bets';
 import { getBigScreen } from './big-screen';
-import { clearActiveEvent, createEvent, setActiveEvent } from './events';
+import { clearActiveEvent, createEvent, getActiveBigScreenKey, getBigScreenKey, rotateBigScreenKey, setActiveEvent } from './events';
 import { addLedger } from './foza';
 import { updateLiveScore } from './game-server';
 import { callMatch, enterGameResult, listMatches, reportPlayersConnected } from './matches';
@@ -101,8 +104,11 @@ describe('getBigScreen', () => {
         // Nothing but nicknames and numbers leaves the store.
         expect(data.eventCode).toBeNull();
         expect(JSON.stringify(data)).not.toMatch(/OSTAPOPP|join_?code|pin/i);
-        // Only a request with the big screen key gets the code.
-        expect((await getBigScreen(pool, null, true)).eventCode).toBe('OSTAPOPP');
+        // Only a request with the big screen key of the event gets the code.
+        const key = (await getBigScreenKey(pool, eventId))!;
+        expect((await getBigScreen(pool, null, key)).eventCode).toBe('OSTAPOPP');
+        expect((await getBigScreen(pool, null, `${key}x`)).eventCode).toBeNull();
+        expect((await getBigScreen(pool, null, '')).eventCode).toBeNull();
     });
 
     it('counts finished matches and settled bets on the boards, and follows a wanted tournament', async () => {
@@ -126,5 +132,67 @@ describe('getBigScreen', () => {
         expect(data.bracket?.name).toBe('Bonuscup');
         expect((await getBigScreen(pool, (await listMatches(pool, eventId))[0].tournamentId)).bracket?.name).toBe('Hovedcupen');
         expect((await getBigScreen(pool, 99_999)).bracket?.name).toBe('Bonuscup');
+    });
+});
+
+const KEY = /^[A-Za-z0-9_-]{43}$/;
+
+describe('the big screen key', () => {
+    it('is made for each new event, unique and URL-safe', async () => {
+        const ids = await Promise.all(Array.from({ length: 20 }, () => createEvent(pool, lan)));
+        const keys = await Promise.all(ids.map((id) => getBigScreenKey(pool, id)));
+        expect(keys.every((key) => KEY.test(key!))).toBe(true);
+        expect(new Set(keys).size).toBe(20);
+        expect(await getBigScreenKey(pool, 999_999)).toBeNull();
+    });
+
+    it('is refused by the database when it is not a valid key or is taken', async () => {
+        const [a, b] = [await createEvent(pool, lan), await createEvent(pool, lan)];
+        await expect(pool.query("UPDATE events SET big_screen_key = 'short' WHERE id = $1", [a])).rejects.toThrow(/events_big_screen_key_check/);
+        await expect(pool.query('UPDATE events SET big_screen_key = (SELECT big_screen_key FROM events WHERE id = $2) WHERE id = $1', [a, b])).rejects.toThrow(/events_big_screen_key_key/);
+    });
+
+    it('belongs to the active event, so the key of another event shows no code', async () => {
+        const [a, b] = [await createEvent(pool, lan), await createEvent(pool, lan)];
+        expect(await getActiveBigScreenKey(pool)).toBeNull();
+        await setActiveEvent(pool, a);
+        expect(await getActiveBigScreenKey(pool)).toBe(await getBigScreenKey(pool, a));
+        expect((await getBigScreen(pool, null, await getBigScreenKey(pool, b))).eventCode).toBeNull();
+        expect((await getBigScreen(pool, null, await getBigScreenKey(pool, a))).eventCode).toBe('OSTAPOPP');
+    });
+
+    it('is replaced by a new one, and the old one stops showing the code', async () => {
+        const [a, b] = [await createEvent(pool, lan), await createEvent(pool, lan)];
+        await setActiveEvent(pool, a);
+        const old = (await getBigScreenKey(pool, a))!;
+        const other = await getBigScreenKey(pool, b);
+        expect(await rotateBigScreenKey(pool, a)).toBe(true);
+        const fresh = (await getBigScreenKey(pool, a))!;
+        expect(fresh).toMatch(KEY);
+        expect(fresh).not.toBe(old);
+        expect(await getBigScreenKey(pool, b)).toBe(other);
+        expect((await getBigScreen(pool, null, old)).eventCode).toBeNull();
+        expect((await getBigScreen(pool, null, fresh)).eventCode).toBe('OSTAPOPP');
+        expect(await rotateBigScreenKey(pool, 999_999)).toBe(false);
+    });
+
+    it('is given to every event from before the migration, each its own', async () => {
+        await pool.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public');
+        const dir = mkdtempSync(join(tmpdir(), 'bvt-migrations-'));
+        try {
+            for (const { name } of readMigrations().filter((m) => m.name < '0011')) copyFileSync(join(MIGRATIONS_DIR, name), join(dir, name));
+            await migrate(pool, dir);
+        } finally {
+            rmSync(dir, { recursive: true, force: true });
+        }
+        await pool.query(
+            `INSERT INTO events (name, starts_on, ends_on, code, starting_foza, daily_foza)
+             SELECT 'LAN ' || n, '2026-11-20', '2026-11-22', 'LAN-2026', 0, 0 FROM generate_series(1, 50) AS n`,
+        );
+        expect(await migrate(pool)).toContain('0011_big_screen_key.sql');
+        const { rows } = await pool.query<{ big_screen_key: string }>('SELECT big_screen_key FROM events');
+        expect(rows).toHaveLength(50);
+        expect(rows.every((row) => KEY.test(row.big_screen_key))).toBe(true);
+        expect(new Set(rows.map((row) => row.big_screen_key)).size).toBe(50);
     });
 });
