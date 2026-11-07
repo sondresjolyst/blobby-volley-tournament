@@ -131,7 +131,11 @@ Every player starts at 1000. After each finished match, not each game, the winne
 
 The page reads `GET /api/big` every 5 seconds and updates without a page load. It takes the same `?t=` and `?key=`. When another event goes active, the page loads again. With reduced motion set in the browser, nothing scrolls or fades. The page and the route hold nicknames and numbers only, and the event code only with the key.
 
-Set `BIG_SCREEN_KEY` to a long random string, such as the output of `openssl rand -hex 32`, to show the event code and the QR code. Open the TV on `/big?key=<BIG_SCREEN_KEY>`. The link Big screen on `/admin` adds the key. The key is compared in constant time. That address holds the key, so treat it like a password and do not share it. The page and the route send `Referrer-Policy: no-referrer` and `Cache-Control: no-store`, so the key does not leave the browser in a referrer or stay in a cache. Without the variable, or with another key, the screen is a plain info screen with no sign-up card and no code.
+Each event has its own big screen key. The database makes it when the event is made, 32 bytes from the strong random source of the server written as 43 URL-safe characters. The Big screen section of the event page under `/admin/events` shows the full address `<NEXTAUTH_URL>/big?key=<key>` with a button that copies it. Open the TV on that address. The link Big screen on `/admin` adds the key of the active event. The key is compared with the key of the active event in constant time, so only the active event shows its code.
+
+New key, with the box checked to confirm, gives the event a new key at once. The old address then shows a plain info screen. Make a new key when the address has been shared with someone who should not have it.
+
+The address holds the key, so do not share it beyond whoever sets up the TV. The key is stored in the database as it is, since admins need to see it, and shows only on the admin pages and in the address of the big screen. The page and the route send `Referrer-Policy: no-referrer` and `Cache-Control: no-store`, so the key does not leave the browser in a referrer or stay in a cache. Without a key, or with another key, the screen is a plain info screen with no sign-up card and no code.
 
 ## Sponsors
 
