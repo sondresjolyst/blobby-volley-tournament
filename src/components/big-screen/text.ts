@@ -46,7 +46,7 @@ export const joinLine = (hasQr: boolean) => (hasQr ? 'Skann, så bruka koden' : 
 export const FREE_PLACE = 'Ledig plass';
 
 export const NO_MATCH = { title: 'Ingen kampar på golvet enno', text: 'Admin varme opp ovnen. Sjekk topplista så lenge.' };
-export const NO_BRACKET = 'Ingen turneringa enno. Admin snekre nok på det, så finn fram ostepoppen så lenge.';
+export const NO_BRACKET = 'Ingen turneringar.';
 export const NO_EVENT = { title: 'Ingen LAN i gang enno', text: 'Finn fram pizzaen og vent litt. Skjermen vakne av seg sjøl.' };
 
 /** The names of the screens, as their regions are labelled. */
