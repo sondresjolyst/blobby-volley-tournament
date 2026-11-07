@@ -118,6 +118,19 @@ Nothing here is stored. Every number is worked out from the stored results, bets
 
 Every player starts at 1000. After each finished match, not each game, the winner gains `32 * (1 - E)` and the loser loses the same, where `E = 1 / (1 + 10^((loser - winner) / 400))` is the chance the winner had. Ratings are played through in order: events by start date, then matches by when they started. A corrected match keeps its start time, so it keeps its place, and every later rating follows. Ratings carry over between events. Each event has its own player rows, so a player is known across events by the nickname, ignoring case.
 
+## Big screen
+
+`/big` is a public, read-only page for the TV in the room. It fills the window at any size without scrolling and is drawn for 1920 by 1080. It shows:
+
+- The match in the big box: the first live match with its score, sets, Elo and pool, or else the next match open for bets.
+- Up to three other matches, live ones first, then the next ones open for bets with their odds.
+- The bracket of the tournament on the floor. `?t=<id>` picks a tournament. A round shows at most 4 matches, the live and open ones first, and at most 4 rounds show. A double elimination bracket shows the side with the most urgent match.
+- The leaderboards Flest rette (most correct bets), Flest sigra (most wins) and Elo, five players each. They take turns every 12 seconds and skip an empty board.
+- A QR code for `<NEXTAUTH_URL>/join` and the event code. The QR code is drawn on the server with [lean-qr](https://github.com/davidje13/lean-qr).
+- The sponsors of the footer, in a strip at the bottom that scrolls when they do not fit.
+
+The page reads `GET /api/big` every 5 seconds and updates without a page load. It takes the same `?t=`. When another event goes active, the page loads again. With reduced motion set in the browser, nothing scrolls or fades. The page and the route hold nicknames and numbers only. The event code is on the page itself, so anyone who can open the site can read it.
+
 ## Sponsors
 
 An admin manages the sponsors of an event on its page under `/admin/events`. A sponsor has a name of at most 60 characters, an optional http or https link, a logo, a place in the order and an on or off switch. Up and Down move a sponsor one place. The footer of every page and the game server API list the sponsors of the active event that are on, in this order. An event has at most 50 sponsors.
@@ -334,6 +347,8 @@ Pages under `/admin` and routes under `/api/admin` need a GitHub login. All othe
     npm run build
     npx playwright install chromium
     npm run test:e2e
+
+Set `BIG_SCREEN_SHOTS` to a folder and run `npm run test:e2e -- e2e/big-screen.spec.ts` to save screenshots of the big screen there. It adds sponsors, so run that spec on its own.
 
 `npm run test:db` and `npm run test:e2e` need Docker. Each starts a throwaway Postgres container and removes it afterwards. The end-to-end test needs `npm run build` first. It runs the migrations, adds a test event, copies the static files and starts the standalone server on port 3100.
 

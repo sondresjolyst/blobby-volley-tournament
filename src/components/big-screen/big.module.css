@@ -1,0 +1,636 @@
+/* The big screen. It is drawn for 1920 by 1080 and fills the window at any size without scrolling.
+   --u is one pixel of that drawing, so every size scales with the window. */
+
+.screen {
+    --u: min(100vw / 1920, 100vh / 1080);
+    --red: #c8321f;
+    --yellow: #f6c445;
+    --cream: #fff8ec;
+    --ink: #2a1a12;
+    --bg: #1e1410;
+    --card: #2e1f18;
+    --slot: #3a2820;
+    --line: #4a3428;
+    --muted: #e9d3b4;
+    --lost: #a8927e;
+    --display: var(--font-lilita-one), 'Arial Rounded MT Bold', system-ui, sans-serif;
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--cream);
+    font-family: var(--font-inter), system-ui, sans-serif;
+    font-size: calc(26 * var(--u));
+    line-height: 1.2;
+}
+
+/* The page around the screen. The sponsor footer of the root layout is left out, since the screen has its own strip. */
+:global(body):has(.screen) {
+    margin: 0;
+    overflow: hidden;
+    background: #1e1410;
+}
+
+:global(body):has(.screen) > :global(footer) {
+    display: none;
+}
+
+.screen p,
+.screen h1,
+.screen h2,
+.screen ol,
+.screen ul {
+    margin: 0;
+}
+
+.muted {
+    color: var(--muted);
+}
+
+.grid {
+    flex: 1;
+    min-height: 0;
+    box-sizing: border-box;
+    padding: calc(40 * var(--u)) calc(72 * var(--u)) calc(28 * var(--u));
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    gap: calc(48 * var(--u));
+}
+
+.left,
+.right {
+    display: flex;
+    flex-direction: column;
+    gap: calc(20 * var(--u));
+    min-height: 0;
+}
+
+.right {
+    gap: calc(28 * var(--u));
+}
+
+/* Top line */
+
+.top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: calc(24 * var(--u));
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: calc(20 * var(--u));
+    min-width: 0;
+    font-family: var(--display);
+    font-weight: 400;
+    font-size: calc(60 * var(--u));
+    line-height: 1;
+    color: var(--yellow);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.brandPizza {
+    flex: none;
+    width: calc(68 * var(--u));
+    height: calc(68 * var(--u));
+}
+
+.pill {
+    flex: none;
+    background: var(--slot);
+    color: var(--cream);
+    border-radius: 999px;
+    padding: calc(10 * var(--u)) calc(26 * var(--u));
+    font-size: calc(26 * var(--u));
+    font-weight: 700;
+    letter-spacing: calc(2 * var(--u));
+    text-transform: uppercase;
+}
+
+.pillLive {
+    background: var(--red);
+    color: #ffffff;
+}
+
+/* The big match */
+
+.card {
+    background: var(--card);
+    border-radius: calc(32 * var(--u));
+}
+
+.hero {
+    padding: calc(26 * var(--u)) calc(40 * var(--u));
+    display: flex;
+    flex-direction: column;
+    gap: calc(14 * var(--u));
+}
+
+.heroScore {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: calc(32 * var(--u));
+}
+
+.heroSide {
+    display: flex;
+    flex-direction: column;
+    gap: calc(8 * var(--u));
+    min-width: 0;
+}
+
+.heroSideRight {
+    text-align: right;
+}
+
+.heroName {
+    font-family: var(--display);
+    font-size: calc(56 * var(--u));
+    line-height: 1.05;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.heroPoints {
+    display: flex;
+    align-items: center;
+    gap: calc(24 * var(--u));
+    font-family: var(--display);
+    font-size: calc(116 * var(--u));
+    line-height: 1;
+    color: var(--yellow);
+    font-variant-numeric: tabular-nums;
+}
+
+.heroColon {
+    font-size: calc(72 * var(--u));
+    color: var(--muted);
+}
+
+.heroVs {
+    font-size: calc(64 * var(--u));
+    color: var(--muted);
+}
+
+.heroCaption {
+    text-align: center;
+    font-size: calc(22 * var(--u));
+    color: var(--muted);
+}
+
+.pool {
+    display: flex;
+    flex-direction: column;
+    gap: calc(10 * var(--u));
+}
+
+.poolBar {
+    display: flex;
+    height: calc(26 * var(--u));
+    border-radius: 999px;
+    overflow: hidden;
+    background: var(--cream);
+}
+
+.poolBar > div {
+    background: var(--red);
+    transition: width 600ms ease;
+}
+
+.poolBar > .poolEmpty {
+    background: var(--slot);
+}
+
+.poolText {
+    display: flex;
+    justify-content: space-between;
+    gap: calc(16 * var(--u));
+    font-size: calc(26 * var(--u));
+    font-weight: 700;
+}
+
+.heroEmpty {
+    padding: calc(36 * var(--u)) calc(40 * var(--u));
+    display: flex;
+    align-items: center;
+    gap: calc(32 * var(--u));
+}
+
+.heroEmpty svg {
+    width: calc(120 * var(--u));
+    height: calc(120 * var(--u));
+    flex: none;
+}
+
+.heroEmptyTitle {
+    font-family: var(--display);
+    font-size: calc(48 * var(--u));
+    color: var(--yellow);
+}
+
+/* Other matches */
+
+.others {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: calc(16 * var(--u));
+}
+
+.other {
+    display: flex;
+    flex-direction: column;
+    gap: calc(4 * var(--u));
+    min-width: 0;
+    background: var(--card);
+    border: calc(1 * var(--u)) solid var(--line);
+    border-radius: calc(16 * var(--u));
+    padding: calc(10 * var(--u)) calc(16 * var(--u));
+    font-size: calc(20 * var(--u));
+}
+
+.otherNames {
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.otherOdds {
+    color: var(--yellow);
+    font-weight: 700;
+}
+
+.tag {
+    align-self: flex-start;
+    border-radius: 999px;
+    padding: calc(2 * var(--u)) calc(12 * var(--u));
+    background: var(--slot);
+    font-size: calc(15 * var(--u));
+    font-weight: 700;
+    letter-spacing: calc(1.5 * var(--u));
+}
+
+.tagLive {
+    background: var(--red);
+}
+
+/* Bracket */
+
+.bracket {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: calc(12 * var(--u));
+}
+
+.bracketHead {
+    font-size: calc(22 * var(--u));
+    font-weight: 700;
+    letter-spacing: calc(2 * var(--u));
+    color: var(--muted);
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* The cards shrink with the number of rows, so a bigger round still fits. */
+.bracketBody {
+    flex: 1;
+    min-height: 0;
+    container-type: size;
+    display: grid;
+    grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+    gap: calc(16 * var(--u));
+}
+
+.round {
+    display: flex;
+    flex-direction: column;
+    gap: calc(8 * var(--u));
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.roundMore {
+    flex: none;
+    font-size: calc(18 * var(--u));
+    color: var(--muted);
+}
+
+.roundName {
+    font-family: var(--display);
+    font-size: calc(22 * var(--u));
+    line-height: 1;
+    color: var(--yellow);
+}
+
+.roundMatches {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    gap: calc(6 * var(--u));
+}
+
+.bracketCard {
+    --size: min(calc(20 * var(--u)), calc((100cqh - 100 * var(--u)) / var(--rows) / 4.6));
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--size) * 0.2);
+    border-radius: calc(var(--size) * 0.6);
+    padding: calc(var(--size) * 0.3);
+    background: var(--card);
+    border: calc(1 * var(--u)) solid var(--line);
+    font-size: var(--size);
+    line-height: 1.25;
+}
+
+.bracketLive {
+    border: calc(3 * var(--u)) solid var(--red);
+}
+
+.slot {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5em;
+    padding: 0.3em 0.55em;
+    border-radius: 0.45em;
+    background: var(--slot);
+    font-weight: 600;
+}
+
+.slot > span:first-child {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.slotWon {
+    background: var(--yellow);
+    color: var(--ink);
+    font-weight: 700;
+}
+
+.slotLost {
+    color: var(--lost);
+    font-weight: 400;
+}
+
+/* Leaderboards */
+
+.boards {
+    flex: 1;
+    min-height: 0;
+    background: var(--yellow);
+    color: var(--ink);
+    border-radius: calc(32 * var(--u));
+    padding: calc(30 * var(--u)) calc(36 * var(--u));
+    display: flex;
+    flex-direction: column;
+    gap: calc(16 * var(--u));
+    overflow: hidden;
+}
+
+.boardTitle {
+    font-family: var(--display);
+    font-weight: 400;
+    font-size: calc(44 * var(--u));
+    line-height: 1.05;
+}
+
+.boardTabs {
+    display: flex;
+    gap: calc(8 * var(--u));
+}
+
+.boardTab,
+.boardTabOn {
+    border-radius: 999px;
+    padding: calc(4 * var(--u)) calc(14 * var(--u));
+    font-size: calc(18 * var(--u));
+    font-weight: 600;
+    border: calc(2 * var(--u)) solid var(--ink);
+}
+
+.boardTabOn {
+    background: var(--ink);
+    color: var(--yellow);
+    font-weight: 700;
+}
+
+.boardRows {
+    flex: 1;
+    min-height: 0;
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-evenly;
+    gap: calc(10 * var(--u));
+    animation: board-in 500ms ease both;
+}
+
+.boardRow {
+    display: flex;
+    align-items: center;
+    gap: calc(20 * var(--u));
+    font-size: calc(34 * var(--u));
+    font-weight: 700;
+}
+
+.boardFree {
+    opacity: 0.45;
+    font-weight: 600;
+}
+
+.boardRank {
+    font-family: var(--display);
+    font-weight: 400;
+    width: calc(40 * var(--u));
+}
+
+.boardName {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.boardEmpty {
+    font-size: calc(26 * var(--u));
+    font-weight: 600;
+}
+
+@keyframes board-in {
+    from {
+        opacity: 0;
+        transform: translateY(calc(12 * var(--u)));
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* Sign-up */
+
+.join {
+    flex: none;
+    padding: calc(28 * var(--u)) calc(32 * var(--u));
+    display: flex;
+    align-items: center;
+    gap: calc(28 * var(--u));
+}
+
+.qr {
+    flex: none;
+    width: calc(180 * var(--u));
+    height: calc(180 * var(--u));
+    border-radius: calc(16 * var(--u));
+    shape-rendering: crispEdges;
+}
+
+.joinText {
+    display: flex;
+    flex-direction: column;
+    gap: calc(10 * var(--u));
+    min-width: 0;
+}
+
+.joinTitle {
+    font-family: var(--display);
+    font-size: calc(40 * var(--u));
+    line-height: 1.05;
+}
+
+.joinCode {
+    font-size: calc(34 * var(--u));
+    font-weight: 700;
+    letter-spacing: calc(4 * var(--u));
+    color: var(--yellow);
+    overflow-wrap: anywhere;
+}
+
+/* Sponsors, full width at the bottom */
+
+.sponsors {
+    flex: none;
+    background: var(--ink);
+    padding: calc(18 * var(--u)) calc(24 * var(--u)) calc(22 * var(--u));
+    display: flex;
+    flex-direction: column;
+    gap: calc(12 * var(--u));
+}
+
+.sponsorLabel {
+    font-size: calc(14 * var(--u));
+    font-weight: 700;
+    letter-spacing: calc(1.5 * var(--u));
+    text-transform: uppercase;
+    color: var(--yellow);
+}
+
+.sponsorBox {
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+}
+
+.sponsorTrack {
+    display: flex;
+    width: max-content;
+}
+
+.sponsorMoving {
+    animation: sponsor-scroll calc(var(--count) * 4s) linear infinite;
+}
+
+.sponsorBox:has(.sponsorMoving) {
+    justify-content: flex-start;
+}
+
+.sponsorList {
+    list-style: none;
+    padding: 0 calc(12 * var(--u)) 0 0;
+    display: flex;
+    gap: calc(12 * var(--u));
+}
+
+.sponsor {
+    flex: none;
+    box-sizing: border-box;
+    width: calc(230 * var(--u));
+    height: calc(76 * var(--u));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: calc(8 * var(--u)) calc(14 * var(--u));
+    border-radius: calc(12 * var(--u));
+    background: var(--cream);
+}
+
+.sponsor img {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+}
+
+@keyframes sponsor-scroll {
+    from {
+        transform: translateX(0);
+    }
+    to {
+        transform: translateX(-50%);
+    }
+}
+
+/* No event */
+
+.noEvent {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: calc(24 * var(--u));
+    text-align: center;
+}
+
+.noEvent svg {
+    width: calc(200 * var(--u));
+    height: calc(200 * var(--u));
+}
+
+.noEventTitle {
+    font-family: var(--display);
+    font-weight: 400;
+    font-size: calc(72 * var(--u));
+    color: var(--yellow);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sponsorMoving,
+    .boardRows {
+        animation: none;
+    }
+
+    .poolBar > div {
+        transition: none;
+    }
+}
