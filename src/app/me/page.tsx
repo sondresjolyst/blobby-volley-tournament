@@ -1,6 +1,7 @@
 import { CopyJoinLink } from '@/components/player/CopyJoinLink';
 import { MatchCard } from '@/components/player/MatchCard';
-import { Pizza, PlayerShell } from '@/components/player/PlayerShell';
+import { Pizza } from '@/components/pizza/Pizza';
+import { PlayerShell } from '@/components/player/PlayerShell';
 import styles from '@/components/player/player.module.css';
 import { BET_STATUS, challengeErrorMessage, foza, matchPlayers, matchSettings, matchTitle, noticeMessage } from '@/components/player/text';
 import { BEST_OF } from '@/lib/bracket';
@@ -78,7 +79,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
 
                 {current && (
                     <section className={styles.hero} aria-labelledby="din-kamp">
-                        <Pizza size={160} className={styles.heroPizza} />
+                        <Pizza size={160} variant="deluxe" className={styles.heroPizza} />
                         <p className={styles.kicker}>
                             {matchTitle(current)} · {matchSettings(current)}
                         </p>

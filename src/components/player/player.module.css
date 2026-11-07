@@ -11,6 +11,9 @@
     --chip: #fcebc0;
     --white: #ffffff;
     --display: var(--font-lilita-one), 'Arial Rounded MT Bold', system-ui, sans-serif;
+    /* The decorative pizzas sit under the content, inside this stacking context. */
+    position: relative;
+    isolation: isolate;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
@@ -82,21 +85,11 @@
     color: var(--white);
 }
 
-/* The pizza sits in the right padding of the header, so it never covers the menu. */
-.headerPizza {
-    position: absolute;
-    right: -30px;
-    top: -50px;
-    width: 140px;
-    height: 140px;
-    pointer-events: none;
-}
-
 .headerInner {
     position: relative;
     max-width: 1280px;
     margin: 0 auto;
-    padding: 20px 130px 20px 32px;
+    padding: 20px 32px;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -970,17 +963,6 @@
 
     .shell .brand {
         font-size: 28px;
-    }
-
-    .headerInner {
-        padding-right: 72px;
-    }
-
-    .headerPizza {
-        right: -24px;
-        top: -28px;
-        width: 80px;
-        height: 80px;
     }
 
     .hero {

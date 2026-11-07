@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { Pizza } from '@/components/player/PlayerShell';
+import { AuthPizzas } from '@/components/pizza/Decor';
+import { Pizza } from '@/components/pizza/Pizza';
 import p from '@/components/player/player.module.css';
 import { AdminLink } from './SiteShell';
 import s from './site.module.css';
@@ -9,8 +10,7 @@ import s from './site.module.css';
 export function AuthPage({ title, intro, adminLink = true, children }: { title: string; intro?: ReactNode; adminLink?: boolean; children: ReactNode }) {
     return (
         <div className={`${p.shell} ${s.site} ${s.auth}`}>
-            <Pizza size={260} className={s.authPizzaA} />
-            <Pizza size={180} className={s.authPizzaB} />
+            <AuthPizzas />
             <main className={s.authMain}>
                 <div className={s.authHead}>
                     <Link href="/" className={s.authHome} aria-label="Framsidå">

@@ -60,13 +60,19 @@
 }
 
 .brand {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 10px;
     padding: 0 10px 16px;
     font-family: var(--display);
     font-size: 26px;
     line-height: 1.1;
     color: var(--yellow);
     overflow-wrap: anywhere;
+}
+
+.brandPizza {
+    flex: none;
 }
 
 .links {
@@ -106,6 +112,13 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+}
+
+.who {
+    margin: 0;
+    font-size: 14px;
+    color: var(--chip);
+    overflow-wrap: anywhere;
 }
 
 .admin a.siteLink {
@@ -186,6 +199,25 @@
 
 .main a:hover {
     color: #7e1f12;
+}
+
+/* A link that starts something, such as New event, looks like the main button. */
+.main a:global(.admin-button) {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 16px;
+    border-radius: 12px;
+    background: var(--red);
+    color: var(--white);
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.main a:global(.admin-button):hover {
+    background: var(--red-dark);
+    color: var(--white);
 }
 
 .main section {

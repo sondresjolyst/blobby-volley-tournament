@@ -6,7 +6,7 @@ import { getPool } from '@/lib/db';
 import { listAwaitingDecision } from '@/lib/store/matches';
 
 export default async function Admin() {
-    const session = await requireAdmin();
+    await requireAdmin();
     const waiting = await listAwaitingDecision(getPool());
     return (
         <AdminShell section="home">
@@ -47,7 +47,6 @@ export default async function Admin() {
                     </>
                 )}
             </section>
-            <p>Signed in as {session.user?.name ?? 'admin'}.</p>
         </AdminShell>
     );
 }

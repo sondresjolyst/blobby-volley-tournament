@@ -11,7 +11,9 @@ export default async function AdminEvents() {
         <AdminShell section="events">
             <h1>Events</h1>
             <p>
-                <Link href="/admin/events/new">New event</Link>
+                <Link href="/admin/events/new" className="admin-button">
+                    New event
+                </Link>
             </p>
             {events.length === 0 ? (
                 <p>No events yet.</p>

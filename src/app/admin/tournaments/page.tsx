@@ -16,7 +16,9 @@ export default async function AdminTournaments() {
             <h1>Tournaments</h1>
             {event && (
                 <p>
-                    <Link href="/admin/tournaments/new">New tournament</Link>
+                    <Link href="/admin/tournaments/new" className="admin-button">
+                        New tournament
+                    </Link>
                 </p>
             )}
             {!event ? (

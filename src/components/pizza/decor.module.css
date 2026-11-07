@@ -1,0 +1,144 @@
+/* Decorative pizzas. They never take clicks and sit behind the content. */
+
+.pizza {
+    position: absolute;
+    pointer-events: none;
+}
+
+/* The header. Multiply only darkens the red under the pizzas, so white text keeps its contrast. */
+
+.header {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    mix-blend-mode: multiply;
+}
+
+.headerA {
+    left: 17%;
+    top: -128px;
+    transform: rotate(18deg);
+}
+
+.headerB {
+    left: 44%;
+    top: -34px;
+    transform: rotate(-12deg);
+}
+
+.headerC {
+    right: -64px;
+    top: -96px;
+    transform: rotate(8deg);
+}
+
+.headerD {
+    left: 70%;
+    top: 34px;
+    transform: rotate(-24deg);
+}
+
+/* The page edges. The layer sits under the content of the shell, which isolates it. */
+
+.edges,
+.auth {
+    --peek: min(100px, calc((100vw - 1280px) / 2 + 8px));
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+/* Cream pages only get the pizzas where the margin beside the content is wide enough. */
+.edges {
+    display: none;
+}
+
+@media (min-width: 1360px) {
+    .edges {
+        display: block;
+    }
+}
+
+.edgeA {
+    left: calc(var(--peek) - 220px);
+    top: 300px;
+    transform: rotate(20deg);
+}
+
+.edgeB {
+    right: calc(var(--peek) - 170px);
+    top: 560px;
+    transform: rotate(-15deg);
+}
+
+.edgeC {
+    left: calc(var(--peek) - 250px);
+    top: 1020px;
+    transform: rotate(-8deg);
+}
+
+.edgeD {
+    right: calc(var(--peek) - 190px);
+    top: 1280px;
+    transform: rotate(28deg);
+}
+
+/* The red sign-up and sign-in pages have a narrow column, so the pizzas have room at every width. */
+
+.authA {
+    left: -90px;
+    top: 120px;
+    transform: rotate(18deg);
+}
+
+.authB {
+    right: -50px;
+    bottom: 40px;
+    transform: rotate(-20deg);
+}
+
+.authC {
+    right: -40px;
+    top: 56px;
+    transform: rotate(12deg);
+}
+
+.authD {
+    left: -80px;
+    bottom: -60px;
+    transform: rotate(-14deg);
+}
+
+@media (max-width: 760px) {
+    .headerA {
+        left: 34%;
+        top: -150px;
+    }
+
+    .headerB,
+    .headerD {
+        display: none;
+    }
+
+    .headerC {
+        right: -90px;
+        top: -110px;
+    }
+
+    .authA {
+        left: -70px;
+        top: 20px;
+        width: 120px;
+        height: 120px;
+        opacity: 0.5;
+    }
+
+    .authB,
+    .authC,
+    .authD {
+        display: none;
+    }
+}

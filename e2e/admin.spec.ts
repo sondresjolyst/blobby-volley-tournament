@@ -38,6 +38,7 @@ for (const [path, heading] of [
         await page.goto(path);
         await expect(page).toHaveURL(new RegExp(`${path}$`));
         await expect(page.getByRole('heading', { level: 1, name: heading, exact: true })).toBeVisible();
+        await expect(page.getByRole('navigation', { name: 'Admin' })).toContainText('Signed in as');
     });
 }
 
