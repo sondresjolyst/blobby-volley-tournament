@@ -23,8 +23,6 @@ on:
       DOCKER_PASSWORD:
         required: true
 
-permissions: {}
-
 jobs:
   test:
     if: github.event_name == 'pull_request'
