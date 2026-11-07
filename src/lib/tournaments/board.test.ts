@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { generateBracket, type FormatId } from '@/lib/bracket';
-import { boardRoundName, buildBoard, type BoardRuntimeMatch } from './board';
+import { boardRoundName, buildBoard, feedName, type BoardRuntimeMatch } from './board';
 
 const players = [11, 12, 13, 14];
 const nickname = (id: number) => ({ id, nickname: `P${id}` });
@@ -20,6 +20,13 @@ function setup(format: FormatId, thirdPlaceMatch = false) {
     }));
     return { bracket: bracket.matches, runtime };
 }
+
+describe('feedName', () => {
+    it('writes a feed long, or short for a dense bracket', () => {
+        expect(feedName({ from: 'winner', match: 10 })).toBe('Vinnar av kamp 10');
+        expect(feedName({ from: 'loser', match: 3 }, true)).toBe('Taper k. 3');
+    });
+});
 
 describe('boardRoundName', () => {
     it('names single elimination rounds from the final back', () => {
@@ -50,6 +57,11 @@ describe('buildBoard', () => {
         ]);
         expect(board[0].rounds[1].matches[0].slots.map((s) => s.name)).toEqual(['Vinnar av kamp 1', 'Vinnar av kamp 2']);
         expect(board[0].rounds[2].matches[0].slots.map((s) => s.name)).toEqual(['Taper av kamp 1', 'Taper av kamp 2']);
+        expect(board[0].rounds[1].matches[0].slots.map((s) => s.feed)).toEqual([
+            { from: 'winner', match: 1 },
+            { from: 'winner', match: 2 },
+        ]);
+        expect(board[0].rounds[0].matches[0].slots.every((s) => s.feed === null)).toBe(true);
         expect(board[0].rounds[1].matches[0]).toMatchObject({ mine: false, openForBets: false });
     });
 

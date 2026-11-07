@@ -5,7 +5,7 @@ import { Pizza } from '@/components/pizza/Pizza';
 import { signed } from '@/components/stats/format';
 import type { ScreenType } from '@/lib/big-screen/screens';
 import { FOZA_ROWS, FOZA_WINS, type BigScreenData } from '@/lib/big-screen/view';
-import { BoardPanel, BracketRounds, RankRows, ScreenTop, SponsorLogo } from './parts';
+import { BoardPanel, BracketPanel, RankRows, ScreenTop, SponsorLogo } from './parts';
 import {
     correctLine,
     FOZA_TEXT,
@@ -53,13 +53,9 @@ function Empty({ text }: { text: string }) {
 }
 
 /** From this many matches in a round, both players of a match share one line. */
-const DENSE_ROWS = 4;
-
 /** The whole bracket, every round. The sides of a double elimination bracket are stacked. */
 export function BracketScreen({ data }: { data: BigScreenData }) {
     const bracket = data.fullBracket;
-    // Both sides of a bracket look the same, so one big side makes both dense.
-    const dense = !!bracket && bracket.sections.some((s) => s.rows > DENSE_ROWS);
     return (
         <Frame data={data} label={SCREEN_LABELS.bracket} title={bracket ? `Kampoppsett · ${bracket.name}` : 'Kampoppsett'}>
             {!bracket ? (
@@ -67,10 +63,15 @@ export function BracketScreen({ data }: { data: BigScreenData }) {
             ) : (
                 <div className={own.sides}>
                     {bracket.sections.map((section) => (
-                        <div key={section.key} className={own.side} style={{ flexGrow: section.rows } as CSSProperties}>
-                            {bracket.sections.length > 1 && <p className={styles.bracketHead}>{SIDE_NAMES[section.key]}</p>}
-                            <BracketRounds rounds={section.rounds} rows={section.rows} cardMax={34} dense={dense} />
-                        </div>
+                        <BracketPanel
+                            key={section.key}
+                            head={bracket.sections.length > 1 ? SIDE_NAMES[section.key] : null}
+                            rounds={section.rounds}
+                            rows={section.rows}
+                            cardMax={34}
+                            dense={bracket.dense}
+                            grow={section.rows}
+                        />
                     ))}
                 </div>
             )}

@@ -11,6 +11,8 @@ import type { EventInput } from '@/lib/events/input';
 import { newJoinCode } from '@/lib/players/join-code';
 import { encodeBmp32 } from '@/lib/sponsors/bmp';
 import { checkLogo } from '@/lib/sponsors/logo';
+import type { BigScreenData } from '@/lib/big-screen/view';
+import { TtlCache } from '@/lib/ttl-cache';
 import { placeBet } from './bets';
 import { getBigScreen } from './big-screen';
 import { clearActiveEvent, createEvent, getActiveBigScreenKey, getBigScreenKey, getEvent, rotateBigScreenKey, setActiveEvent, setBigScreenRotation } from './events';
@@ -18,6 +20,7 @@ import { addLedger } from './foza';
 import { updateLiveScore } from './game-server';
 import { callMatch, enterGameResult, listMatches, reportPlayersConnected } from './matches';
 import { createSponsor } from './sponsors';
+import { getLeaderboard } from './stats';
 import { saveTournament } from './tournaments';
 import { inTransaction } from './transaction';
 
@@ -195,7 +198,57 @@ describe('the other screens', () => {
             ],
             final: { round: 'Finale', sides: [{ name: 'Blobfisk', score: 0 }, { name: 'Ostebit', score: 1 }] },
         });
-        expect(JSON.stringify(data)).not.toMatch(/OSTAPOPP|join_?code|pin/i);
+
+        // Every field is filled now. None of them carries the code, the key or a join code without the key.
+        const key = (await getBigScreenKey(pool, semi1.eventId))!;
+        const joinCodes = (await pool.query<{ join_code: string }>('SELECT join_code FROM players')).rows.map((r) => r.join_code);
+        const secrets = ['OSTAPOPP', key, ...joinCodes];
+        const fields = ['featured', 'others', 'bracket', 'boards', 'sponsors', 'rotation', 'fullBracket', 'upNext', 'foza', 'facts', 'winner'] as const;
+        for (const given of [null, 'wrong-key', '', `${key}x`]) {
+            const seen = await getBigScreen(pool, null, given);
+            expect(seen.eventCode).toBeNull();
+            for (const field of fields) {
+                const text = JSON.stringify(seen[field]);
+                for (const secret of secrets) expect(text, `${field} with ${given}`).not.toContain(secret);
+            }
+            expect(Object.keys(seen).sort()).toEqual([...fields, 'eventCode', 'eventId', 'eventName'].sort());
+        }
+        const keyed = await getBigScreen(pool, null, key);
+        expect(keyed.eventCode).toBe('OSTAPOPP');
+        for (const field of fields) expect(JSON.stringify(keyed[field])).not.toContain(key);
+    });
+
+    it('count no game stored after the series was decided, which older data may hold', async () => {
+        const { ids, semi1 } = await setup();
+        const [blobfisk, , , kantina] = ids;
+        expect(await callMatch(pool, semi1.id)).toMatchObject({ ok: true });
+        expect(await enterGameResult(pool, semi1.id, { game: 1, winnerSlot: 1, points1: 15, points2: 9 })).toMatchObject({ ok: true });
+        // The site refuses such a game now, so it goes straight into the table, as an older version could store it.
+        await pool.query(`INSERT INTO match_games (match_id, number, status, winner_slot, points1, points2, source) VALUES ($1, 2, 'finished', 2, 0, 15, 'admin')`, [semi1.id]);
+        const board = (await getLeaderboard(pool, semi1.eventId))!;
+        expect(board.wins.find((w) => w.playerId === blobfisk)).toMatchObject({ pointsScored: 15, pointsConceded: 9 });
+        expect(board.wins.find((w) => w.playerId === kantina)).toMatchObject({ pointsScored: 9, pointsConceded: 15 });
+        const data = await getBigScreen(pool);
+        expect(data.facts.find((f) => f.key === 'biggestWin')).toMatchObject({ value: '15–9', who: 'Blobfisk mot Kantina' });
+        expect(data.facts.find((f) => f.key === 'comeback')).toBeUndefined();
+    });
+
+    it('are shared between readers for a few seconds, while the key is checked at once', async () => {
+        const { eventId, semi1 } = await setup();
+        const cache = new TtlCache<BigScreenData>(60_000);
+        const first = await getBigScreen(pool, null, null, cache);
+        expect(first.upNext.map((m) => m.matchId)).toContain(semi1.id);
+        expect(await callMatch(pool, semi1.id)).toMatchObject({ ok: true });
+        expect(await enterGameResult(pool, semi1.id, { game: 1, winnerSlot: 1, points1: 15, points2: 9 })).toMatchObject({ ok: true });
+        // Within the time to live the readers get the same data. Without the cache it is new.
+        expect((await getBigScreen(pool, null, null, cache)).facts).toEqual(first.facts);
+        expect((await getBigScreen(pool)).facts).not.toEqual(first.facts);
+        // A new key counts at once, even with the cache.
+        const old = (await getBigScreenKey(pool, eventId))!;
+        expect((await getBigScreen(pool, null, old, cache)).eventCode).toBe('OSTAPOPP');
+        expect(await rotateBigScreenKey(pool, eventId)).toBe(true);
+        expect((await getBigScreen(pool, null, old, cache)).eventCode).toBeNull();
+        expect((await getBigScreen(pool, null, (await getBigScreenKey(pool, eventId))!, cache)).eventCode).toBe('OSTAPOPP');
     });
 
     it('follow the rotation the admin saved, and the database refuses a bad one', async () => {

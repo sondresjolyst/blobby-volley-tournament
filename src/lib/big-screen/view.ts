@@ -10,7 +10,8 @@ import type { MatchSummary } from '@/lib/store/matches';
 import type { SponsorRow } from '@/lib/store/sponsors';
 import type { Leaderboard } from '@/lib/store/stats';
 import { compareCorrect } from '@/lib/stats/betting';
-import { boardRoundName, buildBoard, type BoardBracketMatch, type BoardRound } from '@/lib/tournaments/board';
+import { nicknameOf } from '@/lib/stats/players';
+import { boardRoundName, buildBoard, feedName, type BoardBracketMatch, type BoardRound, type BoardSection, type BoardSlot } from '@/lib/tournaments/board';
 import { screenFacts, type PlayedSeries, type ScreenFact } from './facts';
 import { DEFAULT_ROTATION, type ScreenRotation } from './screens';
 
@@ -98,6 +99,8 @@ export interface ScreenBracketSection {
 export interface ScreenFullBracket {
     tournamentId: number;
     name: string;
+    /** Both players of a match share one line, since a round has many matches. */
+    dense: boolean;
     sections: ScreenBracketSection[];
 }
 
@@ -290,49 +293,56 @@ export function pickSide<T extends { key: 'main' | 'losers'; rounds: readonly { 
     return main;
 }
 
-/** A round of the bracket with at most `max` of its matches. */
-function screenRound(round: BoardRound, max: number): ScreenRound {
+/**
+ * A round of the bracket with at most `max` of its matches. `short` writes an empty slot as
+ * `Vinnar k. 3`, so it fits where both players share a line.
+ */
+function screenRound(round: BoardRound, max: number, short = false): ScreenRound {
+    const slot = (s: BoardSlot): ScreenSlot => ({ name: s.feed ? feedName(s.feed, short) : s.name, score: s.score, outcome: s.outcome });
     return {
         key: round.key,
         name: round.name,
         more: Math.max(0, round.matches.length - max),
-        matches: focusMatches(round.matches, max).map((m) => ({
-            matchId: m.matchId,
-            state: m.state,
-            slots: [
-                { name: m.slots[0].name, score: m.slots[0].score, outcome: m.slots[0].outcome },
-                { name: m.slots[1].name, score: m.slots[1].score, outcome: m.slots[1].outcome },
-            ] as [ScreenSlot, ScreenSlot],
-        })),
+        matches: focusMatches(round.matches, max).map((m) => ({ matchId: m.matchId, state: m.state, slots: [slot(m.slots[0]), slot(m.slots[1])] })),
     };
 }
 
 const mostRows = (rounds: readonly ScreenRound[]) => Math.max(1, ...rounds.map((r) => r.matches.length));
 
-function bracketSections(tournament: ScreenTournament, matches: readonly MatchSummary[]) {
+/** The bracket of the tournament with the state of each match, laid out once for both bracket views. */
+function bracketSections(tournament: ScreenTournament, matches: readonly MatchSummary[]): BoardSection[] {
     const own = matches.filter((m) => m.tournamentId === tournament.id);
     return buildBoard(tournament.format, tournament.matches, own, null, new Set());
 }
 
-function screenBracket(tournament: ScreenTournament, matches: readonly MatchSummary[]): ScreenBracket {
-    const sections = bracketSections(tournament, matches);
+function screenBracket(tournament: ScreenTournament, sections: readonly BoardSection[]): ScreenBracket {
     const section = pickSide(sections);
     const rounds = roundWindow(section.rounds).map((round) => screenRound(round, ROUND_MATCHES));
     return { tournamentId: tournament.id, name: tournament.name, side: sections.length > 1 ? section.key : null, rounds, rows: mostRows(rounds) };
 }
 
-/** Every round of every side of the bracket. */
-export function fullBracket(tournament: ScreenTournament, matches: readonly MatchSummary[]): ScreenFullBracket {
-    const sections = bracketSections(tournament, matches).map((section) => {
-        const rounds = section.rounds.map((round) => screenRound(round, round.matches.length));
-        return { key: section.key, rounds, rows: mostRows(rounds) };
-    });
-    return { tournamentId: tournament.id, name: tournament.name, sections };
+/** From this many matches in a round, the bracket screen puts both players of a match on one line. */
+export const DENSE_ROWS = 4;
+
+/** Every round of every side of the bracket. A big bracket names empty slots short, since it is dense. */
+export function fullBracket(tournament: ScreenTournament, sections: readonly BoardSection[]): ScreenFullBracket {
+    const dense = sections.some((section) => section.rounds.some((round) => round.matches.length > DENSE_ROWS));
+    return {
+        tournamentId: tournament.id,
+        name: tournament.name,
+        dense,
+        sections: sections.map((section) => {
+            const rounds = section.rounds.map((round) => screenRound(round, round.matches.length, dense));
+            return { key: section.key, rounds, rows: mostRows(rounds) };
+        }),
+    };
 }
 
 /**
- * The matches on the floor, then the next ones to play in play order, at most UP_NEXT. A match
- * needs both players, and a 1v1 match must be accepted, since it cannot be called before that.
+ * The matches on the floor, then the next ones to call, at most UP_NEXT. There is no schedule, so
+ * the next ones come in the order of the match list: tournament matches in bracket order, and 1v1
+ * matches in the order they were made. A match needs both players, and a 1v1 match must be
+ * accepted, since it cannot be called before that.
  */
 export function upNextMatches(matches: readonly MatchSummary[], live: readonly LiveScore[]): MatchSummary[] {
     const next = matches.filter((m) => m.state === 'upcoming' && m.players[0] && m.players[1] && (m.tournamentId !== null || m.acceptedAt !== null));
@@ -341,7 +351,7 @@ export function upNextMatches(matches: readonly MatchSummary[], live: readonly L
 
 /** The best bettors by Foza won net, and the biggest single wins, one per bettor. */
 export function screenFoza(leaderboard: Leaderboard): ScreenFoza {
-    const name = (id: number) => leaderboard.nicknames.get(id) ?? `Spelar ${id}`;
+    const name = nicknameOf(leaderboard.nicknames);
     const bettors = [...leaderboard.bettors]
         .sort((a, b) => b.net - a.net || compareCorrect(a, b))
         .slice(0, FOZA_ROWS)
@@ -362,14 +372,16 @@ export function screenWinner(leaderboard: Leaderboard, matches: readonly MatchSu
     const champions = leaderboard.placings.filter((p) => p.place === 1);
     const champion = champions.find((p) => p.tournamentId === shownTournamentId) ?? [...champions].sort((a, b) => b.tournamentId - a.tournamentId)[0];
     if (!champion) return null;
-    const name = (id: number) => leaderboard.nicknames.get(id) ?? `Spelar ${id}`;
+    const name = nicknameOf(leaderboard.nicknames);
     const placed = leaderboard.placings.filter((p) => p.tournamentId === champion.tournamentId);
     const podium = [2, 3]
         .map((place) => ({ place, names: placed.filter((p) => p.place === place).map((p) => name(p.playerId)) }))
         .filter((p) => p.names.length > 0);
-    const decider = matches.findLast(
-        (m) => m.tournamentId === champion.tournamentId && m.state === 'finished' && m.winnerId === champion.playerId && m.result === 'played' && m.bracketRound !== null,
-    );
+    // The final is the won match of the champion in the last stage: the grand final, else the last round of the winners side.
+    const stage = (m: MatchSummary) => (m.bracketRound!.section === 'final' ? 1_000 : 0) + m.bracketRound!.round;
+    const won = matches.filter((m) => m.tournamentId === champion.tournamentId && m.state === 'finished' && m.winnerId === champion.playerId && m.bracketRound !== null);
+    const last = won.reduce<MatchSummary | null>((top, m) => (top === null || stage(m) >= stage(top) ? m : top), null);
+    const decider = last?.result === 'played' ? last : null;
     const round = decider?.bracketRound;
     const final: ScreenWinner['final'] =
         decider && round
@@ -386,7 +398,7 @@ export function screenWinner(leaderboard: Leaderboard, matches: readonly MatchSu
 
 /** The three leaderboards, top five each. Bets are ranked by correct bets, not by Foza held. */
 export function screenBoards(leaderboard: Leaderboard): ScreenBoard[] {
-    const name = (id: number) => leaderboard.nicknames.get(id) ?? `Spelar ${id}`;
+    const name = nicknameOf(leaderboard.nicknames);
     const top = <T>(list: readonly T[], row: (item: T) => { id: number; value: string }) =>
         list.slice(0, BOARD_ROWS).map((item, i) => {
             const { id, value } = row(item);
@@ -408,17 +420,18 @@ export function buildBigScreen(input: ScreenInput): BigScreenData {
     const floor = floorMatches(input.matches, input.live).map(show);
     const next = input.matches.filter((m) => m.state === 'upcoming' && pools.get(m.id)?.open).map(show);
     const [featured = null, ...others] = [...floor, ...next];
+    const sections = input.tournament ? bracketSections(input.tournament, input.matches) : null;
     return {
         eventId: input.event.id,
         eventName: input.event.name,
         eventCode: null,
         featured,
         others: others.slice(0, OTHER_MATCHES),
-        bracket: input.tournament ? screenBracket(input.tournament, input.matches) : null,
+        bracket: input.tournament && sections ? screenBracket(input.tournament, sections) : null,
         boards: screenBoards(input.leaderboard),
         sponsors: input.sponsors.map((s) => ({ id: s.id, name: s.name, src: `/api/sponsors/${s.id}/logo?v=${s.logoHash}`, width: s.logoWidth, height: s.logoHeight })),
         rotation: input.rotation,
-        fullBracket: input.tournament ? fullBracket(input.tournament, input.matches) : null,
+        fullBracket: input.tournament && sections ? fullBracket(input.tournament, sections) : null,
         upNext: upNextMatches(input.matches, input.live).map(show),
         foza: screenFoza(input.leaderboard),
         facts: screenFacts(input.leaderboard, input.series),

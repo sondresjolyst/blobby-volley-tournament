@@ -65,17 +65,32 @@ export function rotatingScreens(data: ScreenContent): ScreenType[] {
     return [data.rotation.screens.find((type) => type !== 'winner') ?? 'overview'];
 }
 
-/** The screen on show now. The current one while it can still show, otherwise the first that can. */
-export function currentScreen(data: ScreenContent, current: ScreenType | null): ScreenType {
-    const shown = rotatingScreens(data);
-    return shown.find((type) => type === current) ?? shown[0];
+/**
+ * The turn on show, as a place in the screens of the rotation. It is `turn` while that screen has
+ * something to show, otherwise the next one in order that has. Null when none has.
+ */
+function filledTurn(data: ScreenContent, turn: number, from = 0): number | null {
+    const { screens } = data.rotation;
+    for (let step = from; step < screens.length + from; step++) {
+        const at = (((turn + step) % screens.length) + screens.length) % screens.length;
+        if (screenHasContent(screens[at], data)) return at;
+    }
+    return null;
 }
 
-/** The screen after a tick. With one screen it stays. A screen that went away starts the turn over. */
-export function nextScreen(data: ScreenContent, current: ScreenType | null): ScreenType {
-    const shown = rotatingScreens(data);
-    const at = shown.indexOf(current as ScreenType);
-    return shown[(at + 1) % shown.length];
+/**
+ * The screen on show for a turn. A screen that has nothing to show any more gives way to the next
+ * one in order, so the turn goes on from there and never starts over.
+ */
+export function currentScreen(data: ScreenContent, turn: number): ScreenType {
+    const at = filledTurn(data, turn);
+    return at === null ? rotatingScreens(data)[0] : data.rotation.screens[at];
+}
+
+/** The turn after a tick: the next screen in order after the one on show that has something to show. With one screen it stays. */
+export function nextTurn(data: ScreenContent, turn: number): number {
+    const at = filledTurn(data, turn);
+    return at === null ? turn : (filledTurn(data, at, 1) ?? at);
 }
 
 /**
@@ -83,9 +98,20 @@ export function nextScreen(data: ScreenContent, current: ScreenType | null): Scr
  * can stay on it. The winner screen is the one exception: it waits on the overview until there is
  * a winner.
  */
-export function shownScreen(data: ScreenContent, current: ScreenType | null, pinned: ScreenType | null): ScreenType {
+export function shownScreen(data: ScreenContent, turn: number, pinned: ScreenType | null): ScreenType {
     if (pinned === 'winner' && data.winner === null) return 'overview';
-    return pinned ?? currentScreen(data, current);
+    return pinned ?? currentScreen(data, turn);
+}
+
+/**
+ * Moves the turn on every `ms` milliseconds, from the latest data `read` gives. A pinned screen
+ * has no turns. Returns the stop, for the cleanup of the effect that starts it. The effect starts
+ * it again when the time or the screens change, so the new time counts from then.
+ */
+export function startScreenTurns(ms: number, pinned: ScreenType | null, read: () => ScreenContent, advance: (next: (turn: number) => number) => void): () => void {
+    if (pinned !== null) return () => {};
+    const timer = setInterval(() => advance((turn) => nextTurn(read(), turn)), ms);
+    return () => clearInterval(timer);
 }
 
 /** How long each screen stays up, in milliseconds. */

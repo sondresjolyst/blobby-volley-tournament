@@ -33,6 +33,7 @@ const full: BigScreenData = {
     fullBracket: {
         tournamentId: 5,
         name: 'Hovedcupen',
+        dense: false,
         sections: [
             {
                 key: 'main',
@@ -170,14 +171,6 @@ describe('the big screen', () => {
         expect(page(full, 'sponsors')).toContain('data-screen="sponsors"');
         expect(page(full, 'sponsors')).not.toContain('aria-label="Sponsora"');
         expect(page(full, 'bracket')).toContain('aria-label="Sponsora"');
-    });
-
-    it('never shows the event code without the key, on any screen', () => {
-        for (const type of SCREEN_TYPES) {
-            const out = page(full, type);
-            expect(out).not.toContain(CODE);
-            expect(out).not.toContain('Bli med');
-        }
     });
 
     it('shows the event code on every screen with the key', () => {

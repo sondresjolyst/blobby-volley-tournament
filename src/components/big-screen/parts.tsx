@@ -2,7 +2,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { Pizza } from '@/components/pizza/Pizza';
 import type { ScreenRound, ScreenSponsor } from '@/lib/big-screen/view';
-import { FREE_PLACE, moreMatches, slotScore } from './text';
+import { FREE_PLACE, moreMatches, NO_BRACKET, slotScore } from './text';
 import styles from './big.module.css';
 
 /** The top line: the pizza and the name of the event, with whatever the screen puts on the right. */
@@ -90,6 +90,35 @@ export function BracketRounds({ rounds, rows, cardMax, dense = false }: { rounds
                 </div>
             ))}
         </div>
+    );
+}
+
+/**
+ * A bracket under its head line, or the text for no bracket when `rounds` is null. `grow` shares the
+ * height with other sides by their rows. Without a `label` the panel is no landmark of its own.
+ */
+export function BracketPanel({
+    label,
+    head,
+    rounds,
+    rows,
+    cardMax,
+    dense,
+    grow,
+}: {
+    label?: string;
+    head: string | null;
+    rounds: readonly ScreenRound[] | null;
+    rows: number;
+    cardMax?: number;
+    dense?: boolean;
+    grow?: number;
+}) {
+    return (
+        <section className={styles.bracket} aria-label={label} style={grow ? { flexGrow: grow, flexBasis: 0 } : undefined}>
+            {head && <p className={styles.bracketHead}>{head}</p>}
+            {rounds ? <BracketRounds rounds={rounds} rows={rows} cardMax={cardMax} dense={dense} /> : <p className={styles.muted}>{NO_BRACKET}</p>}
+        </section>
     );
 }
 

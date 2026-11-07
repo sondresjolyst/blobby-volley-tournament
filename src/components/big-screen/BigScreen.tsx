@@ -5,12 +5,12 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from
 import { Pizza } from '@/components/pizza/Pizza';
 import { usePolling } from '@/components/usePolling';
 import { foza, payout } from '@/components/player/text';
-import { currentBoard, currentScreen, nextBoard, nextScreen, REFRESH_MS, ROTATION_MS, screenMs, shownScreen } from '@/lib/big-screen/rotation';
+import { currentBoard, nextBoard, REFRESH_MS, ROTATION_MS, screenMs, shownScreen, startScreenTurns } from '@/lib/big-screen/rotation';
 import type { ScreenType } from '@/lib/big-screen/screens';
 import { BOARD_ROWS, type BigScreenData, type BoardKey, type ScreenBracket, type ScreenMatch, type ScreenSponsor } from '@/lib/big-screen/view';
-import { BoardPanel, BracketRounds, RankRows, ScreenTop, SponsorLogo } from './parts';
+import { BoardPanel, BracketPanel, RankRows, ScreenTop, SponsorLogo } from './parts';
 import { OtherScreen } from './screens';
-import { BOARD_TEXT, joinLine, livePoints, matchOdds, matchPill, SIDE_NAMES, NO_BRACKET, NO_EVENT, NO_MATCH, poolLine, SPONSOR_LABEL } from './text';
+import { BOARD_TEXT, joinLine, livePoints, matchOdds, matchPill, SIDE_NAMES, NO_EVENT, NO_MATCH, poolLine, SPONSOR_LABEL } from './text';
 import styles from './big.module.css';
 
 export interface JoinQr {
@@ -103,23 +103,8 @@ function Others({ matches }: { matches: ScreenMatch[] }) {
 }
 
 function Bracket({ bracket }: { bracket: ScreenBracket | null }) {
-    if (!bracket) {
-        return (
-            <section className={styles.bracket} aria-label="Kampoppsett">
-                <p className={styles.bracketHead}>KAMPOPPSETT</p>
-                <p className={styles.muted}>{NO_BRACKET}</p>
-            </section>
-        );
-    }
-    return (
-        <section className={styles.bracket} aria-label="Kampoppsett">
-            <p className={styles.bracketHead}>
-                KAMPOPPSETT · {bracket.name}
-                {bracket.side ? ` · ${SIDE_NAMES[bracket.side]}` : ''}
-            </p>
-            <BracketRounds rounds={bracket.rounds} rows={bracket.rows} />
-        </section>
-    );
+    const head = bracket ? `KAMPOPPSETT · ${bracket.name}${bracket.side ? ` · ${SIDE_NAMES[bracket.side]}` : ''}` : 'KAMPOPPSETT';
+    return <BracketPanel label="Kampoppsett" head={head} rounds={bracket?.rounds ?? null} rows={bracket?.rows ?? 1} />;
 }
 
 function Boards({ data, boardKey }: { data: BigScreenData; boardKey: BoardKey | null }) {
@@ -211,7 +196,7 @@ export function BigScreen({
 }) {
     const [data, setData] = useState(initial);
     const [boardKey, setBoardKey] = useState<BoardKey | null>(null);
-    const [screen, setScreen] = useState<ScreenType | null>(null);
+    const [turn, setTurn] = useState(0);
     const latest = useRef(data);
     useEffect(() => {
         latest.current = data;
@@ -236,12 +221,8 @@ export function BigScreen({
 
     // The screens take turns. The timer starts over when the admin changes the screens or the time.
     const ms = screenMs(data);
-    const turn = data.rotation.screens.join(',');
-    useEffect(() => {
-        if (pinned !== null) return;
-        const timer = setInterval(() => setScreen((type) => nextScreen(latest.current, currentScreen(latest.current, type))), ms);
-        return () => clearInterval(timer);
-    }, [pinned, ms, turn]);
+    const order = data.rotation.screens.join(',');
+    useEffect(() => startScreenTurns(ms, pinned, () => latest.current, setTurn), [pinned, ms, order]);
 
     if (data.eventId === null) {
         return (
@@ -255,7 +236,7 @@ export function BigScreen({
         );
     }
 
-    const shown = shownScreen(data, screen, pinned);
+    const shown = shownScreen(data, turn, pinned);
     const pill = data.featured ? matchPill(data.featured) : null;
     return (
         <main className={styles.screen} lang="nn" data-screen={shown}>

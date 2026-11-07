@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { PlayerStats } from '@/lib/stats/players';
 import type { Leaderboard } from '@/lib/store/stats';
-import { comeback, countedGames, matchLength, screenFacts, type PlayedSeries } from './facts';
+import { countedGames } from '@/lib/stats/players';
+import { comeback, matchLength, screenFacts, type PlayedSeries } from './facts';
 
 const names = new Map([
     [11, 'Blobfisk'],
@@ -20,7 +21,7 @@ function board(wins: PlayerStats[] = []): Leaderboard {
 const game = (winnerSlot: 1 | 2, a: number, b: number) => ({ winnerSlot, points: [a, b] as [number, number] });
 
 function series(matchId: number, players: [number, number], winnerId: number | null, games: PlayedSeries['games'], extra: Partial<PlayedSeries> = {}): PlayedSeries {
-    return { matchId, players, bestOf: 5, winnerId, games, manual: false, seconds: null, ...extra };
+    return { matchId, tournamentId: null, players, bestOf: 5, winnerId, score: [0, 0], games, manual: null, seconds: null, ...extra };
 }
 
 describe('comeback', () => {
@@ -31,15 +32,18 @@ describe('comeback', () => {
 
     it('says nothing while the series is going or after a score set by hand', () => {
         expect(comeback(series(1, [11, 12], null, [game(2, 1, 15), game(1, 15, 1)]))).toBeNull();
-        expect(comeback(series(1, [11, 12], 11, [game(2, 1, 15), game(1, 15, 1), game(1, 15, 2)], { manual: true }))).toBeNull();
+        expect(comeback(series(1, [11, 12], 11, [game(2, 1, 15), game(1, 15, 1), game(1, 15, 2)], { manual: [1, 0] }))).toBeNull();
     });
 });
 
 describe('countedGames', () => {
     it('stops at the game that decided the series', () => {
         const games = [game(1, 15, 3), game(2, 1, 15), game(2, 0, 15)];
-        expect(countedGames({ bestOf: 1, games })).toEqual(games.slice(0, 1));
-        expect(countedGames({ bestOf: 3, games })).toEqual(games);
+        expect(countedGames({ bestOf: 1, games, manual: null })).toEqual(games.slice(0, 1));
+        expect(countedGames({ bestOf: 3, games, manual: null })).toEqual(games);
+        // A score set by hand counts first.
+        expect(countedGames({ bestOf: 3, games, manual: [1, 0] })).toEqual(games.slice(0, 1));
+        expect(countedGames({ bestOf: 5, games: games.slice(1), manual: [0, 2] })).toEqual(games.slice(1, 2));
     });
 
     it('leaves a game after the end out of the records', () => {

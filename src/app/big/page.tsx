@@ -5,7 +5,7 @@ import { joinUrl, qrCode } from '@/lib/big-screen/qr';
 import { parseScreenType } from '@/lib/big-screen/screens';
 import { getPool } from '@/lib/db';
 import { parseId } from '@/lib/http';
-import { getBigScreen } from '@/lib/store/big-screen';
+import { getBigScreen, screenCache } from '@/lib/store/big-screen';
 
 // The key may be in the address, so no other site gets the address as a referrer.
 export const metadata: Metadata = { title: 'Storskjerm · Blobby Volley Tournament', referrer: 'no-referrer' };
@@ -22,7 +22,7 @@ export default async function BigScreenPage({ searchParams }: { searchParams: Pr
     await connection();
     const { t, key, screen } = await searchParams;
     const tournament = typeof t === 'string' ? parseId(t) : null;
-    const data = await getBigScreen(getPool(), tournament, typeof key === 'string' ? key : null);
+    const data = await getBigScreen(getPool(), tournament, typeof key === 'string' ? key : null, screenCache);
     // The store only adds the event code when the key is right.
     const keyed = data.eventCode !== null;
     const url = keyed ? joinUrl(process.env) : null;

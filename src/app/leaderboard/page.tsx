@@ -5,6 +5,7 @@ import styles from '@/components/stats/stats.module.css';
 import { getPool } from '@/lib/db';
 import { parseId } from '@/lib/http';
 import { shownRating } from '@/lib/stats/elo';
+import { nicknameOf } from '@/lib/stats/players';
 import { listEvents, type EventRow } from '@/lib/store/events';
 import { getLeaderboard, type Leaderboard } from '@/lib/store/stats';
 import { listTournaments } from '@/lib/store/tournaments';
@@ -85,7 +86,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
     const [data, tournaments] = await Promise.all([getLeaderboard(pool, event.id, tournamentId), listTournaments(pool, event.id)]);
     if (!data) notFound();
     const view: View = { event, tournamentId, board };
-    const name = (id: number) => data.nicknames.get(id) ?? `Spelar ${id}`;
+    const name = nicknameOf(data.nicknames);
     const rows = rowsFor(board, data);
     const past = events.filter((e) => e.id !== event.id);
 

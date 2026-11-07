@@ -1,6 +1,49 @@
 // Player stats from played matches. Forfeits and cancelled matches are left out, since no games
 // were played in them.
 
+import { winsNeeded } from '@/lib/matches/state';
+
+/** The name of a player, or `Spelar 12` when the nickname is not known. */
+export const nicknameOf =
+    (nicknames: ReadonlyMap<number, string>) =>
+    (playerId: number): string =>
+        nicknames.get(playerId) ?? `Spelar ${playerId}`;
+
+/** A series that is being played or was played out, game by game. */
+export interface PlayedSeries {
+    matchId: number;
+    tournamentId: number | null;
+    players: [number, number];
+    bestOf: number;
+    /** Null while the series is still going. */
+    winnerId: number | null;
+    /** The series score, games won by player 1 and player 2. */
+    score: [number, number];
+    /** The finished games after any series score set by hand, in the order they were played. */
+    games: { winnerSlot: 1 | 2; points: [number, number] }[];
+    /** The series score an admin set by hand, which replaced the games before it. Null when there is none. */
+    manual: [number, number] | null;
+    /** Seconds from the start to the end of a finished series. Null when either is not known. */
+    seconds: number | null;
+}
+
+/**
+ * The games that count, up to the one that decided the series, on top of a score set by hand. A
+ * game stored after the series was decided does not count. The site refuses such a game now, but
+ * older data may hold one.
+ */
+export function countedGames(series: Pick<PlayedSeries, 'bestOf' | 'games' | 'manual'>): PlayedSeries['games'] {
+    const needed = winsNeeded(series.bestOf);
+    const won = [...(series.manual ?? [0, 0])];
+    const counted: PlayedSeries['games'] = [];
+    for (const game of series.games) {
+        if (won[0] >= needed || won[1] >= needed) break;
+        won[game.winnerSlot - 1]++;
+        counted.push(game);
+    }
+    return counted;
+}
+
 /** A finished match that was played out, with the points of the games that count for the series. */
 export interface PlayedMatch {
     matchId: number;

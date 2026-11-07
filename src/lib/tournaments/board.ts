@@ -38,10 +38,24 @@ export interface BoardRuntimeMatch {
     result: 'played' | 'forfeit' | null;
 }
 
+/** Where a player of a later match comes from: the winner or the loser of an earlier match, by its number. */
+export interface Feed {
+    from: 'winner' | 'loser';
+    match: number;
+}
+
+/** A feed in words, such as `Vinnar av kamp 3`, or `Vinnar k. 3` short. */
+export function feedName(feed: Feed, short = false): string {
+    const who = feed.from === 'winner' ? 'Vinnar' : 'Taper';
+    return short ? `${who} k. ${feed.match}` : `${who} av kamp ${feed.match}`;
+}
+
 export interface BoardSlot {
     /** The nickname, or where the player comes from, such as `Vinnar av kamp 3`. */
     name: string;
     playerId: number | null;
+    /** Where the player comes from while the slot is empty. Null once the player is known, or when nothing feeds the slot. */
+    feed: Feed | null;
     /** The series score once the match has started. Null before that and after a no-show. */
     score: number | null;
     outcome: 'won' | 'lost' | null;
@@ -97,10 +111,10 @@ export function buildBoard(
     openMatchIds: ReadonlySet<number>,
 ): BoardSection[] {
     const number = new Map(bracket.map((m, i) => [m.id, i + 1]));
-    const feeds = new Map<string, string>();
+    const feeds = new Map<string, Feed>();
     for (const m of bracket) {
-        if (m.winnerTo) feeds.set(`${m.winnerTo.matchId}:${m.winnerTo.slot}`, `Vinnar av kamp ${number.get(m.id)}`);
-        if (m.loserTo) feeds.set(`${m.loserTo.matchId}:${m.loserTo.slot}`, `Taper av kamp ${number.get(m.id)}`);
+        if (m.winnerTo) feeds.set(`${m.winnerTo.matchId}:${m.winnerTo.slot}`, { from: 'winner', match: number.get(m.id)! });
+        if (m.loserTo) feeds.set(`${m.loserTo.matchId}:${m.loserTo.slot}`, { from: 'loser', match: number.get(m.id)! });
     }
     const lastRound = new Map<Section, number>();
     for (const m of bracket) lastRound.set(m.section, Math.max(lastRound.get(m.section) ?? 0, m.round));
@@ -119,9 +133,11 @@ export function buildBoard(
         const showScore = played.result !== 'forfeit' && (played.state === 'started' || played.state === 'finished');
         const slot = (s: 0 | 1): BoardSlot => {
             const player = played.players[s];
+            const feed = player ? null : (feeds.get(`${m.id}:${s + 1}`) ?? null);
             return {
-                name: player?.nickname ?? feeds.get(`${m.id}:${s + 1}`) ?? 'Ingen',
+                name: player?.nickname ?? (feed ? feedName(feed) : 'Ingen'),
                 playerId: player?.id ?? null,
+                feed,
                 score: showScore ? (s === 0 ? played.score1 : played.score2) : null,
                 outcome: played.state === 'finished' && player !== null ? (played.winnerId === player.id ? 'won' : 'lost') : null,
                 mine: player !== null && player.id === viewerId,

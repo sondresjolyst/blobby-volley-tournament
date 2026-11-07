@@ -2,10 +2,9 @@
 // results, games, bets and placings when it is read, so a corrected result, a reset or a reversed
 // settlement shows up at once, also in past events.
 import type { Pool } from 'pg';
-import type { PlayedSeries } from '@/lib/big-screen/facts';
 import { compareCorrect, bettorStats, type BettorStats, type SettledBet } from '@/lib/stats/betting';
 import { ELO_START, eloChanges, replayElo, type RatedMatch } from '@/lib/stats/elo';
-import { compareWins, playerStats, type PlayedMatch, type PlayerStats } from '@/lib/stats/players';
+import { compareWins, countedGames, playerStats, type PlayedMatch, type PlayedSeries, type PlayerStats } from '@/lib/stats/players';
 
 /**
  * The matches that change ratings: finished and played out. They come in play order across all
@@ -73,17 +72,33 @@ export async function eloRatings(pool: Pool, eventId: number): Promise<Map<numbe
     return new Map([...(await eloForEvent(pool, eventId))].map(([id, entry]) => [id, entry.rating]));
 }
 
+interface SeriesRecord {
+    id: number;
+    tournament_id: number | null;
+    player1_id: number;
+    player2_id: number;
+    best_of: number;
+    winner_id: number | null;
+    score1: number;
+    score2: number;
+    manual_score1: number | null;
+    manual_score2: number | null;
+    seconds: number | null;
+    games: { w: 1 | 2; p1: number; p2: number }[];
+}
+
 /**
- * The played matches of an event or a tournament in play order. The points are those of the
- * finished games that count for the series. Games a series score set by hand replaced do not.
+ * The series of an event that match the condition, in play order, each with its finished games
+ * after any series score set by hand. `$1` is the event and `$2` the tournament or null.
  */
-async function playedMatches(pool: Pool, eventId: number, tournamentId: number | null): Promise<PlayedMatch[]> {
-    const { rows } = await pool.query<{ id: number; tournament_id: number | null; player1_id: number; player2_id: number; winner_id: number; score1: number; score2: number; points1: number; points2: number }>(
-        `SELECT m.id, m.tournament_id, m.player1_id, m.player2_id, m.winner_id, m.score1, m.score2,
-             coalesce(sum(g.points1), 0)::int AS points1, coalesce(sum(g.points2), 0)::int AS points2
+async function readSeries(pool: Pool, eventId: number, tournamentId: number | null, condition: string): Promise<PlayedSeries[]> {
+    const { rows } = await pool.query<SeriesRecord>(
+        `SELECT m.id, m.tournament_id, m.player1_id, m.player2_id, m.best_of, m.winner_id, m.score1, m.score2, m.manual_score1, m.manual_score2,
+             CASE WHEN m.state = 'finished' THEN extract(epoch FROM m.finished_at - m.started_at)::int END AS seconds,
+             coalesce(json_agg(json_build_object('w', g.winner_slot, 'p1', g.points1, 'p2', g.points2) ORDER BY g.number) FILTER (WHERE g.number IS NOT NULL), '[]') AS games
          FROM matches m
          LEFT JOIN match_games g ON g.match_id = m.id AND g.status = 'finished' AND g.number > coalesce(m.manual_after_game, 0)
-         WHERE m.event_id = $1 AND ($2::int IS NULL OR m.tournament_id = $2) AND m.state = 'finished' AND m.result = 'played'
+         WHERE m.event_id = $1 AND ($2::int IS NULL OR m.tournament_id = $2) AND ${condition}
          GROUP BY m.id
          ORDER BY coalesce(m.started_at, m.finished_at), m.id`,
         [eventId, tournamentId],
@@ -92,38 +107,37 @@ async function playedMatches(pool: Pool, eventId: number, tournamentId: number |
         matchId: r.id,
         tournamentId: r.tournament_id,
         players: [r.player1_id, r.player2_id],
+        bestOf: r.best_of,
         winnerId: r.winner_id,
         score: [r.score1, r.score2],
-        points: [r.points1, r.points2],
+        games: r.games.map((g) => ({ winnerSlot: g.w, points: [g.p1, g.p2] as [number, number] })),
+        manual: r.manual_score1 === null ? null : [r.manual_score1, r.manual_score2!],
+        seconds: r.seconds,
     }));
 }
 
 /**
+ * The played matches of an event or a tournament in play order. The points are those of the
+ * games that count for the series.
+ */
+async function playedMatches(pool: Pool, eventId: number, tournamentId: number | null): Promise<PlayedMatch[]> {
+    const series = await readSeries(pool, eventId, tournamentId, `m.state = 'finished' AND m.result = 'played'`);
+    return series.map((s) => {
+        const points: [number, number] = [0, 0];
+        for (const game of countedGames(s)) {
+            points[0] += game.points[0];
+            points[1] += game.points[1];
+        }
+        return { matchId: s.matchId, tournamentId: s.tournamentId, players: s.players, winnerId: s.winnerId!, score: s.score, points };
+    });
+}
+
+/**
  * The series of an event that are being played or were played out, for the records of the big
- * screen. No-shows and cancelled matches are left out. The games are the finished ones that count
- * for the series, in the order they were played.
+ * screen. No-shows and cancelled matches are left out.
  */
 export async function listPlayedSeries(pool: Pool, eventId: number): Promise<PlayedSeries[]> {
-    const { rows } = await pool.query<{ id: number; player1_id: number; player2_id: number; best_of: number; winner_id: number | null; manual: boolean; seconds: number | null; games: { w: 1 | 2; p1: number; p2: number }[] }>(
-        `SELECT m.id, m.player1_id, m.player2_id, m.best_of, m.winner_id, m.manual_after_game IS NOT NULL AS manual,
-             CASE WHEN m.state = 'finished' THEN extract(epoch FROM m.finished_at - m.started_at)::int END AS seconds,
-             coalesce(json_agg(json_build_object('w', g.winner_slot, 'p1', g.points1, 'p2', g.points2) ORDER BY g.number) FILTER (WHERE g.number IS NOT NULL), '[]') AS games
-         FROM matches m
-         LEFT JOIN match_games g ON g.match_id = m.id AND g.status = 'finished' AND g.number > coalesce(m.manual_after_game, 0)
-         WHERE m.event_id = $1 AND m.state IN ('started', 'finished') AND m.result IS DISTINCT FROM 'forfeit'
-         GROUP BY m.id
-         ORDER BY coalesce(m.started_at, m.finished_at), m.id`,
-        [eventId],
-    );
-    return rows.map((r) => ({
-        matchId: r.id,
-        players: [r.player1_id, r.player2_id],
-        bestOf: r.best_of,
-        winnerId: r.winner_id,
-        games: r.games.map((g) => ({ winnerSlot: g.w, points: [g.p1, g.p2] as [number, number] })),
-        manual: r.manual,
-        seconds: r.seconds,
-    }));
+    return readSeries(pool, eventId, null, `m.state IN ('started', 'finished') AND m.result IS DISTINCT FROM 'forfeit'`);
 }
 
 /** The settled bets on the matches of an event or a tournament, in the order they were placed. */

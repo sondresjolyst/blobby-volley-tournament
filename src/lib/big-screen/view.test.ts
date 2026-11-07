@@ -224,7 +224,11 @@ describe('buildBigScreen', () => {
         expect(shown).toHaveLength(bracket.matches.length);
         expect(full.sections.every((s) => s.rounds.every((r) => r.more === 0))).toBe(true);
         expect(full.sections[0].rows).toBe(8);
-        // The overview keeps its window of four matches a round.
+        // Eight matches in a round make it dense, so empty slots get short names there, and only there.
+        expect(full.dense).toBe(true);
+        expect(full.sections[0].rounds[1].matches[0].slots.map((s) => s.name)).toEqual(['Vinnar k. 1', 'Vinnar k. 2']);
+        expect(full.sections[1].rounds[0].matches[0].slots.map((s) => s.name)).toEqual(['Taper k. 1', 'Taper k. 2']);
+        // The overview keeps its window of four matches a round and the long names.
         expect(data.bracket!.rounds[0].matches).toHaveLength(4);
         expect(buildBigScreen(input()).fullBracket).toBeNull();
     });
@@ -265,6 +269,28 @@ describe('buildBigScreen', () => {
             { nickname: 'Blobfisk', on: 'Skvett', profit: 30 },
         ]);
         expect(buildBigScreen(input({ leaderboard: { ...board, bettors: [] } })).foza).toEqual({ bettors: [], wins: [] });
+    });
+
+    it('takes the final from the last stage of the bracket, not from the order of the match list', () => {
+        const de = { format: 'double_elimination' as const, position: 1 };
+        // The grand final has the lowest id, so list order alone would pick the wrong match.
+        const matches = [
+            match(2, 'finished', [11, 12], { tournamentId: 5, bracketRound: { ...de, section: 'final', round: 1, lastRound: 1 }, winnerId: 11, result: 'played', score1: 3, score2: 1 }),
+            match(9, 'finished', [11, 13], { tournamentId: 5, bracketRound: { ...de, section: 'winners', round: 3, lastRound: 3 }, winnerId: 11, result: 'played', score1: 2 }),
+            match(12, 'finished', [11, 14], { tournamentId: 5, bracketRound: { ...de, section: 'winners', round: 1, lastRound: 3 }, winnerId: 11, result: 'played', score1: 2 }),
+        ];
+        const board = leaderboard();
+        board.placings = [{ tournamentId: 5, tournamentName: 'Storcupen', playerId: 11, place: 1 }];
+        expect(buildBigScreen(input({ matches, leaderboard: board })).winner?.final).toEqual({
+            round: 'Storfinale',
+            sides: [
+                { name: 'Blobfisk', score: 3 },
+                { name: 'Skvett', score: 1 },
+            ],
+        });
+        // A grand final decided by a no-show has no score to show.
+        const forfeit = matches.map((m) => (m.id === 2 ? { ...m, result: 'forfeit' as const } : m));
+        expect(buildBigScreen(input({ matches: forfeit, leaderboard: board })).winner?.final).toBeNull();
     });
 
     it('has no winner before a tournament has a champion, then shows the champion, the final and the podium', () => {
