@@ -50,6 +50,38 @@ test('the game server API needs its token and does not use the admin login', asy
     expect(await bad.json()).toEqual({ error: 'invalid', field: 'reportId' });
 });
 
+test('the game server page shows how long ago the game server reported, and follows it without a reload', async ({ page }) => {
+    await readSync(page.request);
+    const answer = await page.request.get('/api/admin/game-server/health');
+    expect(answer.headers()['cache-control']).toContain('no-store');
+    expect((await answer.json()).ageSeconds).toBeLessThan(60);
+
+    await page.goto('/admin/game-server');
+    const line = page.locator('.admin-health');
+    await expect(line).toHaveText(/^Last report: \d+ s ago$/);
+    await expect(line).toHaveAttribute('data-ok', 'true');
+
+    // The page asks again on its own. An old report shows red, and no report shows never.
+    await page.route('**/api/admin/game-server/health', (route) => route.fulfill({ json: { ageSeconds: 75 } }));
+    await expect(line).toHaveText(/^Last report: (7[5-9]|8\d) s ago$/, { timeout: 10_000 });
+    await expect(line).toHaveAttribute('data-ok', 'false');
+    await page.unroute('**/api/admin/game-server/health');
+    await page.route('**/api/admin/game-server/health', (route) => route.fulfill({ json: { ageSeconds: null } }));
+    await expect(line).toHaveText('Last report: never', { timeout: 10_000 });
+    await expect(line).toHaveAttribute('data-ok', 'false');
+
+    // A failed check says so instead of counting on.
+    await page.unroute('**/api/admin/game-server/health');
+    await page.route('**/api/admin/game-server/health', (route) => route.fulfill({ status: 500, json: { error: 'x' } }));
+    await expect(line).toHaveText('Health check failed. Trying again.', { timeout: 10_000 });
+    await page.unroute('**/api/admin/game-server/health');
+    await page.route('**/api/admin/game-server/health', (route) => route.fulfill({ status: 401, json: { error: 'unauthorized' } }));
+    await expect(line).toHaveText('Health check failed. Sign in again.', { timeout: 10_000 });
+    await page.unroute('**/api/admin/game-server/health');
+    await expect(line).toHaveText(/^Last report: \d+ s ago$/, { timeout: 10_000 });
+    await expect(line).toHaveAttribute('data-ok', 'true');
+});
+
 test('the game server syncs a called match, starts it, sends a live score and reports a game', async ({ page, browser, request }) => {
     const tag = randomBytes(2).toString('hex');
     const nicknames = [`Ga${tag}`, `Gb${tag}`];

@@ -71,3 +71,51 @@ test('an admin resets the PIN of a player', async ({ page, browser }) => {
     await expect(playerPage).toHaveURL(/\/me$/);
     await player.close();
 });
+
+test('an admin sees the wrong PINs of a player and unlocks a locked player', async ({ page, browser }) => {
+    const nickname = `Lock${randomBytes(3).toString('hex')}`;
+    const player = await browser.newContext({ baseURL: process.env.E2E_BASE_URL });
+    const playerPage = await player.newPage();
+    await playerPage.goto('/join');
+    await playerPage.getByLabel('LAN-kode').fill(process.env.E2E_EVENT_CODE ?? '');
+    await playerPage.getByLabel('Kallenavn').fill(nickname);
+    await playerPage.getByLabel('PIN-kode (4 siffer)').fill('1234');
+    await playerPage.getByRole('button', { name: 'Bli med på LANet' }).click();
+    await expect(playerPage).toHaveURL(/\/me$/);
+    await playerPage.getByRole('button', { name: 'Logg ut' }).click();
+    const signIn = async (pin: string) => {
+        await playerPage.goto('/login');
+        await playerPage.getByLabel('Kallenavn').fill(nickname);
+        await playerPage.getByLabel('PIN-kode', { exact: true }).fill(pin);
+        await playerPage.getByRole('button', { name: 'Logg inn', exact: true }).click();
+    };
+
+    await page.goto('/admin/events');
+    await page.getByRole('row', { name: /E2E LAN/ }).getByRole('link').click();
+    const row = page.getByRole('row', { name: new RegExp(nickname) });
+    await expect(row).toBeVisible();
+    const eventPage = page.url();
+    // Without wrong PINs there is nothing to unlock.
+    await expect(row.getByRole('button', { name: `Unlock ${nickname}` })).toHaveCount(0);
+
+    for (let i = 0; i < 2; i++) await signIn('0000');
+    await page.goto(eventPage);
+    await expect(row).toContainText('2 of 5 wrong PINs');
+    for (let i = 0; i < 3; i++) await signIn('0000');
+    await expect(playerPage).toHaveURL(/\/login\?error=locked$/);
+    await page.goto(eventPage);
+    await expect(row).toContainText(/Locked until \d+ \w+ \d{4}, \d{2}:\d{2}:\d{2}/);
+
+    await row.getByRole('button', { name: `Unlock ${nickname}` }).click();
+    await expect(page.getByRole('status')).toHaveText(`${nickname} is unlocked and can sign in again.`);
+    await expect(row.getByRole('button', { name: `Unlock ${nickname}` })).toHaveCount(0);
+    await expect(row).not.toContainText('Locked');
+
+    await signIn('1234');
+    await expect(playerPage).toHaveURL(/\/me$/);
+    await player.close();
+
+    await page.getByRole('button', { name: 'Reset network PIN limit' }).click();
+    await expect(page.getByRole('status')).toHaveText('The network PIN limit is reset. Every network can try PINs again.');
+    await expect(page.getByText(/The busiest network has \d+ of 40 wrong PINs this hour\./)).toBeVisible();
+});

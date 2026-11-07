@@ -23,7 +23,7 @@ test('an admin makes a new game server token, sees it once with the start comman
     await expect(guide.getByText('-Protocol UDP -LocalPort 1234 -Action Allow')).toBeVisible();
     await expect(guide.getByRole('link', { name: 'Start script for Windows' })).toHaveAttribute('href', /tournament-server\.ps1$/);
     await expect(page.getByText('Token made')).toBeVisible();
-    await expect(page.locator('dd').nth(1)).not.toHaveText('Never');
+    await expect(page.locator('.admin-health')).toHaveAttribute('data-ok', 'true');
     // Only the hash is stored, so no token shows before a new one is made.
     await expect(page.getByLabel('Game server token')).toHaveCount(0);
 
@@ -56,5 +56,5 @@ test('an admin makes a new game server token, sees it once with the start comman
     await page.reload();
     await expect(page.getByLabel('Game server token')).toHaveCount(0);
     expect(await page.content()).not.toContain(token);
-    await expect(page.locator('dd').nth(1)).not.toHaveText('Never');
+    await expect(page.locator('.admin-health')).toHaveAttribute('data-ok', 'true');
 });

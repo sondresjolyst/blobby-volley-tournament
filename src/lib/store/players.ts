@@ -4,7 +4,7 @@ import { isLocked, lockDurationMs, MAX_WRONG_PINS, WRONG_PIN_MEMORY_MS } from '@
 import { newJoinCode } from '@/lib/players/join-code';
 import { DUMMY_PIN_HASH, hashPin, verifyPin, type PinHash } from '@/lib/players/pin';
 import { hashSessionToken, isSessionExpired, newSessionToken, sessionExpiresAt } from '@/lib/players/session';
-import { bumpAttempts, claimAttempts, releaseAttempt } from './attempts';
+import { bumpAttempts, claimAttempts, releaseAttempt, windowStart } from './attempts';
 import { addLedger } from './foza';
 import { inTransaction } from './transaction';
 
@@ -37,7 +37,10 @@ export const CLIENT_WRONG_PINS_PER_HOUR = 40;
 export const CLIENT_SIGN_UPS_PER_HOUR = 50;
 
 export const eventBucket = (eventId: number) => `event:${eventId}`;
-export const pinBucket = (client: string) => `pin:${client}`;
+const PIN_BUCKET_PREFIX = 'pin:';
+/** Forgets the wrong PINs of a player and lifts the lock. */
+const CLEAR_PIN_LOCK = 'failed_pin_attempts = 0, locked_until = NULL, lock_level = 0, last_failed_pin_at = NULL';
+export const pinBucket = (client: string) => `${PIN_BUCKET_PREFIX}${client}`;
 export const signUpBucket = (client: string) => `signup:${client}`;
 
 /** Compares two event codes. The SHA-256 digests have the same length, so the comparison takes the same time. */
@@ -180,7 +183,7 @@ export async function signInPlayer(pool: Pool, nicknameKey: string, pin: string,
     }
 
     if (await verifyPin(pin, claim.pinHash)) {
-        await pool.query('UPDATE players SET failed_pin_attempts = 0, lock_level = 0, locked_until = NULL, last_failed_pin_at = NULL WHERE id = $1', [claim.id]);
+        await pool.query(`UPDATE players SET ${CLEAR_PIN_LOCK} WHERE id = $1`, [claim.id]);
         await releaseAttempt(pool, pins, now);
         return { ok: true, playerId: claim.id };
     }
@@ -253,22 +256,62 @@ export interface PlayerRow {
     nickname: string;
     fozaBalance: number;
     lockedUntil: Date | null;
+    /** Wrong PINs since the last lock or right PIN. Use countedWrongPins for the ones that still count. */
+    failedPinAttempts: number;
+    lastFailedPinAt: Date | null;
     createdAt: Date;
 }
 
 export async function listPlayers(pool: Pool, eventId: number): Promise<PlayerRow[]> {
-    const { rows } = await pool.query<{ id: number; nickname: string; foza_balance: number; locked_until: Date | null; created_at: Date }>(
-        'SELECT id, nickname, foza_balance, locked_until, created_at FROM players WHERE event_id = $1 ORDER BY nickname_key',
-        [eventId],
-    );
-    return rows.map((row) => ({ id: row.id, nickname: row.nickname, fozaBalance: row.foza_balance, lockedUntil: row.locked_until, createdAt: row.created_at }));
+    const { rows } = await pool.query<{
+        id: number;
+        nickname: string;
+        foza_balance: number;
+        locked_until: Date | null;
+        failed_pin_attempts: number;
+        last_failed_pin_at: Date | null;
+        created_at: Date;
+    }>('SELECT id, nickname, foza_balance, locked_until, failed_pin_attempts, last_failed_pin_at, created_at FROM players WHERE event_id = $1 ORDER BY nickname_key', [eventId]);
+    return rows.map((row) => ({
+        id: row.id,
+        nickname: row.nickname,
+        fozaBalance: row.foza_balance,
+        lockedUntil: row.locked_until,
+        failedPinAttempts: row.failed_pin_attempts,
+        lastFailedPinAt: row.last_failed_pin_at,
+        createdAt: row.created_at,
+    }));
+}
+
+/**
+ * Forgets the wrong PINs of a player and lifts any lock, so the player can sign in again. The lock
+ * level goes back to 0 on purpose. An unlock by an admin is a fresh start, so the next lock is the
+ * shortest again. The PIN and the sessions stay.
+ */
+export async function unlockPlayer(pool: Pool, playerId: number): Promise<{ eventId: number } | null> {
+    const { rows } = await pool.query<{ event_id: number }>(`UPDATE players SET ${CLEAR_PIN_LOCK} WHERE id = $1 RETURNING event_id`, [playerId]);
+    return rows[0] ? { eventId: rows[0].event_id } : null;
+}
+
+/** The most wrong PINs from one client address in this hour. At a LAN most players share one address. */
+export async function busiestPinClient(pool: Pool, now: Date): Promise<number> {
+    const { rows } = await pool.query<{ count: number | null }>('SELECT max(count) AS count FROM auth_attempts WHERE starts_with(bucket, $1) AND window_start = $2', [
+        PIN_BUCKET_PREFIX,
+        windowStart(now),
+    ]);
+    return rows[0]?.count ?? 0;
+}
+
+/** Forgets the wrong PINs of every client address, so a network over its hourly limit can try PINs again. */
+export async function resetPinLimits(pool: Pool): Promise<void> {
+    await pool.query('DELETE FROM auth_attempts WHERE starts_with(bucket, $1)', [PIN_BUCKET_PREFIX]);
 }
 
 /** Gives a player a new PIN, lifts any lock and signs the player out on every device. */
 export async function resetPlayerPin(pool: Pool, playerId: number, pin: PinHash): Promise<{ eventId: number } | null> {
     return inTransaction(pool, async (client) => {
         const { rows } = await client.query<{ event_id: number }>(
-            'UPDATE players SET pin_hash = $2, pin_salt = $3, failed_pin_attempts = 0, locked_until = NULL, lock_level = 0, last_failed_pin_at = NULL WHERE id = $1 RETURNING event_id',
+            `UPDATE players SET pin_hash = $2, pin_salt = $3, ${CLEAR_PIN_LOCK} WHERE id = $1 RETURNING event_id`,
             [playerId, pin.hash, pin.salt],
         );
         if (!rows[0]) return null;

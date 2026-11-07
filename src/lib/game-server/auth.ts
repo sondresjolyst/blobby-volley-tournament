@@ -1,6 +1,6 @@
 import { timingSafeEqual } from 'node:crypto';
 import { getPool } from '@/lib/db';
-import { getStoredGameServerToken, hashGameServerToken, LAST_USED_STEP_MS, markGameServerTokenUsed, type StoredGameServerToken } from '@/lib/store/game-server-token';
+import { getStoredGameServerToken, hashGameServerToken, markGameServerTokenUsed } from '@/lib/store/game-server-token';
 
 const BEARER = /^Bearer +(\S+)$/i;
 
@@ -19,16 +19,14 @@ export function checkGameServerToken(req: Request, storedHash: Uint8Array | null
     return null;
 }
 
-/** True when the last use is old enough to be written again. */
-export function lastUseIsStale(stored: Pick<StoredGameServerToken, 'lastUsedAt'>, now: Date): boolean {
-    return stored.lastUsedAt === null || now.getTime() - stored.lastUsedAt.getTime() >= LAST_USED_STEP_MS;
-}
-
-/** Checks a game server call with the stored token, and notes the use when it passes. Returns null when the call may go on. */
+/**
+ * Checks a game server call with the stored token, and notes the use when it passes. The store only
+ * writes when the last use is old enough by the database clock. Returns null when the call may go on.
+ */
 export async function refuseGameServer(req: Request): Promise<Response | null> {
     const pool = getPool();
     const stored = await getStoredGameServerToken(pool);
     const refused = checkGameServerToken(req, stored?.hash ?? null);
-    if (!refused && stored && lastUseIsStale(stored, new Date())) await markGameServerTokenUsed(pool, stored.hash);
+    if (!refused && stored) await markGameServerTokenUsed(pool, stored.hash);
     return refused;
 }

@@ -48,7 +48,7 @@ export function SetupGuide({ siteUrl, port }: { siteUrl: string | null; port: nu
                     )}
                     The alternative is the one-line Docker command that shows after you make the token.
                 </li>
-                <li>Reload this page. Last used shows a time from the last few seconds once the game server talks to the site. Then players can join with the join link.</li>
+                <li>Watch the health line on this page. It turns green within a few seconds once the game server talks to the site. Then players can join with the join link.</li>
                 <li>
                     Players need the game itself. The Windows download is in the <a href={RELEASES}>latest release</a>.
                 </li>

@@ -1,7 +1,7 @@
 import { Pool } from 'pg';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { migrate } from '../../../scripts/migrate.mjs';
-import { createGameServerToken, getGameServerTokenInfo, getStoredGameServerToken, hashGameServerToken, markGameServerTokenUsed } from './game-server-token';
+import { createGameServerToken, getGameServerReportAge, getGameServerTokenInfo, getStoredGameServerToken, hashGameServerToken, markGameServerTokenUsed } from './game-server-token';
 
 if (!process.env.TEST_DATABASE_URL) {
     throw new Error('TEST_DATABASE_URL is not set. Run these tests with npm run test:db.');
@@ -46,7 +46,7 @@ describe('the game server token', () => {
         expect((await pool.query('SELECT count(*)::int AS n FROM game_server_token')).rows[0].n).toBe(1);
     });
 
-    it('notes the last use at most once a minute, and never for a replaced token', async () => {
+    it('notes the last use at most once every 15 seconds, and never for a replaced token', async () => {
         const { token } = await createGameServerToken(pool);
         const hash = hashGameServerToken(token);
         await markGameServerTokenUsed(pool, hash);
@@ -54,14 +54,26 @@ describe('the game server token', () => {
         expect(first).toBeInstanceOf(Date);
         await markGameServerTokenUsed(pool, hash);
         expect((await getGameServerTokenInfo(pool))!.lastUsedAt).toEqual(first);
-        await pool.query("UPDATE game_server_token SET last_used_at = now() - interval '61 seconds'");
+        await pool.query("UPDATE game_server_token SET last_used_at = now() - interval '16 seconds'");
         const old = (await getGameServerTokenInfo(pool))!.lastUsedAt!;
         await markGameServerTokenUsed(pool, hash);
-        expect((await getGameServerTokenInfo(pool))!.lastUsedAt!.getTime()).toBeGreaterThanOrEqual(old.getTime() + 60_000);
+        expect((await getGameServerTokenInfo(pool))!.lastUsedAt!.getTime()).toBeGreaterThanOrEqual(old.getTime() + 15_000);
 
         await createGameServerToken(pool);
         await markGameServerTokenUsed(pool, hash);
         expect((await getGameServerTokenInfo(pool))!.lastUsedAt).toBeNull();
+    });
+
+    it('gives the age of the last use in whole seconds by the database clock', async () => {
+        expect(await getGameServerReportAge(pool)).toBeNull();
+        const { token } = await createGameServerToken(pool);
+        expect(await getGameServerReportAge(pool)).toBeNull();
+        await markGameServerTokenUsed(pool, hashGameServerToken(token));
+        expect(await getGameServerReportAge(pool)).toBeLessThanOrEqual(1);
+        await pool.query("UPDATE game_server_token SET last_used_at = now() - interval '75.6 seconds'");
+        expect(await getGameServerReportAge(pool)).toBe(75);
+        await pool.query("UPDATE game_server_token SET last_used_at = now() + interval '30 seconds'");
+        expect(await getGameServerReportAge(pool)).toBe(0);
     });
 
     it('is one row at most, with a 32 byte hash', async () => {

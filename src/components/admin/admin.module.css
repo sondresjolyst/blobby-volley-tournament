@@ -416,6 +416,33 @@
     padding-left: 1.5em;
 }
 
+.main :global(.admin-health) {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: fit-content;
+    padding: 10px 16px;
+    border: 2px solid #1e7a3c;
+    border-radius: 14px;
+    background: #dcf3e2;
+    color: #14532a;
+    font-weight: 700;
+}
+
+.main :global(.admin-health)::before {
+    content: '';
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.main :global(.admin-health)[data-ok='false'] {
+    border-color: var(--red);
+    background: #fde3de;
+    color: #7e1f12;
+}
+
 /* A numbered guide, with room between the steps and their commands. */
 .main :global(.admin-steps) {
     display: flex;
