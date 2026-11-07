@@ -36,7 +36,7 @@ beforeEach(() => {
 
 describe('every /api/admin route', () => {
     it('is found', () => {
-        expect(routes).toEqual(expect.arrayContaining(['matches/call/route.ts', 'matches/[id]/route.ts', 'events/[id]/sponsors/route.ts', 'events/[id]/game-board/route.ts', 'events/[id]/big-screen-key/route.ts', 'game-server-token/route.ts', 'tournaments/[id]/next-game-delay/route.ts', 'sponsors/[id]/route.ts', 'sponsors/[id]/logo/route.ts']));
+        expect(routes).toEqual(expect.arrayContaining(['matches/call/route.ts', 'matches/[id]/route.ts', 'events/[id]/sponsors/route.ts', 'events/[id]/game-board/route.ts', 'events/[id]/big-screen-key/route.ts', 'game-server-token/route.ts', 'tournaments/[id]/next-game-delay/route.ts', 'sponsors/[id]/route.ts', 'sponsors/[id]/logo/route.ts', 'players/[id]/unlock/route.ts', 'players/pin-limit/route.ts', 'game-server/health/route.ts']));
     });
 
     it.each(routes)('%s answers with the response from the admin check before it does anything else, the read check for GET and the post check otherwise', async (route) => {

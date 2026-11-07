@@ -126,12 +126,9 @@ describe('every /api/server route', () => {
 });
 
 describe('the last use of the token', () => {
-    it('is written when it is a minute old or more, and not on every call', async () => {
+    it('is passed to the store on each accepted call, which only writes when it is old enough', async () => {
         getServerSync.mockResolvedValue({});
         getStoredGameServerToken.mockResolvedValueOnce(stored(new Date()));
-        expect((await sync(request('sync'))).status).toBe(200);
-        expect(markGameServerTokenUsed).not.toHaveBeenCalled();
-        getStoredGameServerToken.mockResolvedValueOnce(stored(new Date(Date.now() - 61_000)));
         expect((await sync(request('sync'))).status).toBe(200);
         getStoredGameServerToken.mockResolvedValueOnce(stored(null));
         expect((await sync(request('sync'))).status).toBe(200);

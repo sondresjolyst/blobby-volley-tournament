@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { hashGameServerToken } from '@/lib/store/game-server-token';
-import { checkGameServerToken, lastUseIsStale } from './auth';
+import { checkGameServerToken } from './auth';
 
 // A placeholder, not a real token.
 const TOKEN = 'test-placeholder-token';
@@ -44,11 +44,3 @@ describe('checkGameServerToken', () => {
     });
 });
 
-describe('lastUseIsStale', () => {
-    it('is true when the token was never used or the last use is a minute old', () => {
-        const now = new Date('2026-11-20T18:00:00Z');
-        expect(lastUseIsStale({ lastUsedAt: null }, now)).toBe(true);
-        expect(lastUseIsStale({ lastUsedAt: new Date('2026-11-20T17:59:00Z') }, now)).toBe(true);
-        expect(lastUseIsStale({ lastUsedAt: new Date('2026-11-20T17:59:01Z') }, now)).toBe(false);
-    });
-});

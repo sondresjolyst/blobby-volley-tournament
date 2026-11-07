@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isLocked, lockDurationMs, MAX_WRONG_PINS } from './lockout';
+import { countedWrongPins, isLocked, lockDurationMs, MAX_WRONG_PINS, WRONG_PIN_MEMORY_MS } from './lockout';
 
 const now = new Date('2026-11-05T12:00:00Z');
 const MINUTE = 60 * 1000;
@@ -36,4 +36,17 @@ describe('isLocked', () => {
 
 it('locks after 5 wrong PINs', () => {
     expect(MAX_WRONG_PINS).toBe(5);
+});
+
+describe('countedWrongPins', () => {
+    it('counts the wrong PINs until the last one is a day old', () => {
+        expect(countedWrongPins(3, new Date(now.getTime() - MINUTE), now)).toBe(3);
+        expect(countedWrongPins(3, new Date(now.getTime() - WRONG_PIN_MEMORY_MS + 1), now)).toBe(3);
+        expect(countedWrongPins(3, new Date(now.getTime() - WRONG_PIN_MEMORY_MS), now)).toBe(0);
+    });
+
+    it('is zero without a wrong PIN', () => {
+        expect(countedWrongPins(0, null, now)).toBe(0);
+        expect(countedWrongPins(2, null, now)).toBe(0);
+    });
 });
