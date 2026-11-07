@@ -11,7 +11,7 @@ import { createEvent, setActiveEvent } from './events';
 import { getLiveScore, getServerSync, updateLiveScore } from './game-server';
 import { callMatch, createChallenge, acceptChallenge, enterGameResult, getMatch, listMatches, reportPlayersConnected, reportServerGame, resetMatch, restartCurrentGame, setSeriesScore, type ServerGameReport } from './matches';
 import { getJoinCode, rotateJoinCode, signUpPlayer } from './players';
-import { getTournament, saveTournament } from './tournaments';
+import { getTournament, saveTournament, setNextGameDelay } from './tournaments';
 
 // Lets a test choose the next codes drawn. Without a choice the real generator runs.
 const codes = vi.hoisted(() => ({ next: [] as string[] }));
@@ -179,6 +179,44 @@ describe('join codes', () => {
     });
 });
 
+describe('the pause between games', () => {
+    it('is 10 seconds by default, set per tournament, and sent with each match of the sync', async () => {
+        const s = await setup();
+        const [m1, m2] = s.ids;
+        expect((await getTournament(pool, s.tournamentId))!.nextGameDelay).toBe(10);
+        await callMatch(pool, m1);
+        const before = await getServerSync(pool, NOW);
+        expect(before.matches[0]).toMatchObject({ matchId: m1, nextGameDelay: 10 });
+
+        expect(await setNextGameDelay(pool, s.tournamentId, 45)).toBe(true);
+        expect((await getTournament(pool, s.tournamentId))!.nextGameDelay).toBe(45);
+        await callMatch(pool, m2);
+        const after = await getServerSync(pool, NOW);
+        expect(after.matches.map((m) => [m.matchId, m.nextGameDelay])).toEqual([
+            [m1, 45],
+            [m2, 45],
+        ]);
+        expect(after.syncVersion).not.toBe(before.syncVersion);
+    });
+
+    it('is refused out of bounds and for an unknown tournament', async () => {
+        const s = await setup();
+        for (const bad of [2, 121, 10.5]) expect(await setNextGameDelay(pool, s.tournamentId, bad)).toBe(false);
+        expect(await setNextGameDelay(pool, 999_999, 10)).toBe(false);
+        expect((await getTournament(pool, s.tournamentId))!.nextGameDelay).toBe(10);
+        await expect(pool.query('UPDATE tournaments SET next_game_delay = 2')).rejects.toThrow(/tournaments_next_game_delay_check/);
+    });
+
+    it('is the default for a 1v1 match', async () => {
+        const { players } = await setup();
+        const made = await createChallenge(pool, players[0], players[1]);
+        if (!made.ok) throw new Error(made.error);
+        expect(await acceptChallenge(pool, made.matchId, players[1])).toMatchObject({ ok: true });
+        expect(await callMatch(pool, made.matchId)).toMatchObject({ ok: true });
+        expect((await getServerSync(pool, NOW)).matches.find((m) => m.matchId === made.matchId)).toMatchObject({ nextGameDelay: 10 });
+    });
+});
+
 describe('score to win and game speed', () => {
     it('default to 15 and 75, and a tournament passes its own to every match', async () => {
         const plain = await setup();
@@ -241,6 +279,7 @@ describe('getServerSync', () => {
                 ruleFile: 'default.lua',
                 scoreToWin: 21,
                 speed: 90,
+                nextGameDelay: 10,
                 awaitingDecision: false,
                 wins1: 0,
                 wins2: 0,

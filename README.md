@@ -47,7 +47,7 @@ An admin builds tournaments for the active event under `/admin/tournaments`. A t
 
 When the player count is not a power of two, the top seeds get byes and go straight to round two. Seeding is random by default. The admin can seed by hand or by Elo rating instead. Elo seeding puts the highest rating first and uses the ratings at the moment the tournament is saved. Equal ratings go in sign-up order. The random seed is shown on the form and stored with the tournament, and the same seed and players always give the same bracket.
 
-Each round has a best-of of 1, 3, 5 or 7 and a rule file, `default.lua` unless the admin names another. The tournament sets the points that win a game, 1 to 99 and 15 by default, and the game speed in frames per second, 30 to 120 and 75 by default. Every match of the tournament gets them. A 1v1 match has its own. Press Preview to see the bracket and Save tournament to store it. After a change to the players or the format, press Preview again before you save. Each stored match records the match its winner and its loser move on to.
+Each round has a best-of of 1, 3, 5 or 7 and a rule file, `default.lua` unless the admin names another. The tournament sets the points that win a game, 1 to 99 and 15 by default, and the game speed in frames per second, 30 to 120 and 75 by default. Every match of the tournament gets them. A 1v1 match has its own. The tournament page also sets the pause between games of a series, from 3 to 120 seconds and 10 by default. It can change at any time, and the game server gets it in its next sync. A 1v1 match uses 10 seconds. Press Preview to see the bracket and Save tournament to store it. After a change to the players or the format, press Preview again before you save. Each stored match records the match its winner and its loser move on to.
 
 Final places: 1st is the winner of the final and 2nd its loser. In double elimination 3rd is the loser of the losers final. There is no reset match. A single elimination tournament can have a third place match between the two semifinal losers, off by default. Without it both semifinal losers share 3rd.
 
@@ -195,6 +195,7 @@ Everything the server needs: the active event, every player of it with the join 
       "ruleFile": "default.lua",
       "scoreToWin": 15,
       "speed": 75,
+      "nextGameDelay": 10,
       "awaitingDecision": false,
       "wins1": 0,
       "wins2": 0,
@@ -214,6 +215,7 @@ Everything the server needs: the active event, every player of it with the join 
 - `awaitingDecision` is `true` when the last game was abandoned and the admin has not restarted or awarded it yet. The server should wait.
 - `wins1` and `wins2` are the games player 1 and player 2 have won in the series so far. They are the stored series score, so they include results an admin entered or corrected and a score set by hand. An abandoned game does not count. After a restart the server continues the series from them. The site decides when a series is over, and a decided match leaves the list.
 - `speed` is in frames per second. `scoreToWin` is the points that win one game.
+- `nextGameDelay` is the pause in seconds before the next game of a series, which the game counts down. It comes from the tournament, from 3 to 120 and 10 by default. A 1v1 match always gets 10.
 
 ### GET /api/server/sponsors
 

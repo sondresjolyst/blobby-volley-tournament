@@ -1,6 +1,7 @@
 // What the game server reads and the live score it sends. Results go through matches.ts.
 import { createHash } from 'node:crypto';
 import type { Pool } from 'pg';
+import { DEFAULT_NEXT_GAME_DELAY } from '@/lib/matches/settings';
 import type { MatchState } from '@/lib/matches/state';
 
 export interface SyncPlayer {
@@ -18,6 +19,8 @@ export interface SyncMatch {
     ruleFile: string;
     scoreToWin: number;
     speed: number;
+    /** The pause in seconds before the next game of the series. From the tournament, or the default for a 1v1 match. */
+    nextGameDelay: number;
     /** The last game was abandoned and waits for the admin to restart or award it. */
     awaitingDecision: boolean;
     /** The games player 1 and player 2 have won in the series, with the results an admin entered, corrected or set by hand. */
@@ -50,6 +53,7 @@ export interface SyncMatchRow {
     rule_file: string;
     score_to_win: number;
     game_speed: number;
+    next_game_delay: number;
     player1_id: number;
     player2_id: number;
     code1: string;
@@ -70,6 +74,7 @@ export function toSyncMatch(m: SyncMatchRow): SyncMatch {
         ruleFile: m.rule_file,
         scoreToWin: m.score_to_win,
         speed: m.game_speed,
+        nextGameDelay: m.next_game_delay,
         awaitingDecision: m.awaiting_decision,
         wins1: m.score1,
         wins2: m.score2,
@@ -104,10 +109,12 @@ export async function getServerSync(pool: Pool, now: Date): Promise<ServerSync> 
                     : (
                           await client.query<SyncMatchRow>(
                               `SELECT m.id, m.state, m.best_of, m.rule_file, m.score_to_win, m.game_speed, m.player1_id, m.player2_id, m.score1, m.score2,
+                                   coalesce(t.next_game_delay, ${DEFAULT_NEXT_GAME_DELAY}) AS next_game_delay,
                                    p1.join_code AS code1, p2.join_code AS code2, ${GAME_STATE}
                                FROM matches m
                                JOIN players p1 ON p1.id = m.player1_id
                                JOIN players p2 ON p2.id = m.player2_id
+                               LEFT JOIN tournaments t ON t.id = m.tournament_id
                                ${LAST_GAME}
                                WHERE m.event_id = $1 AND m.state IN ('called', 'started')
                                ORDER BY m.id`,
