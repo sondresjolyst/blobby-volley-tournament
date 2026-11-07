@@ -493,6 +493,66 @@
     flex-wrap: nowrap;
 }
 
+/* On phones each table row is a card. A cell with data-label shows as "Label: value". A cell without
+   one holds actions, which fill the width of the card. Empty cells are left out. */
+@media (max-width: 640px) {
+    .main :global(.admin-table) {
+        overflow: visible;
+        background: none;
+        border: 0;
+        border-radius: 0;
+    }
+
+    .main :global(.admin-table) :is(table, tbody, tr, td) {
+        display: block;
+    }
+
+    .main :global(.admin-table) thead {
+        display: none;
+    }
+
+    .main :global(.admin-table) tbody tr {
+        margin-bottom: 12px;
+        padding: 14px 16px;
+        border: 2px solid var(--line);
+        border-radius: 16px;
+        background: var(--white);
+    }
+
+    .main :global(.admin-table) td {
+        padding: 3px 0;
+    }
+
+    .main :global(.admin-table) td:empty {
+        display: none;
+    }
+
+    .main :global(.admin-table) td[data-label]::before {
+        content: attr(data-label) ': ';
+        font-weight: 700;
+    }
+
+    .main :global(.admin-table) td:not([data-label]) {
+        padding-top: 10px;
+    }
+
+    .main :global(.admin-table) td form {
+        flex-direction: column;
+        flex-wrap: nowrap;
+        align-items: stretch;
+    }
+
+    .main :global(.admin-table) td label {
+        display: flex;
+    }
+
+    .main :global(.admin-table) td:not([data-label]) button,
+    .main :global(.admin-table) td input:not([type='checkbox'], [type='radio'], [type='hidden']),
+    .main :global(.admin-table) td select {
+        width: 100%;
+    }
+}
+
 @media (max-width: 760px) {
     /* One line, or the widest table would set the width of the menu and the page. */
     .admin {

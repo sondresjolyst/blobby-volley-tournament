@@ -59,20 +59,20 @@ export default async function AdminMatches({ searchParams }: { searchParams: Pro
                                         {inState.map((m) => (
                                             <tr key={m.id}>
                                                 {state === 'upcoming' && (
-                                                    <td>
+                                                    <td data-label="Call">
                                                         {canCall(m) && (
                                                             <input type="checkbox" name="match" value={m.id} aria-label={`Call match ${m.id}`} />
                                                         )}
                                                     </td>
                                                 )}
-                                                <td>
+                                                <td data-label="Match">
                                                     <Link href={`/admin/matches/${m.id}`}>
                                                         Match {m.id}: {matchTitle(m)}
                                                     </Link>
                                                 </td>
-                                                <td>{matchPlayers(m)}</td>
-                                                <td>{m.bestOf}</td>
-                                                <td>{matchOutcome(m)}</td>
+                                                <td data-label="Players">{matchPlayers(m)}</td>
+                                                <td data-label="Best of">{m.bestOf}</td>
+                                                <td data-label="Score">{matchOutcome(m)}</td>
                                             </tr>
                                         ))}
                                     </tbody>

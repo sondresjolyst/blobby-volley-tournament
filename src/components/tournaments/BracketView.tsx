@@ -23,11 +23,11 @@ export function BracketView({ rounds }: { rounds: ViewRound[] }) {
                             <tbody>
                                 {round.matches.map((match) => (
                                     <tr key={match.number}>
-                                        <td>Match {match.number}</td>
-                                        <td>{match.slots[0]}</td>
-                                        <td>{match.slots[1]}</td>
-                                        <td>{match.winnerTo}</td>
-                                        <td>{match.loserTo}</td>
+                                        <td data-label="Match">Match {match.number}</td>
+                                        <td data-label="Player 1">{match.slots[0]}</td>
+                                        <td data-label="Player 2">{match.slots[1]}</td>
+                                        <td data-label="Winner goes to">{match.winnerTo}</td>
+                                        <td data-label="Loser goes to">{match.loserTo}</td>
                                     </tr>
                                 ))}
                             </tbody>

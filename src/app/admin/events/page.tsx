@@ -32,14 +32,14 @@ export default async function AdminEvents() {
                         <tbody>
                             {events.map((event) => (
                                 <tr key={event.id}>
-                                    <td>
+                                    <td data-label="Name">
                                         <Link href={`/admin/events/${event.id}`}>{event.name}</Link>
                                     </td>
-                                    <td>
+                                    <td data-label="Dates">
                                         {event.startsOn} to {event.endsOn}
                                     </td>
-                                    <td>{event.code}</td>
-                                    <td>{event.isActive ? 'Active' : ''}</td>
+                                    <td data-label="Code">{event.code}</td>
+                                    <td data-label="Active">{event.isActive ? 'Active' : ''}</td>
                                     <td>
                                         {!event.isActive && (
                                             <form method="post" action={`/api/admin/events/${event.id}/activate`}>

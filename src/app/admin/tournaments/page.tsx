@@ -41,11 +41,11 @@ export default async function AdminTournaments() {
                                 <tbody>
                                     {tournaments.map((t) => (
                                         <tr key={t.id}>
-                                            <td>
+                                            <td data-label="Name">
                                                 <Link href={`/admin/tournaments/${t.id}`}>{t.name}</Link>
                                             </td>
-                                            <td>{FORMATS[t.format].name}</td>
-                                            <td>{t.playerCount}</td>
+                                            <td data-label="Format">{FORMATS[t.format].name}</td>
+                                            <td data-label="Players">{t.playerCount}</td>
                                         </tr>
                                     ))}
                                 </tbody>

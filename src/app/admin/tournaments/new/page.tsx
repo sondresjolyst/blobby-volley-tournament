@@ -149,7 +149,7 @@ export default async function NewTournament({ searchParams }: { searchParams: Pr
                                                     <input name={seedField(player.id)} inputMode="numeric" size={3} defaultValue={value(seedField(player.id))} />
                                                 </label>
                                             </td>
-                                            <td>{shownRating(ratings.get(player.id) ?? ELO_START)}</td>
+                                            <td data-label="Elo rating">{shownRating(ratings.get(player.id) ?? ELO_START)}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -174,7 +174,7 @@ export default async function NewTournament({ searchParams }: { searchParams: Pr
                                 <tbody>
                                     {plan.rounds.map((round) => (
                                         <tr key={round.key}>
-                                            <td>{round.name}</td>
+                                            <td data-label="Round">{round.name}</td>
                                             <td>
                                                 <label>
                                                     Best of for {round.name}{' '}

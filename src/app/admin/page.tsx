@@ -32,10 +32,10 @@ export default async function Admin() {
                                 <tbody>
                                     {waiting.map((match) => (
                                         <tr key={match.id}>
-                                            <td>{match.eventName}</td>
-                                            <td>{matchTitle(match)}</td>
-                                            <td>{matchPlayers(match)}</td>
-                                            <td>{stoppedGame(match, match.game)}</td>
+                                            <td data-label="Event">{match.eventName}</td>
+                                            <td data-label="Match">{matchTitle(match)}</td>
+                                            <td data-label="Players">{matchPlayers(match)}</td>
+                                            <td data-label="Stopped">{stoppedGame(match, match.game)}</td>
                                             <td>
                                                 <Link href={`/admin/matches/${match.id}`}>Open match {match.id}</Link>
                                             </td>
