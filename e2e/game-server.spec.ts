@@ -126,3 +126,66 @@ test('an admin gives a player a new join code', async ({ page, browser, request 
     expect(after).toMatch(/^[A-HJKMNP-Z2-9]{10}$/);
     expect(after).not.toBe(before);
 });
+
+test('an abandoned game with the player who left waits for the admin on the admin home page', async ({ page, browser, request }) => {
+    const tag = randomBytes(2).toString('hex');
+    const nicknames = [`La${tag}`, `Lb${tag}`];
+    for (const nickname of nicknames) await signUp(browser, nickname);
+
+    await page.goto('/admin/tournaments/new');
+    const name = `Left cup ${tag}`;
+    await page.getByLabel('Name').fill(name);
+    for (const nickname of nicknames) await page.getByRole('checkbox', { name: nickname }).check();
+    await page.getByRole('button', { name: 'Preview' }).click();
+    await page.getByLabel(/^Best of for /).selectOption('3');
+    await page.getByRole('button', { name: 'Save tournament' }).click();
+    await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
+
+    await page.goto('/admin/matches');
+    const row = page.getByRole('region', { name: 'Upcoming' }).getByRole('row', { name: new RegExp(name) });
+    await row.getByRole('checkbox').check();
+    await page.getByRole('button', { name: 'Call the picked matches' }).click();
+    await expect(page.getByRole('status')).toHaveText(/^Called match \d+\.$/);
+
+    const sync = await readSync(request);
+    const ids = nicknames.map((nickname) => sync.players.find((p) => p.nickname === nickname)!.playerId);
+    const match = sync.matches.find((m) => m.players.some((p) => p.playerId === ids[0]))!;
+    // The seeding may put either player first. The page names them and their points in match order.
+    const first = match.players[0].playerId === ids[0] ? 0 : 1;
+    const [one, two] = first === 0 ? nicknames : [nicknames[1], nicknames[0]];
+    const stopped = `Game 1 stopped at ${first === 0 ? '6-8' : '8-6'}. ${nicknames[0]} left.`;
+    const report = (change: Record<string, unknown>) => ({
+        reportId: randomUUID(),
+        matchId: match.matchId,
+        game: 1,
+        status: 'abandoned',
+        winnerId: null,
+        points: [
+            { playerId: ids[0], points: 6 },
+            { playerId: ids[1], points: 8 },
+        ],
+        startedAt: '2026-11-20T18:00:00Z',
+        endedAt: '2026-11-20T18:03:00Z',
+        ...change,
+    });
+    // A player who is not in the match, or a finished game that names one, is refused.
+    expect(await (await request.post('/api/server/games', { headers: auth(), data: report({ leftPlayerId: 2_000_000_000 }) })).json()).toEqual({ status: 'refused', reason: 'players' });
+    const finished = await request.post('/api/server/games', { headers: auth(), data: report({ status: 'finished', winnerId: ids[1], leftPlayerId: ids[0] }) });
+    expect(finished.status()).toBe(400);
+    expect(await finished.json()).toEqual({ error: 'invalid', field: 'leftPlayerId' });
+    expect(await (await request.post('/api/server/games', { headers: auth(), data: report({ leftPlayerId: ids[0] }) })).json()).toEqual({ status: 'stored' });
+
+    await page.goto('/admin');
+    const waiting = page.getByRole('region', { name: 'Waiting for a decision' }).getByRole('row', { name: new RegExp(name) });
+    await expect(waiting).toContainText('E2E LAN');
+    await expect(waiting).toContainText(`${one} vs ${two}`);
+    await expect(waiting).toContainText(stopped);
+    await waiting.getByRole('link', { name: `Open match ${match.matchId}` }).click();
+    await expect(page.getByRole('alert').filter({ hasText: 'The last game was abandoned.' })).toHaveText(`The last game was abandoned. ${stopped} Restart it from 0-0 or award it.`);
+    await expect(page.getByRole('cell', { name: `Abandoned, ${nicknames[0]} left` })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Restart current game' }).click();
+    await expect(page.getByRole('status')).toHaveText('The game restarts from 0-0.');
+    await page.goto('/admin');
+    await expect(page.getByRole('region', { name: 'Waiting for a decision' }).getByRole('row', { name: new RegExp(name) })).toHaveCount(0);
+});

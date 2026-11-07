@@ -9,7 +9,7 @@ import type { EventInput } from '@/lib/events/input';
 import { isJoinCode, newJoinCode } from '@/lib/players/join-code';
 import { createEvent, setActiveEvent } from './events';
 import { getLiveScore, getServerSync, updateLiveScore } from './game-server';
-import { callMatch, createChallenge, acceptChallenge, enterGameResult, getMatch, listMatches, reportPlayersConnected, reportServerGame, resetMatch, restartCurrentGame, setSeriesScore, type ServerGameReport } from './matches';
+import { callMatch, createChallenge, acceptChallenge, enterGameResult, getMatch, listAwaitingDecision, listMatches, reportPlayersConnected, reportServerGame, resetMatch, restartCurrentGame, setSeriesScore, type ServerGameReport } from './matches';
 import { getJoinCode, rotateJoinCode, signUpPlayer } from './players';
 import { getTournament, saveTournament } from './tournaments';
 
@@ -372,7 +372,7 @@ describe('reportServerGame', () => {
         expect(await reportServerGame(pool, { ...report, winnerId: s.players[1], points: [{ playerId: s.players[1], points: 15 }, { playerId: b, points: 0 }] })).toMatchObject({ ok: true, status: 'duplicate' });
         const match = (await getMatch(pool, m1))!;
         expect(match).toMatchObject({ state: 'started', score1: 0, score2: 1, nextGame: 2 });
-        expect(match.games).toEqual([{ number: 1, status: 'finished', winnerSlot: 2, points1: 12, points2: 15, source: 'server' }]);
+        expect(match.games).toEqual([{ number: 1, status: 'finished', winnerSlot: 2, points1: 12, points2: 15, source: 'server', leftSlot: null }]);
         const stored = await pool.query('SELECT game_number, winner_slot, points1, points2, outcome, started_at, ended_at FROM game_reports WHERE report_id = $1', [report.reportId]);
         expect(stored.rows).toEqual([{ game_number: 1, winner_slot: 2, points1: 12, points2: 15, outcome: 'applied', started_at: report.startedAt, ended_at: report.endedAt }]);
     });
@@ -420,7 +420,7 @@ describe('reportServerGame', () => {
         await callMatch(pool, m1);
         expect(await enterGameResult(pool, m1, { game: 1, winnerSlot: 2, points1: 5, points2: 15 })).toMatchObject({ ok: true });
         expect(await reportServerGame(pool, serverReport(m1, 1, a, [a, 15, b, 9]))).toMatchObject({ ok: true, status: 'ignored', reason: 'game-closed' });
-        expect((await getMatch(pool, m1))!.games).toEqual([{ number: 1, status: 'finished', winnerSlot: 2, points1: 5, points2: 15, source: 'admin' }]);
+        expect((await getMatch(pool, m1))!.games).toEqual([{ number: 1, status: 'finished', winnerSlot: 2, points1: 5, points2: 15, source: 'admin', leftSlot: null }]);
         // A report for a game the admin cleared with a reset is closed too.
         expect(await resetMatch(pool, m1)).toMatchObject({ ok: true });
         await callMatch(pool, m1);
@@ -453,6 +453,54 @@ describe('reportServerGame', () => {
             events: [{ type: 'started', matchId: m1 }],
         });
         expect((await getMatch(pool, m1))!).toMatchObject({ state: 'started', awaitingDecision: true });
+    });
+});
+
+describe('the player who left an abandoned game', () => {
+    it('is stored with the game by slot and shown in the list of matches waiting for a decision', async () => {
+        const s = await setup();
+        const [m1, m2] = s.ids;
+        // m1 is P1 against P4 and m2 is P2 against P3.
+        const [a, b] = [s.players[0], s.players[3]];
+        await callMatch(pool, m1);
+        await callMatch(pool, m2);
+        expect(await listAwaitingDecision(pool)).toEqual([]);
+        await reportServerGame(pool, serverReport(m1, 1, a, [a, 15, b, 3]));
+        const left = { ...serverReport(m1, 2, null, [b, 6, a, 4]), leftPlayerId: b };
+        expect(await reportServerGame(pool, left)).toMatchObject({ ok: true, status: 'applied' });
+        expect((await getMatch(pool, m1))!.games[1]).toEqual({ number: 2, status: 'abandoned', winnerSlot: null, points1: 4, points2: 6, source: 'server', leftSlot: 2 });
+        expect((await pool.query('SELECT left_slot FROM game_reports WHERE report_id = $1', [left.reportId])).rows).toEqual([{ left_slot: 2 }]);
+
+        // A game without the field waits too, with no one named.
+        await reportServerGame(pool, serverReport(m2, 1, null, [s.players[1], 2, s.players[2], 5]));
+        const waiting = await listAwaitingDecision(pool);
+        expect(waiting.map((w) => [w.id, w.eventName, w.tournamentName, w.game.number, w.game.points1, w.game.points2, w.game.leftSlot])).toEqual([
+            [m1, 'LAN 2026', 'Cup', 2, 4, 6, 2],
+            [m2, 'LAN 2026', 'Cup', 1, 2, 5, null],
+        ]);
+        expect(waiting[0].players.map((p) => p?.nickname)).toEqual(['P1', 'P4']);
+        expect(waiting[0].roundLabel).toMatch(/match 1$/);
+
+        // A decision takes the match off the list. Awarding the game clears the player who left.
+        expect(await restartCurrentGame(pool, m1)).toMatchObject({ ok: true });
+        expect(await enterGameResult(pool, m2, { game: 1, winnerSlot: 2, points1: 2, points2: 5 })).toMatchObject({ ok: true });
+        expect(await listAwaitingDecision(pool)).toEqual([]);
+        expect((await getMatch(pool, m1))!.games[1]).toMatchObject({ status: 'abandoned', source: 'admin', leftSlot: 2 });
+        expect((await getMatch(pool, m2))!.games[0]).toMatchObject({ status: 'finished', leftSlot: null });
+    });
+
+    it('must be one of the two players of the match, and only for a game without a winner', async () => {
+        const s = await setup();
+        const [m1] = s.ids;
+        const [a, b] = [s.players[0], s.players[3]];
+        await callMatch(pool, m1);
+        expect(await reportServerGame(pool, { ...serverReport(m1, 1, null, [a, 1, b, 2]), leftPlayerId: s.players[1] })).toEqual({ ok: false, error: 'players' });
+        expect(await reportServerGame(pool, { ...serverReport(m1, 1, a, [a, 15, b, 2]), leftPlayerId: b })).toEqual({ ok: false, error: 'players' });
+        expect((await getMatch(pool, m1))!.games).toEqual([]);
+        expect((await pool.query('SELECT count(*)::int AS n FROM game_reports')).rows[0].n).toBe(0);
+        await expect(pool.query(`INSERT INTO match_games (match_id, number, status, winner_slot, source, left_slot) VALUES ($1, 9, 'finished', 1, 'server', 2)`, [m1])).rejects.toThrow(
+            /match_games_left_slot_abandoned/,
+        );
     });
 });
 

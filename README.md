@@ -59,7 +59,7 @@ The bracket logic is in `src/lib/bracket`. It has no database access. A new form
 
 Each tournament match and each 1v1 match is a row in the `matches` table. A match is upcoming, called, started, finished or cancelled. People can bet on an upcoming or called match once both players are known. An admin calls one or several matches under `/admin/matches` when the players should join. A match starts when the game server reports both players connected, and bets close then.
 
-A match is best of 1, 3, 5 or 7. Each game is stored with its own result, and the series score is stored with the match. A game that ends without a winner, such as on a disconnect, is abandoned and does not count. The admin then restarts it from 0-0 or awards it.
+A match is best of 1, 3, 5 or 7. Each game is stored with its own result, and the series score is stored with the match. A game that ends without a winner, such as on a disconnect, is abandoned and does not count. The admin then restarts it from 0-0 or awards it. The admin home page lists every match that waits for this decision at the top, with the event, the tournament and round, the players, the score when the game stopped and who left, and a link to the match. The match page shows the same score and who left.
 
 On the match page an admin can restart the current game, enter or correct a game result, set the series score by hand, record a no-show, reset the match to upcoming and cancel a 1v1 match. A game result needs more points for the winner. A no-show gives the other player the win. A tournament match cannot be cancelled, since the bracket could not move on. Record a no-show instead. When a series is decided, the winner and the loser move on to their next matches and the tournament places are updated. A correction works out the series and the bracket again. It is refused when it would move a player out of a later match that is already called, started or finished. The page then links to that match. Reset it to upcoming, which clears its games and refunds its bets, and the correction goes through.
 
@@ -307,6 +307,7 @@ One game ended. Send it once per game, with a new UUID as `reportId`. Send the s
 ```
 
 - `status` is `finished` or `abandoned`. A finished game needs `winnerId`, and the winner must have more points. An abandoned game, such as on a disconnect, has `winnerId` `null` or leaves it out.
+- `leftPlayerId` is optional. On an abandoned game it names the player who left, so the admin can decide. It must be one of the two players of the match, or the report is refused with `players`. Leave it out or send `null` when no one left or the server does not know. A finished game that names a player who left gets `400` with the field `leftPlayerId`.
 - `points` holds both players of the match, in any order.
 - `endedAt` may not be before `startedAt`.
 

@@ -102,6 +102,7 @@ describe('parseGameReport', () => {
                 game: 1,
                 status: 'finished',
                 winnerId: 12,
+                leftPlayerId: null,
                 points: [
                     { playerId: 12, points: 15 },
                     { playerId: 17, points: 9 },
@@ -123,6 +124,14 @@ describe('parseGameReport', () => {
         }) as Record<string, unknown>;
         delete tied.winnerId;
         expect(parseGameReport(tied)).toMatchObject({ ok: true, value: { status: 'abandoned', winnerId: null } });
+    });
+
+    it('reads the player who left an abandoned game, and null when it is left out', () => {
+        expect(parseGameReport(report({ status: 'abandoned', winnerId: null, leftPlayerId: 12 }))).toMatchObject({ ok: true, value: { status: 'abandoned', leftPlayerId: 12 } });
+        expect(parseGameReport(report({ status: 'abandoned', winnerId: null, leftPlayerId: null }))).toMatchObject({ ok: true, value: { leftPlayerId: null } });
+        expect(parseGameReport(report({ status: 'abandoned', winnerId: null }))).toMatchObject({ ok: true, value: { leftPlayerId: null } });
+        expect(parseGameReport(report())).toMatchObject({ ok: true, value: { status: 'finished', leftPlayerId: null } });
+        expect(parseGameReport(report({ leftPlayerId: null }))).toMatchObject({ ok: true, value: { leftPlayerId: null } });
     });
 
     it('reads a time zone offset', () => {
@@ -155,6 +164,10 @@ describe('parseGameReport', () => {
         ['points', { winnerId: 17 }],
         ['points', { points: pts(9, 9) }],
         ['winnerId', { status: 'abandoned', winnerId: 12 }],
+        ['leftPlayerId', { leftPlayerId: 12 }],
+        ['leftPlayerId', { status: 'abandoned', winnerId: null, leftPlayerId: '12' }],
+        ['leftPlayerId', { status: 'abandoned', winnerId: null, leftPlayerId: 0 }],
+        ['leftPlayerId', { status: 'abandoned', winnerId: null, leftPlayerId: 1.5 }],
         ['startedAt', { startedAt: undefined }],
         ['startedAt', { startedAt: '2026-11-20 18:00:00' }],
         ['startedAt', { startedAt: '2026-11-20T18:00:00' }],

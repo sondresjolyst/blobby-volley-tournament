@@ -71,12 +71,17 @@ export interface GameReportInput {
     game: number;
     status: 'finished' | 'abandoned';
     winnerId: number | null;
+    /** The player who left an abandoned game, when the server knows. Always null for a finished game. */
+    leftPlayerId: number | null;
     points: PlayerPoints[];
     startedAt: Date;
     endedAt: Date;
 }
 
-/** Body of POST /api/server/games. A finished game names a winner with more points. An abandoned game has none. */
+/**
+ * Body of POST /api/server/games. A finished game names a winner with more points. An abandoned
+ * game has none, and may name the player who left. A finished game that names one is refused.
+ */
 export function parseGameReport(body: unknown): Parsed<GameReportInput> {
     if (!isObject(body)) return { ok: false, field: 'body' };
     if (typeof body.reportId !== 'string' || !UUID.test(body.reportId)) return { ok: false, field: 'reportId' };
@@ -87,22 +92,28 @@ export function parseGameReport(body: unknown): Parsed<GameReportInput> {
     const points = readPoints(body.points);
     if (!points) return { ok: false, field: 'points' };
     let winnerId: number | null = null;
+    let leftPlayerId: number | null = null;
     if (status === 'finished') {
+        if (body.leftPlayerId !== undefined && body.leftPlayerId !== null) return { ok: false, field: 'leftPlayerId' };
         if (!isId(body.winnerId)) return { ok: false, field: 'winnerId' };
         const winner = points.find((p) => p.playerId === body.winnerId);
         const loser = points.find((p) => p.playerId !== body.winnerId);
         if (!winner || !loser) return { ok: false, field: 'winnerId' };
         if (winner.points <= loser.points) return { ok: false, field: 'points' };
         winnerId = winner.playerId;
-    } else if (body.winnerId !== undefined && body.winnerId !== null) {
-        return { ok: false, field: 'winnerId' };
+    } else {
+        if (body.winnerId !== undefined && body.winnerId !== null) return { ok: false, field: 'winnerId' };
+        if (body.leftPlayerId !== undefined && body.leftPlayerId !== null) {
+            if (!isId(body.leftPlayerId)) return { ok: false, field: 'leftPlayerId' };
+            leftPlayerId = body.leftPlayerId;
+        }
     }
     const startedAt = readTime(body.startedAt);
     if (!startedAt) return { ok: false, field: 'startedAt' };
     const endedAt = readTime(body.endedAt);
     if (!endedAt || endedAt < startedAt) return { ok: false, field: 'endedAt' };
     // Lower case, so the same UUID in another case is still the same report.
-    return { ok: true, value: { reportId: body.reportId.toLowerCase(), matchId: body.matchId, game: body.game, status, winnerId, points, startedAt, endedAt } };
+    return { ok: true, value: { reportId: body.reportId.toLowerCase(), matchId: body.matchId, game: body.game, status, winnerId, leftPlayerId, points, startedAt, endedAt } };
 }
 
 export interface LiveInputBody {
