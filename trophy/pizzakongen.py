@@ -1,4 +1,4 @@
-"""Pizzakongen trophy: a Blobby blob wearing a crown of pizza slices.
+"""Pizzakongen trophy: a Blobby blob wearing a crown, on a pizza box.
 
 Parametric model built with manifold3d. Run it to export STL files and
 print the printability checks:
@@ -24,11 +24,9 @@ from manifold3d import CrossSection, FillRule, Manifold, OpType
 
 YEAR = 2026                      # year on the plaque
 TEXT = "Svettaste Blåbby"        # first line on the plaque
-OVERALL_HEIGHT = 170.0           # mm, bottom of base to top of the crown (150 to 200)
+OVERALL_HEIGHT = 170.0           # mm, bottom of base to the top of the crown balls (150 to 200)
 TOLERANCE = 0.3                  # mm total clearance per fit. PLA 0.3, PETG 0.4
-PART = "all"                     # all, blob, crown_band, slice, base, plaque, pin
-
-NUM_SLICES = 5                   # pizza slices on the crown (5, 3 or 1)
+PART = "all"                     # all, blob, crown, base, plaque, pin
 
 # Base: a closed pizza box with a round pizza on top
 BOX_W = 140.0                    # mm, square box
@@ -60,14 +58,15 @@ BLOB_CUT_ROW = 78                # sprite row where the blob is cut flat
 BAND_TOP_ROW = 9                 # sprite row at the top of the crown band
 BAND_BOTTOM_ROW = 20             # sprite row at the bottom of the crown band
 
-# Crown band and slices
+# Crown: a band that seats on the head, with points standing on top of it
 BAND_WALL = 3.0                  # mm, wall at the bottom of the band
 BAND_BEAD = 1.2                  # mm, raised rings at the top and bottom of the band
-SLICE_W = 26.0
-SLICE_H = 30.0                   # height of a slice above the band
-SLICE_T = 3.2                    # plate thickness
-SLOT_DEPTH = 6.0
-TAB_W = 12.0
+CROWN_H = 30.0                   # mm, height of the points above the band, balls included
+NUM_POINTS = 7                   # points round the crown, the first one at the front
+POINT_WALL = 2.4                 # mm, wall of the points, flush with the top bead outside
+POINT_FLARE = 10.0               # degrees, the points lean outward this much
+POINT_RIM = 3.0                  # mm of plain wall above the band before the points start
+BALL_R = 3.2                     # mm, ball on the tip of each point
 
 # Pin between blob and base
 PIN_D = 10.0                     # D-shaped pin diameter
@@ -88,13 +87,12 @@ SPRITE_ROW_WIDTHS = [
     51, 51, 49, 47, 45, 41, 39, 37, 33, 29, 25, 21, 13,
 ]
 
-PARTS = ["blob", "crown_band", "slice", "base", "plaque", "pin"]
+PARTS = ["blob", "crown", "base", "plaque", "pin"]
 
-# Default filament per part (palette navy_white). The plaque and the slices are
-# printed flat, so their raised relief can take a second colour after one
-# filament change at the height from relief_z().
-COLOURS = {"blob": "dark blue", "base": "dark blue", "crown_band": "white",
-           "slice": "white", "plaque": "white", "plaque_top": "dark blue", "pin": "white"}
+# Filament per part. The plaque is printed flat, so its raised letters take a
+# second colour after one filament change at the height from relief_z().
+COLOURS = {"blob": "dark blue", "base": "black", "crown": "black",
+           "plaque": "black", "plaque_top": "white", "pin": "black"}
 HERE = os.path.dirname(os.path.abspath(__file__))
 ADD = OpType.Add
 
@@ -214,7 +212,7 @@ def blob_geometry():
     z_band_top_px = n - BAND_TOP_ROW
     z_band_bot_px = n - BAND_BOTTOM_ROW
     base_top = BOX_H + PIZZA_CHEESE_Z
-    scale = (OVERALL_HEIGHT - base_top - SLICE_H) / (z_band_top_px - z_cut_px)
+    scale = (OVERALL_HEIGHT - base_top - CROWN_H) / (z_band_top_px - z_cut_px)
     imax = int(np.argmax(prof_px[:, 0]))
     low = prof_px[:imax + 1]
     r_cut = float(np.interp(z_cut_px, low[:, 1], low[:, 0]))
@@ -280,16 +278,20 @@ def band_radii(g):
     r_hb = radius_at(prof, g["band_bot"])
     r_ht = radius_at(prof, g["band_top"])
     r_out = r_hb + BAND_WALL
-    r_slot = (r_ht + r_out + BAND_BEAD) / 2
-    return dict(r_hb=r_hb, r_ht=r_ht, r_out=r_out, r_slot=r_slot)
+    # middle of the point wall at the band top, 0.02 mm inside the bead so no sliver hangs over
+    r_point = r_out + BAND_BEAD - POINT_WALL / 2 - 0.02
+    return dict(r_hb=r_hb, r_ht=r_ht, r_out=r_out, r_point=r_point)
 
 
-def slice_angle(k):
-    return -90 + k * 360.0 / NUM_SLICES
+def point_angle(k):
+    return -90 + k * 360.0 / NUM_POINTS
 
 
-def make_band(g):
-    """Crown band. Its inside is the head surface plus clearance, so it seats."""
+def make_crown(g):
+    """The crown. The inside of the band is the head surface plus clearance, so
+    it seats. A thin wall stands on the band top and rises into points with a
+    ball on each tip. It leans outward by POINT_FLARE.
+    """
     prof = g["profile"]
     zb, zt = g["band_bot"], g["band_top"]
     br = band_radii(g)
@@ -300,48 +302,41 @@ def make_band(g):
     head = Manifold.revolve(profile_section(prof).offset(TOLERANCE / 2, circular_segments=16),
                             SEGMENTS)
     band = ring - head
-    slot = Manifold.cube([TAB_W + TOLERANCE, SLICE_T + TOLERANCE, SLOT_DEPTH + 0.01], True)
-    slot = slot.translate([0, 0, zt - SLOT_DEPTH / 2 + 0.005])
-    slots = []
-    for k in range(NUM_SLICES):
-        th = slice_angle(k)
-        slots.append(slot.rotate([0, 0, th + 90]).translate(
-            [br["r_slot"] * math.cos(math.radians(th)), br["r_slot"] * math.sin(math.radians(th)), 0]))
-    band = band - union(slots)
-    return band.translate([0, 0, -zb])
 
+    t = math.tan(math.radians(POINT_FLARE))
+    r0, w = br["r_point"], POINT_WALL
+    zc = CROWN_H - BALL_R                       # ball centres above the band top
+    hr = POINT_RIM + 0.5
+    rim = Manifold.revolve(CrossSection([np.array(
+        [(r0 - w / 2, -0.3), (r0 + w / 2, -0.3), (r0 + w / 2, 0.0), (r0 + w / 2 + hr * t, hr),
+         (r0 - w / 2 + hr * t, hr)])]), SEGMENTS)
 
-def make_slice():
-    """One pizza slice lying flat, back on the bed and relief facing up.
+    # one point, flat in (arc length, height, wall), then bent round the crown
+    hw = math.pi * r0 / NUM_POINTS              # half the arc between two valleys
+    grow = hw / (zc - POINT_RIM)                # extra half width per mm below the valley
+    z0 = POINT_RIM - 1.0
+    tri = CrossSection([np.array([(-hw - grow, z0), (hw + grow, z0), (0.0, zc)])])
+    # a little thinner than the rim, so the foot of each point stays inside it
+    wp = w - 0.06
+    flat = tri.extrude(wp).translate([0, 0, -wp / 2]).refine_to_length(1.0)
+    # ball with a cone under it, so its underside stays below 45 degrees
+    ball = (Manifold.sphere(BALL_R, 48) +
+            Manifold.sphere(0.05, 8).translate([0, 0, -1.5 * BALL_R])).hull()
+    pieces = [rim]
+    for k in range(NUM_POINTS):
+        th = math.radians(point_angle(k))
 
-    Local frame: x across the slice, y from the crust (y = 0) to the tip,
-    z through the thickness. The tab hangs below y = 0 into the band slot.
-    """
-    hw = SLICE_W / 2
-    outline = (CrossSection.circle(1.5, 24).translate([-hw + 1.5, 1.5]) +
-               CrossSection.circle(1.5, 24).translate([hw - 1.5, 1.5]) +
-               CrossSection.circle(2.0, 24).translate([0, SLICE_H - 2.0])).hull()
-    tab_h = SLOT_DEPTH - 0.4
-    tab = CrossSection.square([TAB_W, tab_h + 0.5]).translate([-TAB_W / 2, -tab_h])
-    plate = (outline + tab).extrude(SLICE_T)
-    # crust ridge along the wide end, notched like a baked rim
-    crust = outline.offset(-0.5) ^ CrossSection.square([SLICE_W + 2, 5.0]).translate([-hw - 1, 0])
-    for x in np.linspace(-hw + 4.5, hw - 4.5, 4):
-        crust = crust - CrossSection.square([1.0, 3.0]).translate([x - 0.5, 1.5])
-    rel = [crust.extrude(RELIEF)]
-    for (x, y, r) in [(-4.6, 9.5, 2.8), (4.4, 12.0, 2.8), (-0.4, 19.0, 2.3)]:
-        rel.append(CrossSection.circle(r, 40).translate([x, y]).extrude(RELIEF))
-    return plate + union(rel).translate([0, 0, SLICE_T - 0.01])
+        def bend(v, th=th):
+            v = np.asarray(v)
+            r = r0 + v[:, 2] + v[:, 1] * t
+            phi = th + v[:, 0] / r0
+            return np.column_stack([r * np.cos(phi), r * np.sin(phi), v[:, 1]])
 
-
-def slice_world_transform(g, k):
-    """3 x 4 matrix that stands a flat slice up in its slot on the crown."""
-    th = math.radians(slice_angle(k))
-    n = np.array([math.cos(th), math.sin(th), 0.0])
-    t = np.array([-math.sin(th), math.cos(th), 0.0])
-    up = np.array([0.0, 0.0, 1.0])
-    origin = n * (band_radii(g)["r_slot"] - SLICE_T / 2) + up * g["band_top"]
-    return np.column_stack([t, up, n, origin])
+        pieces.append(flat.warp_batch(bend))
+        rc = r0 + zc * t
+        pieces.append(ball.translate([rc * math.cos(th), rc * math.sin(th), zc]))
+    crown = band + union(pieces).translate([0, 0, zt])
+    return crown.translate([0, 0, -zb])
 
 
 def pizza_profile():
@@ -550,20 +545,17 @@ def build():
     """Return the print-oriented parts, the assembled scene and some numbers."""
     g = blob_geometry()
     blob = make_blob(g)
-    band = make_band(g)
-    slice_ = make_slice()
+    crown = make_crown(g)
     base, base_info = make_base(g)
     plaque, pinfo = make_plaque()
 
     zc = base_info["cheese_z"]
     asm = {"base": base, "blob": blob.translate([0, 0, zc]),
-           "crown_band": band.translate([0, 0, zc + g["band_bot"]])}
-    asm["slices"] = union(slice_.transform(slice_world_transform(g, k).tolist())
-                          .translate([0, 0, zc]) for k in range(NUM_SLICES))
+           "crown": crown.translate([0, 0, zc + g["band_bot"]])}
     asm["plaque"] = place_plaque(plaque)
     asm["pin"] = make_pin_vertical().translate([0, 0, zc - PIN_DEPTH])
 
-    parts = {"blob": to_bed(blob), "crown_band": to_bed(band), "slice": to_bed(slice_),
+    parts = {"blob": to_bed(blob), "crown": to_bed(crown),
              "base": to_bed(base), "plaque": to_bed(plaque), "pin": to_bed(make_pin())}
     return parts, asm, dict(g=g, band=band_radii(g), base=base_info, plaque=pinfo)
 
@@ -580,8 +572,6 @@ def relief_z(name):
     starts, or None if the part has no relief that can take a second colour."""
     if name == "plaque" and not STENCIL:
         return PLAQUE_T
-    if name == "slice":
-        return SLICE_T
     return None
 
 
@@ -652,15 +642,14 @@ def run_checks(parts, asm, info):
             worst_band = max(worst_band, math.degrees(math.atan2(p[0] - q[0], q[1] - p[1])))
     assert worst_band <= 45.0, f"band seat overhang {worst_band:.1f} deg"
     br = info["band"]
-    half = (SLICE_T + TOLERANCE) / 2
-    chord = (TAB_W + TOLERANCE) / 2
-    inner_wall = br["r_slot"] - half - br["r_ht"] - TOLERANCE / 2
-    outer_wall = br["r_out"] + BAND_BEAD - math.hypot(br["r_slot"] + half, chord)
-    assert inner_wall >= 0.8 and outer_wall >= 0.8, "band slot walls too thin"
+    # the point wall must stand on the band top, clear of the head inside it
+    ledge = br["r_point"] - POINT_WALL / 2 - br["r_ht"] - TOLERANCE / 2
+    assert POINT_WALL >= 0.8 and ledge >= 0.8, "crown point wall too thin or off the band"
     print(f"blob: scale {g['scale']:.3f} mm/px, height {g['height']:.1f} mm, max width "
           f"{2 * prof[:, 0].max():.1f} mm, flat foot {2 * prof[0, 0]:.1f} mm")
     print(f"blob belly steepest {worst:.1f} deg, band seat steepest {worst_band:.1f} deg from vertical")
-    print(f"band slot walls: inner {inner_wall:.2f} mm, outer at slot ends {outer_wall:.2f} mm")
+    print(f"crown: {NUM_POINTS} points, wall {POINT_WALL:.1f} mm, flare {POINT_FLARE:.0f} deg, "
+          f"balls {2 * BALL_R:.1f} mm, band top under the point wall {ledge:.2f} mm wide")
     print(f"plaque font size: line 1 {info['plaque']['size1']:.2f} mm, line 2 {info['plaque']['size2']:.2f} mm")
     pq = info["plaque"]
     if pq["stencil"]:
@@ -680,7 +669,7 @@ def run_checks(parts, asm, info):
         gaps = t.offset(0.4).offset(-0.4).area() / t.area() - 1
         print(f"  {label}: {bb[2] - bb[0]:.1f} x {bb[3] - bb[1]:.1f} mm. Area lost by a 0.8 mm "
               f"opening {thin * 100:.2f}%, area filled by a 0.8 mm closing {gaps * 100:.2f}%")
-    for name in ("plaque", "slice"):
+    for name in ("plaque",):
         z = relief_z(name)
         if z is not None:
             n, start, top = switch_layer(z)
