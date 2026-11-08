@@ -1,14 +1,9 @@
 // Checks uploaded sponsor logos and makes the small BMP with alpha the game shows. sharp does the decoding.
 import sharp, { type Metadata } from 'sharp';
 import { encodeBmp32 } from './bmp';
+import { GAME_LOGO_HEIGHT, GAME_LOGO_MAX_WIDTH, MAX_LOGO_BYTES, MAX_LOGO_SIDE, type LogoType } from './limits';
 
-export type LogoType = 'image/png' | 'image/jpeg' | 'image/webp';
-
-export const MAX_LOGO_BYTES = 1024 * 1024;
-/** The longest side of an uploaded logo, in pixels. */
-export const MAX_LOGO_SIDE = 2000;
-export const GAME_LOGO_HEIGHT = 32;
-export const GAME_LOGO_MAX_WIDTH = 160;
+export { GAME_LOGO_HEIGHT, GAME_LOGO_MAX_WIDTH, MAX_LOGO_BYTES, MAX_LOGO_SIDE, type LogoType };
 
 // Only the PNG, JPEG and WebP decoders may run, whatever bytes reach sharp. libvips can also read
 // SVG, PDF and other formats, and those are a far larger attack surface.

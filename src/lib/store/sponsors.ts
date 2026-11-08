@@ -230,6 +230,12 @@ export async function updateSponsor(pool: Pool, id: number, input: SponsorInput,
     return rows[0]?.event_id ?? null;
 }
 
+/** Turns a sponsor on or off. Only that changes. Returns the event id, or null when there is no such sponsor. */
+export async function setSponsorShown(pool: Pool, id: number, enabled: boolean): Promise<number | null> {
+    const { rows } = await pool.query<{ event_id: number }>('UPDATE sponsors SET enabled = $2, updated_at = now() WHERE id = $1 RETURNING event_id', [id, enabled]);
+    return rows[0]?.event_id ?? null;
+}
+
 /**
  * Swaps a sponsor with the one before or after it. Moving the first one up or the last one down
  * changes nothing. Returns the event id, or null when there is no such sponsor.

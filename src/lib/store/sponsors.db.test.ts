@@ -11,7 +11,7 @@ import { BMP_HEADER_BYTES, encodeBmp32, readBmpInfo } from '@/lib/sponsors/bmp';
 import type { SponsorInput } from '@/lib/sponsors/input';
 import { checkLogo, makeGameLogo, type CheckedLogo } from '@/lib/sponsors/logo';
 import { createEvent, getEvent, setActiveEvent, setGameBoard } from './events';
-import { createSponsor, deleteSponsor, getSponsorLogo, listServerSponsors, listShownSponsors, listSponsors, LOGO_UPGRADE_TRIES, MAX_SPONSORS, moveSponsor, newLogoUpgradeState, updateSponsor, upgradeGameLogos, upgradeGameLogosOnce } from './sponsors';
+import { createSponsor, deleteSponsor, setSponsorShown, getSponsorLogo, listServerSponsors, listShownSponsors, listSponsors, LOGO_UPGRADE_TRIES, MAX_SPONSORS, moveSponsor, newLogoUpgradeState, updateSponsor, upgradeGameLogos, upgradeGameLogosOnce } from './sponsors';
 
 if (!process.env.TEST_DATABASE_URL) {
     throw new Error('TEST_DATABASE_URL is not set. Run these tests with npm run test:db.');
@@ -93,6 +93,15 @@ describe('sponsors', () => {
         await moveSponsor(pool, (await listSponsors(pool, eventId))[2].id, 'down');
         expect(await names(eventId)).toEqual(['C', 'A', 'B']);
         expect(await moveSponsor(pool, 999, 'up')).toBeNull();
+    });
+
+    it('turns a sponsor on and off without touching anything else', async () => {
+        const eventId = await createEvent(pool, lan);
+        const id = await add(eventId, 'Acme', { link: 'https://acme.example.test/', gameBackground: '#123456' });
+        const before = (await listSponsors(pool, eventId))[0];
+        expect(await setSponsorShown(pool, id, false)).toBe(eventId);
+        expect((await listSponsors(pool, eventId))[0]).toEqual({ ...before, enabled: false });
+        expect(await setSponsorShown(pool, 999, true)).toBeNull();
     });
 
     it('moves around a gap left by a delete', async () => {

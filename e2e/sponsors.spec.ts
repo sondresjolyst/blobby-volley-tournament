@@ -43,20 +43,32 @@ test('an admin adds, orders, turns off and deletes sponsors, and the footer and 
     await expect(page.getByRole('status')).toHaveText('Saved the sponsor board.');
     await expect(board).toHaveValue('led');
 
-    // SVG is refused whatever the browser says the file is.
-    await page.getByLabel('Name of the new sponsor').fill(first);
-    await page.getByLabel('Logo of the new sponsor').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>') });
+    // The add form opens from its button, and Cancel closes it again.
+    const addForm = page.getByRole('form', { name: 'Add a sponsor' });
     await page.getByRole('button', { name: 'Add sponsor' }).click();
+    await expect(addForm.getByLabel('Name')).toBeFocused();
+    await addForm.getByRole('button', { name: 'Cancel' }).click();
+    await expect(addForm).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Add sponsor' })).toBeFocused();
+
+    // SVG is refused whatever the browser says the file is.
+    await page.getByRole('button', { name: 'Add sponsor' }).click();
+    await addForm.getByLabel('Name').fill(first);
+    await addForm.getByLabel('Logo').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>') });
+    await expect(addForm.getByText('logo.png')).toBeVisible();
+    await addForm.getByRole('button', { name: 'Add sponsor' }).click();
     await expect(page.getByRole('alert').filter({ hasText: 'The logo must be a PNG, JPEG or WebP file. SVG is not allowed.' })).toBeVisible();
 
     for (const [name, colour] of [
         [first, '#cc0000'],
         [second, '#0000cc'],
     ]) {
-        await page.getByLabel('Name of the new sponsor').fill(name);
-        await page.getByLabel('Link of the new sponsor').fill(`https://${tag}.example.test/${name.split(' ')[0].toLowerCase()}`);
-        await page.getByLabel('Logo of the new sponsor').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: await png(300, 100, colour) });
         await page.getByRole('button', { name: 'Add sponsor' }).click();
+        await addForm.getByLabel('Name').fill(name);
+        await addForm.getByLabel('Link').fill(`https://${tag}.example.test/${name.split(' ')[0].toLowerCase()}`);
+        await addForm.getByLabel('Logo').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: await png(300, 100, colour) });
+        await expect(addForm.getByRole('img', { name: 'Preview of the logo of the new sponsor' })).toBeVisible();
+        await addForm.getByRole('button', { name: 'Add sponsor' }).click();
         await expect(page.getByRole('status')).toHaveText(`Saved the sponsor ${name}.`);
     }
     // The admin preview loads through the admin route, which needs the session.
@@ -116,11 +128,13 @@ test('an admin adds, orders, turns off and deletes sponsors, and the footer and 
     sync = await readSponsors(request);
     expect(ours().map((s) => s.name)).toEqual([second, first]);
 
-    // Turn the first one off. It leaves the footer and the game, but stays on the admin page.
+    // Turn the first one off with its switch. It leaves the footer and the game, but stays on the admin page.
     const version = sync.sponsorsVersion;
-    await page.getByLabel(`Show ${first}`).uncheck();
-    await page.getByRole('button', { name: `Save ${first}` }).click();
+    const shown = page.getByRole('switch', { name: `Shown: ${first}` });
+    await expect(shown).toHaveAttribute('aria-checked', 'true');
+    await shown.click();
     await expect(page.getByRole('status')).toHaveText(`Saved the sponsor ${first}.`);
+    await expect(shown).toHaveAttribute('aria-checked', 'false');
     sync = await readSponsors(request);
     expect(ours().map((s) => s.name)).toEqual([second]);
     expect(sync.sponsorsVersion).not.toBe(version);
@@ -129,9 +143,29 @@ test('an admin adds, orders, turns off and deletes sponsors, and the footer and 
     await expect(footer.getByRole('img', { name: first })).toHaveCount(0);
     expect((await homePage.request.get(src!)).status()).toBe(404);
 
-    // Delete both.
+    // Edit keeps the logo when no new file is picked, and a colour background sticks.
+    await page.getByRole('button', { name: `Edit ${second}` }).click();
+    const editForm = page.getByRole('form', { name: `Edit ${second}` });
+    await editForm.getByLabel('Link').fill('');
+    await editForm.getByRole('radio', { name: 'Colour' }).check();
+    await editForm.getByLabel('Colour of the background').fill('#ffe9b0');
+    await editForm.getByRole('button', { name: 'Save' }).click();
+    await expect(page.getByRole('status')).toHaveText(`Saved the sponsor ${second}.`);
+    await page.getByRole('button', { name: `Edit ${second}` }).click();
+    await expect(editForm.getByRole('radio', { name: 'Colour' })).toBeChecked();
+    await expect(editForm.getByLabel('Colour of the background')).toHaveValue('#ffe9b0');
+    await expect(editForm.getByLabel('Link')).toHaveValue('');
+    await editForm.getByRole('button', { name: 'Cancel' }).click();
+    sync = await readSponsors(request);
+    expect(ours().map((s) => s.name)).toEqual([second]);
+
+    // Delete asks first. Cancel keeps the sponsor.
+    await page.getByRole('button', { name: `Delete ${first}` }).click();
+    await page.getByRole('group', { name: `Delete ${first}?` }).getByRole('button', { name: 'Cancel' }).click();
+    await expect(page.getByRole('button', { name: `Delete ${first}` })).toBeFocused();
     for (const name of [first, second]) {
         await page.getByRole('button', { name: `Delete ${name}` }).click();
+        await page.getByRole('group', { name: `Delete ${name}?` }).getByRole('button', { name: 'Yes, delete' }).click();
         await expect(page.getByRole('status')).toHaveText('The sponsor is deleted.');
     }
     await expect(page).toHaveURL(/\/admin\/events\/\d+\?sponsorDeleted=1#sponsors$/);
