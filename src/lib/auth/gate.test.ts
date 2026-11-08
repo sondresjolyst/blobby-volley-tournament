@@ -9,7 +9,7 @@ describe('isProtectedPath', () => {
         },
     );
 
-    it.each(['/', '/health', '/signin', '/denied', '/auth-error', '/api/auth/signin', '/administrator', '/admins', '/api/administrator', '/api/auth/admin-x', '/events', '/_next/image'])(
+    it.each(['/', '/health', '/login', '/denied', '/auth-error', '/api/auth/signin', '/administrator', '/admins', '/api/administrator', '/api/auth/admin-x', '/events', '/_next/image'])(
         'leaves %s public',
         (path) => {
             expect(isProtectedPath(path)).toBe(false);
@@ -18,11 +18,11 @@ describe('isProtectedPath', () => {
 });
 
 describe('isAuthPath', () => {
-    it.each(['/signin', '/denied', '/auth-error', '/api/auth', '/api/auth/callback/github'])('treats %s as a sign-in route', (path) => {
+    it.each(['/denied', '/auth-error', '/api/auth', '/api/auth/callback/github'])('treats %s as a sign-in route', (path) => {
         expect(isAuthPath(path)).toBe(true);
     });
 
-    it.each(['/', '/admin', '/signinx', '/api/authx', '/health'])('does not treat %s as a sign-in route', (path) => {
+    it.each(['/', '/admin', '/login', '/signin', '/api/authx', '/health'])('does not treat %s as a sign-in route', (path) => {
         expect(isAuthPath(path)).toBe(false);
     });
 });
@@ -32,7 +32,7 @@ describe('signInUrl', () => {
 
     it('sends the visitor back to the same page', () => {
         const url = new URL(signInUrl(new URL('/admin?x=1', origin)), origin);
-        expect(url.pathname).toBe('/signin');
+        expect(url.pathname).toBe('/login');
         expect(url.searchParams.get('callbackUrl')).toBe('/admin?x=1');
     });
 

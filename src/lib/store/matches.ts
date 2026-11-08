@@ -3,6 +3,7 @@
 // same transaction.
 import type { Pool, PoolClient } from 'pg';
 import { DEFAULT_RULES, finalPlacings, isBestOf, isRuleFile, roundName, type FormatId, type MatchLink, type Placing, type Section } from '@/lib/bracket';
+import { DEFAULT_GAME_SPEED, DEFAULT_SCORE_TO_WIN, isGameSpeed, isPoints, isScoreToWin, isWinningScore } from '@/lib/matches/settings';
 import { isOpenForBets, isValidSeriesScore, nextState, seriesScore, type GameResult, type MatchAction, type MatchState } from '@/lib/matches/state';
 import { handleMatchEvents, type MatchEvent } from './match-events';
 import { inTransaction } from './transaction';
@@ -20,12 +21,14 @@ export type MatchError =
     | 'player-busy'
     /** A 1v1 match that player 2 has not accepted yet. */
     | 'not-accepted'
-    /** Only player 2 of a 1v1 match may accept or decline it. */
+    /** Only player 2 of a 1v1 match may accept or decline it, and only player 1 may withdraw it. */
     | 'not-allowed'
     /** The game number is not a game of the match or the next one. */
     | 'game'
     /** The series score or the points are not valid. */
     | 'score'
+    /** The series is decided, so a new game cannot be added. Earlier games can still be corrected. */
+    | 'decided'
     /** The match was decided by a no-show, so its games cannot change it. */
     | 'forfeit'
     /** The change would move a player out of a later match that is already called, started or finished. */
@@ -34,7 +37,7 @@ export type MatchError =
     | 'no-event'
     /** The two players already have an open 1v1 match. */
     | 'taken'
-    /** The best-of or the rule file is not valid. */
+    /** The best-of, the rule file, the points to win or the game speed is not valid. */
     | 'settings'
     /** A tournament match cannot be cancelled, since the bracket could not move on. Record a no-show instead. */
     | 'tournament-cancel';
@@ -56,6 +59,8 @@ export interface MatchGame {
     points1: number;
     points2: number;
     source: 'server' | 'admin';
+    /** The slot of the player who left an abandoned game, as the game server reported it. Null when unknown. */
+    leftSlot: 1 | 2 | null;
 }
 
 export interface MatchSummary {
@@ -68,9 +73,15 @@ export interface MatchSummary {
     bracketMatchId: number | null;
     /** Such as `Winners round 1, match 2`. Null for a 1v1 match. */
     roundLabel: string | null;
+    /** Where the match sits in its bracket, so a page can name the round in its own words. Null for a 1v1 match. */
+    bracketRound: BracketRound | null;
     state: MatchState;
     bestOf: number;
     ruleFile: string;
+    /** Points that win a game. */
+    scoreToWin: number;
+    /** Game speed in frames per second. */
+    speed: number;
     players: [MatchPlayer | null, MatchPlayer | null];
     /** 1v1 only. When player 2 accepted. */
     acceptedAt: Date | null;
@@ -78,7 +89,16 @@ export interface MatchSummary {
     score2: number;
     winnerId: number | null;
     result: 'played' | 'forfeit' | null;
-    cancelReason: 'admin' | 'declined' | null;
+    cancelReason: 'admin' | 'declined' | 'withdrawn' | null;
+}
+
+export interface BracketRound {
+    format: FormatId;
+    section: Section;
+    round: number;
+    /** The last round of the section. */
+    lastRound: number;
+    position: number;
 }
 
 export interface MatchDetails extends MatchSummary {
@@ -103,6 +123,8 @@ interface MatchRow {
     state: MatchState;
     best_of: number;
     rule_file: string;
+    score_to_win: number;
+    game_speed: number;
     player1_id: number | null;
     player2_id: number | null;
     accepted_at: Date | null;
@@ -114,7 +136,7 @@ interface MatchRow {
     game_base: number;
     winner_id: number | null;
     result: 'played' | 'forfeit' | null;
-    cancel_reason: 'admin' | 'declined' | null;
+    cancel_reason: 'admin' | 'declined' | 'withdrawn' | null;
     called_at: Date | null;
     started_at: Date | null;
     finished_at: Date | null;
@@ -128,9 +150,10 @@ interface GameRow {
     points1: number;
     points2: number;
     source: 'server' | 'admin';
+    left_slot: 1 | 2 | null;
 }
 
-const MATCH_COLUMNS = `id, event_id, tournament_id, bracket_match_id, state, best_of, rule_file, player1_id, player2_id, accepted_at,
+const MATCH_COLUMNS = `id, event_id, tournament_id, bracket_match_id, state, best_of, rule_file, score_to_win, game_speed, player1_id, player2_id, accepted_at,
     score1, score2, manual_score1, manual_score2, manual_after_game, game_base, winner_id, result, cancel_reason,
     called_at, started_at, finished_at, cancelled_at`;
 
@@ -176,15 +199,24 @@ class MatchTx {
     }
 }
 
+// Any number works, as long as only lockMatch uses it with an event id.
+const EVENT_MATCHES_LOCK = 7_310_404;
+
 /**
  * Locks one match in an open transaction. A tournament match also locks its tournament, so changes
  * to matches of the same tournament run one after the other. The tournament is always locked
  * before the match, so two changes cannot wait on each other. Returns null when there is no match.
+ *
+ * A change first takes a lock for the whole event, so the changes to the matches of one event run
+ * one at a time. A change that frees players and a change that accepts a 1v1 match then always see
+ * the result of the other. So a waiting 1v1 match is never left uncalled, and no player is called twice.
+ * Bets do not take it, so they never wait for a change to another match.
  */
-async function lockMatch(client: PoolClient, matchId: number): Promise<MatchRow | null> {
-    const found = await client.query<{ tournament_id: number | null }>('SELECT tournament_id FROM matches WHERE id = $1', [matchId]);
+async function lockMatch(client: PoolClient, matchId: number, change: boolean): Promise<MatchRow | null> {
+    const found = await client.query<{ tournament_id: number | null; event_id: number }>('SELECT tournament_id, event_id FROM matches WHERE id = $1', [matchId]);
     if (found.rowCount !== 1) return null;
     const tournamentId = found.rows[0].tournament_id;
+    if (change) await client.query('SELECT pg_advisory_xact_lock($1, $2)', [EVENT_MATCHES_LOCK, found.rows[0].event_id]);
     if (tournamentId !== null) await client.query('SELECT 1 FROM tournaments WHERE id = $1 FOR NO KEY UPDATE', [tournamentId]);
     const { rows } = await client.query<MatchRow>(`SELECT ${MATCH_COLUMNS} FROM matches WHERE id = $1 FOR UPDATE`, [matchId]);
     return rows[0] ?? null;
@@ -194,10 +226,13 @@ async function lockMatch(client: PoolClient, matchId: number): Promise<MatchRow 
 async function withMatch<T extends object>(pool: Pool, matchId: number, work: (tx: MatchTx) => Promise<T>): Promise<MatchResult<T>> {
     try {
         return await inTransaction(pool, async (client) => {
-            const match = await lockMatch(client, matchId);
+            const match = await lockMatch(client, matchId, true);
             if (!match) throw new Refused('not-found');
             const tx = new MatchTx(client, match);
             const value = await work(tx);
+            // A change that frees the players, or a reset, may let a waiting 1v1 match be called. It runs
+            // before the bettors are locked, so the waiting matches are locked before any player.
+            if (freesPlayers(match.state, tx.match.state)) await callWaitingChallenges(client, [match.player1_id, match.player2_id]);
             if (tx.events.length > 0) await handleMatchEvents(client, tx.events);
             return { ok: true as const, events: tx.events, ...value };
         });
@@ -223,7 +258,7 @@ export interface BetMatch {
  * since handleMatchEvents runs while the change already holds the lock.
  */
 export async function withMatchForBet(client: PoolClient, matchId: number): Promise<{ ok: true; match: BetMatch } | { ok: false; error: 'not-found' | 'closed' }> {
-    const row = await lockMatch(client, matchId);
+    const row = await lockMatch(client, matchId, false);
     if (!row) return { ok: false, error: 'not-found' };
     const players: [number | null, number | null] = [row.player1_id, row.player2_id];
     if (!isOpenForBets({ state: row.state, tournamentId: row.tournament_id, acceptedAt: row.accepted_at, players })) return { ok: false, error: 'closed' };
@@ -234,7 +269,7 @@ export async function withMatchForBet(client: PoolClient, matchId: number): Prom
 const lastGame = (match: MatchRow, games: readonly GameRow[]) => Math.max(games.at(-1)?.number ?? 0, match.game_base);
 
 async function readGames(client: PoolClient | Pool, matchId: number): Promise<GameRow[]> {
-    const { rows } = await client.query<GameRow>('SELECT number, status, winner_slot, points1, points2, source FROM match_games WHERE match_id = $1 ORDER BY number', [matchId]);
+    const { rows } = await client.query<GameRow>('SELECT number, status, winner_slot, points1, points2, source, left_slot FROM match_games WHERE match_id = $1 ORDER BY number', [matchId]);
     return rows;
 }
 
@@ -277,6 +312,8 @@ async function settleSeries(tx: MatchTx) {
     const previous = match.state === 'finished' ? match.winner_id : null;
     if (winnerId === previous) return;
     if (previous !== null) {
+        // A match left undecided is started again. A player may have been called to another match since.
+        if (winnerId === null && (await playersBusy(tx))) throw new Refused('player-busy');
         await tx.transition('reopen', { winner_id: null, result: null });
         tx.emit({ type: 'reopened', matchId: match.id, previousWinnerId: previous });
     }
@@ -369,8 +406,8 @@ async function advanceBracket(tx: MatchTx, tournamentId: number) {
 /** Adds a match row for each bracket match of a tournament. saveTournament calls it in its transaction. */
 export async function createBracketMatches(client: PoolClient, tournamentId: number): Promise<void> {
     await client.query(
-        `INSERT INTO matches (event_id, tournament_id, bracket_match_id, best_of, rule_file, player1_id, player2_id)
-         SELECT t.event_id, bm.tournament_id, bm.id, bm.best_of, bm.rule_file, bm.player1_id, bm.player2_id
+        `INSERT INTO matches (event_id, tournament_id, bracket_match_id, best_of, rule_file, score_to_win, game_speed, player1_id, player2_id)
+         SELECT t.event_id, bm.tournament_id, bm.id, bm.best_of, bm.rule_file, t.score_to_win, t.game_speed, bm.player1_id, bm.player2_id
          FROM bracket_matches bm JOIN tournaments t ON t.id = bm.tournament_id
          WHERE bm.tournament_id = $1 ORDER BY bm.id`,
         [tournamentId],
@@ -379,21 +416,89 @@ export async function createBracketMatches(client: PoolClient, tournamentId: num
 
 // Admin tools
 
+/** A player of a called or started match is busy. */
+const isPlaying = (state: MatchState) => state === 'called' || state === 'started';
+
+/** True when a change leaves the players of the match free, or sends it back to upcoming. */
+const freesPlayers = (from: MatchState, to: MatchState) => !isPlaying(to) && (isPlaying(from) || (to === 'upcoming' && from !== 'upcoming'));
+
+/** True when a player of the locked match is in another called or started match. Locks both players. */
+async function playersBusy(tx: MatchTx): Promise<boolean> {
+    const players = bothPlayers(tx.match);
+    // Two changes of different matches with a shared player wait here, so only one sees the player free.
+    await tx.client.query('SELECT 1 FROM players WHERE id = ANY($1::int[]) ORDER BY id FOR NO KEY UPDATE', [players]);
+    const busy = await tx.client.query(
+        `SELECT 1 FROM matches WHERE id <> $1 AND state IN ('called', 'started')
+         AND (player1_id = ANY($2::int[]) OR player2_id = ANY($2::int[])) LIMIT 1`,
+        [tx.match.id, players],
+    );
+    return (busy.rowCount ?? 0) > 0;
+}
+
+/** Calls the locked upcoming match when both players are free. Returns false and changes nothing when one is busy. */
+async function callIfFree(tx: MatchTx): Promise<boolean> {
+    if (await playersBusy(tx)) return false;
+    await tx.transition('call');
+    return true;
+}
+
+/** Calls the locked waiting 1v1 matches whose players are free, the earliest accepted first. */
+async function callAccepted(client: PoolClient, rows: MatchRow[]) {
+    rows.sort((a, b) => a.accepted_at!.getTime() - b.accepted_at!.getTime() || a.id - b.id);
+    for (const row of rows) await callIfFree(new MatchTx(client, row));
+}
+
+/**
+ * Calls the accepted 1v1 matches of the players that wait for a busy player. Runs in the change
+ * that freed the players. A tournament match is never called here, since an admin calls those.
+ */
+async function callWaitingChallenges(client: PoolClient, playerIds: readonly (number | null)[]) {
+    const ids = playerIds.filter((id): id is number => id !== null);
+    if (ids.length === 0) return;
+    // Locked in id order, so two changes cannot wait on each other.
+    const { rows } = await client.query<MatchRow>(
+        `SELECT ${MATCH_COLUMNS} FROM matches m
+         WHERE tournament_id IS NULL AND state = 'upcoming' AND accepted_at IS NOT NULL
+         AND (player1_id = ANY($1::int[]) OR player2_id = ANY($1::int[]))
+         AND EXISTS (SELECT 1 FROM events e WHERE e.id = m.event_id AND e.is_active)
+         ORDER BY id FOR UPDATE OF m`,
+        [ids],
+    );
+    await callAccepted(client, rows);
+}
+
+/**
+ * Takes the lock that match changes of the event take first. A change to the event row itself takes
+ * it before the row, since a match change takes the event row last, when it commits.
+ */
+export async function lockEventMatches(client: PoolClient, eventId: number) {
+    await client.query('SELECT pg_advisory_xact_lock($1, $2)', [EVENT_MATCHES_LOCK, eventId]);
+}
+
+/**
+ * Calls the waiting 1v1 matches of an event that was just made active, in the transaction that
+ * activates it. They were left waiting while the event was not active.
+ */
+export async function callWaitingInEvent(client: PoolClient, eventId: number) {
+    await lockEventMatches(client, eventId);
+    const { rows } = await client.query<MatchRow>(
+        `SELECT ${MATCH_COLUMNS} FROM matches m
+         WHERE event_id = $1 AND tournament_id IS NULL AND state = 'upcoming' AND accepted_at IS NOT NULL
+         ORDER BY id FOR UPDATE OF m`,
+        [eventId],
+    );
+    await callAccepted(client, rows);
+}
+
 /** Tells the players to join. Both players must be known and free, and a 1v1 match must be accepted. */
 export async function callMatch(pool: Pool, matchId: number): Promise<MatchResult> {
     return withMatch(pool, matchId, async (tx) => {
         if (tx.match.state !== 'upcoming') throw new Refused('state');
-        const players = bothPlayers(tx.match);
+        // An admin may call a match of an event that is not active. That override is on purpose.
+        // Refuses a match with an empty player slot.
+        bothPlayers(tx.match);
         if (tx.match.tournament_id === null && tx.match.accepted_at === null) throw new Refused('not-accepted');
-        // Two calls of different matches with a shared player wait here, so only one sees the player free.
-        await tx.client.query('SELECT 1 FROM players WHERE id = ANY($1::int[]) ORDER BY id FOR NO KEY UPDATE', [players]);
-        const busy = await tx.client.query(
-            `SELECT 1 FROM matches WHERE id <> $1 AND state IN ('called', 'started')
-             AND (player1_id = ANY($2::int[]) OR player2_id = ANY($2::int[])) LIMIT 1`,
-            [tx.match.id, players],
-        );
-        if (busy.rowCount) throw new Refused('player-busy');
-        await tx.transition('call');
+        if (!(await callIfFree(tx))) throw new Refused('player-busy');
         return {};
     });
 }
@@ -434,28 +539,26 @@ export interface GameEntry {
     points2: number;
 }
 
-const isPoints = (n: number) => Number.isInteger(n) && n >= 0 && n <= 1000;
-
-/** The winner of a game must have more points than the loser. An abandoned game has no winner. */
-const winnerAhead = (winnerSlot: 1 | 2 | null, points1: number, points2: number) => winnerSlot === null || (winnerSlot === 1 ? points1 > points2 : points2 > points1);
-
 /**
  * Enters or corrects a game result by hand. Awarding an abandoned game is a correction that gives
- * it a winner. The series, the winner and the bracket are worked out again. A game the admin set
+ * it a winner. The winner needs more points but not the points to win, so an admin can award a
+ * game at the score where it stopped. The series, the winner and the bracket are worked out again. A game the admin set
  * is never changed by a later report from the game server.
  */
 export async function enterGameResult(pool: Pool, matchId: number, entry: GameEntry): Promise<MatchResult> {
     if (!Number.isInteger(entry.game) || entry.game < 1) return { ok: false, error: 'game' };
     if (!isPoints(entry.points1) || !isPoints(entry.points2) || ![1, 2, null].includes(entry.winnerSlot)) return { ok: false, error: 'score' };
-    if (!winnerAhead(entry.winnerSlot, entry.points1, entry.points2)) return { ok: false, error: 'score' };
+    if (!isWinningScore(entry.winnerSlot, entry.points1, entry.points2, 1)) return { ok: false, error: 'score' };
     return withMatch(pool, matchId, async (tx) => {
         await requireScorable(tx);
         const games = await readGames(tx.client, tx.match.id);
-        if (entry.game <= tx.match.game_base || entry.game > lastGame(tx.match, games) + 1) throw new Refused('game');
+        const last = lastGame(tx.match, games);
+        if (entry.game <= tx.match.game_base || entry.game > last + 1) throw new Refused('game');
+        if (entry.game > last && tx.match.state === 'finished') throw new Refused('decided');
         await tx.client.query(
             `INSERT INTO match_games (match_id, number, status, winner_slot, points1, points2, source) VALUES ($1, $2, $3, $4, $5, $6, 'admin')
              ON CONFLICT (match_id, number) DO UPDATE SET status = EXCLUDED.status, winner_slot = EXCLUDED.winner_slot,
-                 points1 = EXCLUDED.points1, points2 = EXCLUDED.points2, source = 'admin', updated_at = now()`,
+                 points1 = EXCLUDED.points1, points2 = EXCLUDED.points2, source = 'admin', left_slot = NULL, updated_at = now()`,
             [tx.match.id, entry.game, entry.winnerSlot === null ? 'abandoned' : 'finished', entry.winnerSlot, entry.points1, entry.points2],
         );
         await settleSeries(tx);
@@ -541,9 +644,17 @@ export async function resetMatch(pool: Pool, matchId: number): Promise<MatchResu
 
 // The game server
 
-/** The game server reports both players connected. A called match starts and bets close. */
-export async function reportPlayersConnected(pool: Pool, matchId: number): Promise<MatchResult<{ started: boolean }>> {
+/** True when the ids are the two players of the match, in either order. */
+const samePlayers = (match: MatchRow, ids: readonly number[]) =>
+    match.player1_id !== null && match.player2_id !== null && ids.length === 2 && ids.includes(match.player1_id) && ids.includes(match.player2_id);
+
+/**
+ * The game server reports both players connected. A called match starts and bets close. When
+ * the player ids are given, they must be the two players of the match, or it is refused.
+ */
+export async function reportPlayersConnected(pool: Pool, matchId: number, playerIds?: readonly number[]): Promise<MatchResult<{ started: boolean }>> {
     return withMatch(pool, matchId, async (tx) => {
+        if (playerIds !== undefined && !samePlayers(tx.match, playerIds)) throw new Refused('players');
         if (tx.match.state === 'started') return { started: false };
         if (tx.match.state !== 'called') throw new Refused('state');
         await tx.transition('start');
@@ -568,6 +679,8 @@ export interface GameReport {
     winnerSlot: 1 | 2 | null;
     points1: number;
     points2: number;
+    /** The slot of the player who left a game without a winner. Null or left out when unknown. */
+    leftSlot?: 1 | 2 | null;
 }
 
 export type ReportStatus =
@@ -578,52 +691,118 @@ export type ReportStatus =
     /** A report with this id was stored before. Nothing changed. */
     | { status: 'duplicate' };
 
+const isValidReport = (report: GameReport) =>
+    typeof report.reportId === 'string' &&
+    report.reportId.length >= 1 &&
+    report.reportId.length <= 100 &&
+    Number.isInteger(report.game) &&
+    report.game >= 1 &&
+    isPoints(report.points1) &&
+    isPoints(report.points2) &&
+    [1, 2, null].includes(report.winnerSlot) &&
+    [1, 2, null, undefined].includes(report.leftSlot) &&
+    ((report.leftSlot ?? null) === null || report.winnerSlot === null) &&
+    isWinningScore(report.winnerSlot, report.points1, report.points2, 1);
+
+/** Stores one report on the locked match and applies it when it is for the next game. */
+async function storeReport(tx: MatchTx, report: GameReport, times: { startedAt: Date; endedAt: Date } | null): Promise<ReportStatus> {
+    // A finished game from the game server ends at the points to win of the match or later.
+    if (!isWinningScore(report.winnerSlot, report.points1, report.points2, tx.match.score_to_win)) throw new Refused('score');
+    const games = await readGames(tx.client, tx.match.id);
+    const last = lastGame(tx.match, games);
+    let decision: ReportStatus;
+    if (tx.match.state !== 'called' && tx.match.state !== 'started') decision = { status: 'ignored', reason: 'state' };
+    else if (report.game <= last) decision = { status: 'ignored', reason: 'game-closed' };
+    else if (report.game > last + 1) decision = { status: 'ignored', reason: 'game-ahead' };
+    else decision = { status: 'applied' };
+
+    // The match row is locked, so a report with the same id for this match waits here and then finds this one.
+    const stored = await tx.client.query(
+        `INSERT INTO game_reports (report_id, match_id, game_number, winner_slot, points1, points2, outcome, reason, started_at, ended_at, left_slot)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) ON CONFLICT (report_id) DO NOTHING RETURNING report_id`,
+        [
+            report.reportId,
+            tx.match.id,
+            report.game,
+            report.winnerSlot,
+            report.points1,
+            report.points2,
+            decision.status,
+            decision.status === 'ignored' ? decision.reason : null,
+            times?.startedAt ?? null,
+            times?.endedAt ?? null,
+            report.leftSlot ?? null,
+        ],
+    );
+    if (stored.rowCount === 0) return { status: 'duplicate' };
+    if (decision.status !== 'applied') return decision;
+
+    await startIfCalled(tx);
+    await tx.client.query(`INSERT INTO match_games (match_id, number, status, winner_slot, points1, points2, source, left_slot) VALUES ($1, $2, $3, $4, $5, $6, 'server', $7)`, [
+        tx.match.id,
+        report.game,
+        report.winnerSlot === null ? 'abandoned' : 'finished',
+        report.winnerSlot,
+        report.points1,
+        report.points2,
+        report.leftSlot ?? null,
+    ]);
+    await settleSeries(tx);
+    return decision;
+}
+
 /**
  * Stores a game result from the game server. Each report id is stored once. A report for a game
  * that already has a result, from an admin or an earlier report, is kept but changes nothing. A
  * report for a called match starts it first.
  */
 export async function reportGameResult(pool: Pool, report: GameReport): Promise<MatchResult<ReportStatus> | { ok: false; error: 'invalid' }> {
-    const valid =
-        typeof report.reportId === 'string' &&
-        report.reportId.length >= 1 &&
-        report.reportId.length <= 100 &&
-        Number.isInteger(report.game) &&
-        report.game >= 1 &&
-        isPoints(report.points1) &&
-        isPoints(report.points2) &&
-        [1, 2, null].includes(report.winnerSlot) &&
-        winnerAhead(report.winnerSlot, report.points1, report.points2);
-    if (!valid) return { ok: false, error: 'invalid' };
+    if (!isValidReport(report)) return { ok: false, error: 'invalid' };
+    return withMatch<ReportStatus>(pool, report.matchId, (tx) => storeReport(tx, report, null));
+}
+
+export interface ServerGameReport {
+    /** A UUID. See GameReport.reportId. */
+    reportId: string;
+    matchId: number;
+    game: number;
+    /** The player who won, or null for an abandoned game. */
+    winnerId: number | null;
+    /** The player who left an abandoned game, when the server knows. It must be one of the two players of the match. */
+    leftPlayerId?: number | null;
+    /** The points of each of the two players of the match, in any order. */
+    points: readonly { playerId: number; points: number }[];
+    startedAt: Date;
+    endedAt: Date;
+}
+
+/**
+ * Stores a game result from the game server API, which names players by id instead of slot. A
+ * report id that was stored before answers duplicate, even when the match changed since. The
+ * players must be the two players of the match, or it is refused.
+ */
+export async function reportServerGame(pool: Pool, report: ServerGameReport): Promise<MatchResult<ReportStatus>> {
     return withMatch<ReportStatus>(pool, report.matchId, async (tx) => {
-        const games = await readGames(tx.client, tx.match.id);
-        const last = lastGame(tx.match, games);
-        let decision: ReportStatus;
-        if (tx.match.state !== 'called' && tx.match.state !== 'started') decision = { status: 'ignored', reason: 'state' };
-        else if (report.game <= last) decision = { status: 'ignored', reason: 'game-closed' };
-        else if (report.game > last + 1) decision = { status: 'ignored', reason: 'game-ahead' };
-        else decision = { status: 'applied' };
-
-        // The match row is locked, so a report with the same id for this match waits here and then finds this one.
-        const stored = await tx.client.query(
-            `INSERT INTO game_reports (report_id, match_id, game_number, winner_slot, points1, points2, outcome, reason)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (report_id) DO NOTHING RETURNING report_id`,
-            [report.reportId, tx.match.id, report.game, report.winnerSlot, report.points1, report.points2, decision.status, decision.status === 'ignored' ? decision.reason : null],
-        );
-        if (stored.rowCount === 0) return { status: 'duplicate' };
-        if (decision.status !== 'applied') return decision;
-
-        await startIfCalled(tx);
-        await tx.client.query(`INSERT INTO match_games (match_id, number, status, winner_slot, points1, points2, source) VALUES ($1, $2, $3, $4, $5, $6, 'server')`, [
-            tx.match.id,
-            report.game,
-            report.winnerSlot === null ? 'abandoned' : 'finished',
-            report.winnerSlot,
-            report.points1,
-            report.points2,
-        ]);
-        await settleSeries(tx);
-        return decision;
+        const known = await tx.client.query('SELECT 1 FROM game_reports WHERE report_id = $1', [report.reportId]);
+        if (known.rowCount) return { status: 'duplicate' };
+        const ids = report.points.map((p) => p.playerId);
+        if (!samePlayers(tx.match, ids)) throw new Refused('players');
+        const [player1, player2] = bothPlayers(tx.match);
+        if (report.winnerId !== null && !ids.includes(report.winnerId)) throw new Refused('players');
+        const left = report.leftPlayerId ?? null;
+        if (left !== null && (report.winnerId !== null || !ids.includes(left))) throw new Refused('players');
+        const pointsOf = (playerId: number) => report.points.find((p) => p.playerId === playerId)!.points;
+        const slots: GameReport = {
+            reportId: report.reportId,
+            matchId: tx.match.id,
+            game: report.game,
+            winnerSlot: report.winnerId === null ? null : report.winnerId === player1 ? 1 : 2,
+            points1: pointsOf(player1),
+            points2: pointsOf(player2),
+            leftSlot: left === null ? null : left === player1 ? 1 : 2,
+        };
+        if (!isValidReport(slots)) throw new Refused('score');
+        return storeReport(tx, slots, { startedAt: report.startedAt, endedAt: report.endedAt });
     });
 }
 
@@ -632,30 +811,38 @@ export async function reportGameResult(pool: Pool, report: GameReport): Promise<
 export interface ChallengeOptions {
     bestOf?: number;
     ruleFile?: string;
+    /** Points that win a game. 15 when not given. */
+    scoreToWin?: number;
+    /** Game speed in frames per second. 75 when not given. */
+    speed?: number;
 }
 
 /**
- * A signed in player asks another player of the same active event for a 1v1 match. It can only be
- * called after the other player accepts. Two players can have one open 1v1 match at a time.
+ * A signed in player asks another player of the same active event for a 1v1 match. It is called
+ * when the other player accepts. Two players can have one open 1v1 match at a time.
  */
 export async function createChallenge(pool: Pool, challengerId: number, opponentId: number, options: ChallengeOptions = {}): Promise<{ ok: true; matchId: number } | { ok: false; error: MatchError }> {
     const bestOf = options.bestOf ?? 1;
     const ruleFile = options.ruleFile ?? DEFAULT_RULES;
-    if (!isBestOf(bestOf) || !isRuleFile(ruleFile)) return { ok: false, error: 'settings' };
+    const scoreToWin = options.scoreToWin ?? DEFAULT_SCORE_TO_WIN;
+    const speed = options.speed ?? DEFAULT_GAME_SPEED;
+    if (!isBestOf(bestOf) || !isRuleFile(ruleFile) || !isScoreToWin(scoreToWin) || !isGameSpeed(speed)) return { ok: false, error: 'settings' };
     if (challengerId === opponentId) return { ok: false, error: 'players' };
     try {
         const matchId = await inTransaction(pool, async (client) => {
-            // Locks the event row, so it cannot be closed while the match is added.
+            // Locks the event row, so it cannot be closed while the match is added. The new match bumps
+            // the live version of the row at commit, so it takes the update lock now. A share lock here
+            // would let two challenges deadlock when both upgrade it at commit.
             const { rows } = await client.query<{ id: number; event_id: number }>(
                 `SELECT p.id, p.event_id FROM players p JOIN events e ON e.id = p.event_id AND e.is_active
-                 WHERE p.id = ANY($1::int[]) FOR SHARE OF e`,
+                 WHERE p.id = ANY($1::int[]) FOR NO KEY UPDATE OF e`,
                 [[challengerId, opponentId]],
             );
             if (rows.length !== 2 || rows[0].event_id !== rows[1].event_id) throw new Refused('no-event');
             const inserted = await client.query<{ id: number }>(
-                `INSERT INTO matches (event_id, best_of, rule_file, player1_id, player2_id) VALUES ($1, $2, $3, $4, $5)
+                `INSERT INTO matches (event_id, best_of, rule_file, score_to_win, game_speed, player1_id, player2_id) VALUES ($1, $2, $3, $4, $5, $6, $7)
                  ON CONFLICT DO NOTHING RETURNING id`,
-                [rows[0].event_id, bestOf, ruleFile, challengerId, opponentId],
+                [rows[0].event_id, bestOf, ruleFile, scoreToWin, speed, challengerId, opponentId],
             );
             if (inserted.rowCount === 0) throw new Refused('taken');
             return inserted.rows[0].id;
@@ -674,12 +861,16 @@ async function requireOpenChallenge(tx: MatchTx, playerId: number) {
     if (active.rowCount !== 1) throw new Refused('no-event');
 }
 
-/** Player 2 accepts a 1v1 match. It stays upcoming until an admin calls it. */
-export async function acceptChallenge(pool: Pool, matchId: number, playerId: number): Promise<MatchResult> {
+/**
+ * Player 2 accepts a 1v1 match, and it is called at once when both players are free. Otherwise it
+ * stays upcoming, and the change that frees the busy player calls it. called says which.
+ */
+export async function acceptChallenge(pool: Pool, matchId: number, playerId: number): Promise<MatchResult<{ called: boolean }>> {
     return withMatch(pool, matchId, async (tx) => {
         await requireOpenChallenge(tx, playerId);
-        await tx.client.query('UPDATE matches SET accepted_at = now() WHERE id = $1', [tx.match.id]);
-        return {};
+        const { rows } = await tx.client.query<MatchRow>(`UPDATE matches SET accepted_at = now() WHERE id = $1 RETURNING ${MATCH_COLUMNS}`, [tx.match.id]);
+        tx.match = rows[0];
+        return { called: await callIfFree(tx) };
     });
 }
 
@@ -689,6 +880,21 @@ export async function declineChallenge(pool: Pool, matchId: number, playerId: nu
         await requireOpenChallenge(tx, playerId);
         await tx.transition('cancel', { cancel_reason: 'declined' });
         tx.emit({ type: 'cancelled', matchId: tx.match.id, reason: 'declined' });
+        return {};
+    });
+}
+
+/**
+ * Player 1 takes back a 1v1 match that player 2 has not answered yet. It is cancelled. Bets open
+ * only once a 1v1 match is accepted, so none can exist here, but the cancel still goes to betting
+ * like any other.
+ */
+export async function withdrawChallenge(pool: Pool, matchId: number, playerId: number): Promise<MatchResult> {
+    return withMatch(pool, matchId, async (tx) => {
+        if (tx.match.tournament_id !== null || tx.match.player1_id !== playerId) throw new Refused('not-allowed');
+        if (tx.match.state !== 'upcoming' || tx.match.accepted_at !== null) throw new Refused('state');
+        await tx.transition('cancel', { cancel_reason: 'withdrawn' });
+        tx.emit({ type: 'cancelled', matchId: tx.match.id, reason: 'withdrawn' });
         return {};
     });
 }
@@ -728,9 +934,12 @@ function toSummary(row: SummaryRecord): MatchSummary {
         tournamentName: row.tournament_name,
         bracketMatchId: row.bracket_match_id,
         roundLabel: row.format && row.section ? `${roundName(row.format, row.section, row.round!, row.last_round!)}, match ${row.position}` : null,
+        bracketRound: row.format && row.section ? { format: row.format, section: row.section, round: row.round!, lastRound: row.last_round!, position: row.position! } : null,
         state: row.state,
         bestOf: row.best_of,
         ruleFile: row.rule_file,
+        scoreToWin: row.score_to_win,
+        speed: row.game_speed,
         players: [player(row.player1_id, row.nickname1), player(row.player2_id, row.nickname2)],
         acceptedAt: row.accepted_at,
         score1: row.score1,
@@ -757,7 +966,7 @@ export async function getMatch(pool: Pool, matchId: number): Promise<MatchDetail
     return {
         ...toSummary(row),
         manualScore: row.manual_after_game === null ? null : { score1: row.manual_score1!, score2: row.manual_score2!, afterGame: row.manual_after_game },
-        games: games.map((g) => ({ number: g.number, status: g.status, winnerSlot: g.winner_slot, points1: g.points1, points2: g.points2, source: g.source })),
+        games: games.map((g) => ({ number: g.number, status: g.status, winnerSlot: g.winner_slot, points1: g.points1, points2: g.points2, source: g.source, leftSlot: g.left_slot })),
         nextGame: lastGame(row, games) + 1,
         awaitingDecision: row.state === 'started' && last !== undefined && last.number > row.game_base && last.status === 'abandoned' && last.source === 'server',
         calledAt: row.called_at,
@@ -765,6 +974,36 @@ export async function getMatch(pool: Pool, matchId: number): Promise<MatchDetail
         finishedAt: row.finished_at,
         cancelledAt: row.cancelled_at,
     };
+}
+
+export interface AwaitingMatch extends MatchSummary {
+    eventName: string;
+    /** The abandoned game that waits for the admin to restart or award it. */
+    game: MatchGame;
+}
+
+/**
+ * The matches of every event whose last game the game server abandoned, so they wait for an admin
+ * to restart or award the game. The same rule as awaitingDecision in getMatch. The longest waiting first.
+ */
+export async function listAwaitingDecision(pool: Pool): Promise<AwaitingMatch[]> {
+    const { rows: waiting } = await pool.query<GameRow & { match_id: number; event_name: string }>(
+        `SELECT m.id AS match_id, e.name AS event_name, lg.number, lg.status, lg.winner_slot, lg.points1, lg.points2, lg.source, lg.left_slot
+         FROM matches m
+         JOIN events e ON e.id = m.event_id
+         JOIN LATERAL (SELECT * FROM match_games g WHERE g.match_id = m.id ORDER BY g.number DESC LIMIT 1) lg ON true
+         WHERE m.state = 'started' AND lg.number > m.game_base AND lg.status = 'abandoned' AND lg.source = 'server'
+         ORDER BY lg.updated_at, m.id`,
+    );
+    if (waiting.length === 0) return [];
+    const { rows } = await pool.query<SummaryRecord>(`${SUMMARY_SELECT} WHERE m.id = ANY($1::int[])`, [waiting.map((w) => w.match_id)]);
+    const summaries = new Map(rows.map((row) => [row.id, toSummary(row)]));
+    return waiting.flatMap((w) => {
+        const summary = summaries.get(w.match_id);
+        if (!summary) return [];
+        const game: MatchGame = { number: w.number, status: w.status, winnerSlot: w.winner_slot, points1: w.points1, points2: w.points2, source: w.source, leftSlot: w.left_slot };
+        return [{ ...summary, eventName: w.event_name, game }];
+    });
 }
 
 /** The final places of a tournament decided so far, best first. */

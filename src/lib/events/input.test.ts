@@ -7,8 +7,25 @@ describe('parseEventInput', () => {
     it('reads a valid form, trims it and puts the code in upper case', () => {
         expect(parseEventInput(form)).toEqual({
             ok: true,
-            value: { name: 'LAN 2026', startsOn: '2026-11-20', endsOn: '2026-11-22', code: 'LAN-2026', startingFoza: 1000, dailyFoza: 100 },
+            value: { name: 'LAN 2026', startsOn: '2026-11-20', endsOn: '2026-11-22', code: 'LAN-2026', startingFoza: 1000, dailyFoza: 100, serverHost: null, serverPort: null },
         });
+    });
+
+    it('reads the game server address in lower case', () => {
+        expect(parseEventInput({ ...form, serverHost: ' Lan-PC.local ', serverPort: '1234' })).toMatchObject({ ok: true, value: { serverHost: 'lan-pc.local', serverPort: 1234 } });
+        expect(parseEventInput({ ...form, serverHost: '192.168.1.20', serverPort: '65535' })).toMatchObject({ ok: true, value: { serverHost: '192.168.1.20', serverPort: 65535 } });
+    });
+
+    it('uses port 1234 when the host is set and the port is empty', () => {
+        expect(parseEventInput({ ...form, serverHost: '192.168.1.50', serverPort: '' })).toMatchObject({ ok: true, value: { serverHost: '192.168.1.50', serverPort: 1234 } });
+    });
+
+    it.each(['192.168.1.50', '10.0.0.1', '172.16.0.255', '1.2.3.4', 'lan-pc', 'lan-pc.local', '2-pc', 'pc2.lan', 'cafe', 'deadbeef.lan', 'localhostx'])('allows the host %s', (serverHost) => {
+        expect(parseEventInput({ ...form, serverHost, serverPort: '1234' })).toMatchObject({ ok: true, value: { serverHost } });
+    });
+
+    it('allows a host name that starts with http', () => {
+        expect(parseEventInput({ ...form, serverHost: 'http-server', serverPort: '1234' })).toMatchObject({ ok: true, value: { serverHost: 'http-server' } });
     });
 
     it('allows an event on one day', () => {
@@ -28,6 +45,40 @@ describe('parseEventInput', () => {
         ['foza', { dailyFoza: '1.5' }],
         ['foza', { dailyFoza: '1000001' }],
         ['foza', { startingFoza: '' }],
+        ['server', { serverHost: '', serverPort: '1234' }],
+        ['server', { serverHost: 'lan-pc', serverPort: '0' }],
+        ['server', { serverHost: 'lan-pc', serverPort: '65536' }],
+        ['server', { serverHost: 'lan-pc', serverPort: '12a' }],
+        ['server', { serverHost: '::1', serverPort: '1234' }],
+        ['server', { serverHost: 'lan pc', serverPort: '1234' }],
+        ['server', { serverHost: 'lan-pc&code=X', serverPort: '1234' }],
+        ['server', { serverHost: '-lan', serverPort: '1234' }],
+        ['server-host', { serverHost: 'localhost', serverPort: '1234' }],
+        ['server-host', { serverHost: 'LocalHost', serverPort: '' }],
+        ['server-host', { serverHost: 'pc.localhost', serverPort: '1234' }],
+        ['server-host', { serverHost: '127.0.0.1', serverPort: '1234' }],
+        ['server-host', { serverHost: '0.0.0.0', serverPort: '1234' }],
+        ['server-host', { serverHost: '127.1.2.3', serverPort: '1234' }],
+        ['server-host', { serverHost: '0.1.2.3', serverPort: '1234' }],
+        ['server-host', { serverHost: '999.1.1.1', serverPort: '1234' }],
+        ['server-host', { serverHost: '192.168.1.256', serverPort: '1234' }],
+        ['server-host', { serverHost: '192.168.01.50', serverPort: '1234' }],
+        ['server-host', { serverHost: '192.168.1', serverPort: '1234' }],
+        ['server-host', { serverHost: '192.168.1.50.7', serverPort: '1234' }],
+        ['server-host', { serverHost: '0', serverPort: '1234' }],
+        ['server-host', { serverHost: '0.0.0', serverPort: '1234' }],
+        ['server-host', { serverHost: '127.1', serverPort: '1234' }],
+        ['server-host', { serverHost: '2130706433', serverPort: '1234' }],
+        ['server-host', { serverHost: '0x7f000001', serverPort: '1234' }],
+        ['server-host', { serverHost: '0x7f.0.0.1', serverPort: '1234' }],
+        ['server-host', { serverHost: 'lan-pc.0x10', serverPort: '1234' }],
+        ['server-host', { serverHost: 'localhost6', serverPort: '1234' }],
+        ['server-host', { serverHost: 'ip6-localhost', serverPort: '1234' }],
+        ['server-host', { serverHost: 'ip6-loopback', serverPort: '1234' }],
+        ['server-host', { serverHost: 'localhost.localdomain', serverPort: '1234' }],
+        ['server-host', { serverHost: 'localhost6.localdomain6', serverPort: '1234' }],
+        ['server-host', { serverHost: 'http://192.168.1.50', serverPort: '1234' }],
+        ['server-host', { serverHost: 'HTTPS://lan.example.com/', serverPort: '' }],
     ])('rejects a bad %s', (error, change) => {
         expect(parseEventInput({ ...form, ...change })).toEqual({ ok: false, error });
     });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isTrustedPost, parseId, readForm, seeOther } from './http';
+import { isTrustedPost, parseId, readForm, readUploadForm, seeOther } from './http';
 
 describe('seeOther', () => {
     it('answers 303 with a relative address', () => {
@@ -62,5 +62,32 @@ describe('parseId', () => {
         ['abc', null],
     ])('reads %s as %s', (value, expected) => {
         expect(parseId(value)).toBe(expected);
+    });
+});
+
+describe('readUploadForm', () => {
+    async function upload(form: FormData, headers: Record<string, string> = {}): Promise<Request> {
+        const encoded = new Response(form);
+        return new Request('https://bvt.example.test/', { method: 'POST', body: await encoded.arrayBuffer(), headers: { 'content-type': encoded.headers.get('content-type')!, ...headers } });
+    }
+
+    it('reads the text fields and the bytes of each file, the first value of each', async () => {
+        const form = new FormData();
+        form.append('name', 'Acme');
+        form.append('name', 'Other');
+        form.append('logo', new Blob([new Uint8Array([1, 2, 3])]), 'a.png');
+        form.append('empty', new Blob([]), 'b.png');
+        expect(await readUploadForm(await upload(form), 1000)).toEqual({ fields: { name: 'Acme' }, files: { logo: new Uint8Array([1, 2, 3]) } });
+    });
+
+    it('refuses a body over the limit, by its content-length or as it arrives', async () => {
+        const form = new FormData();
+        form.append('logo', new Blob([new Uint8Array(2000)]), 'a.png');
+        expect(await readUploadForm(await upload(form), 1000)).toBe('too-large');
+        expect(await readUploadForm(await upload(new FormData(), { 'content-length': '1001' }), 1000)).toBe('too-large');
+    });
+
+    it('returns no fields for a body that is not a form', async () => {
+        expect(await readUploadForm(new Request('https://bvt.example.test/', { method: 'POST', body: '{}', headers: { 'content-type': 'application/json' } }), 1000)).toEqual({ fields: {}, files: {} });
     });
 });

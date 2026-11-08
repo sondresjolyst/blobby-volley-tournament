@@ -55,7 +55,7 @@ export const authOptions: NextAuthOptions = {
         }),
     ],
     session: { strategy: 'jwt', maxAge: 60 * 60 * 12 },
-    pages: { signIn: '/signin', error: '/auth-error' },
+    pages: { signIn: '/login', error: '/auth-error' },
     callbacks: {
         signIn({ user }) {
             return isAllowedUser(user.id, process.env.ALLOWED_GITHUB_USER_IDS) ? true : '/denied';
@@ -83,24 +83,42 @@ export async function requireAdmin(): Promise<Session> {
         throw new Error('NEXTAUTH_URL must be an https URL in production');
     }
     const session = await getServerSession(authOptions);
-    if (!session) redirect('/signin');
+    if (!session) redirect('/login');
     if (!isAllowedUser(session.githubId, process.env.ALLOWED_GITHUB_USER_IDS)) redirect('/denied');
     return session;
 }
 
-/**
- * The check for routes under `/api/admin`. The proxy checks them too, but each route checks again.
- * Returns the session of an admin, or a response to send back: 401 without a session, 403 for
- * another account or a post that does not come from this site, and 503 when the sign-in setup is unsafe.
- */
-export async function requireAdminApi(req?: Request): Promise<Session | Response> {
+/** The admin session, or a response to send back: 401 without a session, 403 for another account and 503 when the sign-in setup is unsafe. */
+async function adminSession(): Promise<Session | Response> {
     if (authMisconfigured(process.env)) {
         logMisconfigured();
         return Response.json({ error: 'unavailable' }, { status: 503 });
     }
-    if (req && !isTrustedPost(req, process.env)) return Response.json({ error: 'forbidden' }, { status: 403 });
     const session = await getServerSession(authOptions);
     if (!session) return Response.json({ error: 'unauthorized' }, { status: 401 });
     if (!isAllowedUser(session.githubId, process.env.ALLOWED_GITHUB_USER_IDS)) return Response.json({ error: 'forbidden' }, { status: 403 });
     return session;
+}
+
+const FORBIDDEN = () => Response.json({ error: 'forbidden' }, { status: 403 });
+
+/**
+ * The check for routes under `/api/admin` that change something. The proxy checks them too, but
+ * each route checks again. Returns the session of an admin, or a response to send back. A post
+ * that does not come from this site gets 403, also from an admin.
+ */
+export async function requireAdminPost(req: Request): Promise<Session | Response> {
+    if (!authMisconfigured(process.env) && !isTrustedPost(req, process.env)) return FORBIDDEN();
+    return adminSession();
+}
+
+/**
+ * The check for routes under `/api/admin` that only read. A request without Sec-Fetch-Site is let
+ * through to the session check, so a plain image load or an older browser still works. A request
+ * that the browser marks as from another site gets 403.
+ */
+export async function requireAdminRead(req: Request): Promise<Session | Response> {
+    const site = req.headers.get('sec-fetch-site');
+    if (!authMisconfigured(process.env) && (site === 'cross-site' || site === 'same-site')) return FORBIDDEN();
+    return adminSession();
 }

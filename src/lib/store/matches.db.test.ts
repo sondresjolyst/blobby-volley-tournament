@@ -1,4 +1,4 @@
-import { copyFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { copyFileSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Pool, type PoolClient } from 'pg';
@@ -6,6 +6,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { migrate, MIGRATIONS_DIR, readMigrations } from '../../../scripts/migrate.mjs';
 import { generateBracket, type BestOf, type FormatId } from '@/lib/bracket';
 import type { EventInput } from '@/lib/events/input';
+import { newJoinCode } from '@/lib/players/join-code';
 import { createEvent, setActiveEvent } from './events';
 import type { MatchEvent } from './match-events';
 import {
@@ -25,9 +26,13 @@ import {
     resetMatch,
     restartCurrentGame,
     setSeriesScore,
+    withdrawChallenge,
     withMatchForBet,
 } from './matches';
 import { getTournament, saveTournament } from './tournaments';
+import { placeBet } from './bets';
+import { adjustBalance } from './foza';
+import { liveStamp } from './live';
 
 const handled = vi.hoisted(() => ({ calls: [] as MatchEvent[][], fail: false }));
 
@@ -66,9 +71,9 @@ async function addPlayers(eventId: number, count: number, prefix = 'P'): Promise
     const ids: number[] = [];
     for (let i = 1; i <= count; i++) {
         const { rows } = await pool.query<{ id: number }>(
-            `INSERT INTO players (event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance)
-             VALUES ($1, $2, $3, '\\x00', '\\x00', 0) RETURNING id`,
-            [eventId, `${prefix}${i}`, `${prefix.toLowerCase()}${i}`],
+            `INSERT INTO players (event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance, join_code)
+             VALUES ($1, $2, $3, '\\x00', '\\x00', 0, $4) RETURNING id`,
+            [eventId, `${prefix}${i}`, `${prefix.toLowerCase()}${i}`, newJoinCode()],
         );
         ids.push(rows[0].id);
     }
@@ -112,7 +117,8 @@ const report = (matchId: number, game: number, winnerSlot: 1 | 2 | null, reportI
     reportGameResult(pool, { reportId, matchId, game, winnerSlot, points1: winnerSlot === 1 ? 15 : 7, points2: winnerSlot === 2 ? 15 : 7 });
 
 async function start(matchId: number) {
-    expect(await callMatch(pool, matchId)).toMatchObject({ ok: true });
+    // An accepted 1v1 match is called when it is accepted, so only a tournament match is called here.
+    if ((await getMatch(pool, matchId))!.state === 'upcoming') expect(await callMatch(pool, matchId)).toMatchObject({ ok: true });
     expect(await reportPlayersConnected(pool, matchId)).toMatchObject({ ok: true, started: true });
 }
 
@@ -166,6 +172,29 @@ describe('series scoring', () => {
         // Players reconnect for the next game. The score stays.
         expect(await reportPlayersConnected(pool, id)).toMatchObject({ ok: true, started: false });
         expect(await getMatch(pool, id)).toMatchObject({ state: 'started', score1: 1, score2: 1, nextGame: 3 });
+    });
+
+    it('takes no new game once the series is decided, but still takes a correction', async () => {
+        const t = await tournament('single_elimination', 2, 3);
+        const [id] = t.ids;
+        await start(id);
+        expect(await enterGameResult(pool, id, { game: 1, winnerSlot: 1, points1: 15, points2: 4 })).toMatchObject({ ok: true });
+        expect(await enterGameResult(pool, id, { game: 2, winnerSlot: 1, points1: 15, points2: 9 })).toMatchObject({ ok: true });
+        expect(await enterGameResult(pool, id, { game: 3, winnerSlot: 2, points1: 2, points2: 15 })).toEqual({ ok: false, error: 'decided' });
+        expect(await getMatch(pool, id)).toMatchObject({ state: 'finished', score1: 2, score2: 0, games: [{ number: 1 }, { number: 2 }] });
+        // Correcting a played game is still allowed, and it can open the series again.
+        expect(await enterGameResult(pool, id, { game: 2, winnerSlot: 2, points1: 9, points2: 15 })).toMatchObject({ ok: true });
+        expect(await getMatch(pool, id)).toMatchObject({ state: 'started', score1: 1, score2: 1, nextGame: 3 });
+        expect(await enterGameResult(pool, id, { game: 3, winnerSlot: 2, points1: 2, points2: 15 })).toMatchObject({ ok: true });
+        expect(await getMatch(pool, id)).toMatchObject({ state: 'finished', score1: 1, score2: 2 });
+    });
+
+    it('takes no new game after a series score set by hand decided it', async () => {
+        const t = await tournament('single_elimination', 2, 3);
+        const [id] = t.ids;
+        await start(id);
+        expect(await setSeriesScore(pool, id, 2, 1)).toMatchObject({ ok: true });
+        expect(await enterGameResult(pool, id, { game: 1, winnerSlot: 2, points1: 2, points2: 15 })).toEqual({ ok: false, error: 'decided' });
     });
 });
 
@@ -331,6 +360,8 @@ describe('single elimination placings', () => {
         const final = (await getMatch(pool, t.ids[2]))!;
         const third = (await getMatch(pool, t.ids[3]))!;
         expect(final.roundLabel).toBe('Final, match 1');
+        expect(final.bracketRound).toEqual({ format: 'single_elimination', section: 'winners', round: 2, lastRound: 2, position: 1 });
+        expect(third.bracketRound).toEqual({ format: 'single_elimination', section: 'third_place', round: 1, lastRound: 1, position: 1 });
         expect(await getPlacings(pool, t.tournamentId)).toEqual(
             [
                 { place: 1, playerId: final.players[0]!.id },
@@ -490,15 +521,15 @@ describe('reports', () => {
 });
 
 describe('1v1 matches', () => {
-    it('creates a match that needs the other player to accept before it can be called', async () => {
+    it('creates a match that needs the other player to accept, and calls it when accepted', async () => {
         const { eventId, players } = await activeEvent(3);
         const created = await createChallenge(pool, players[0], players[1], { bestOf: 3 });
         if (!created.ok) throw new Error(created.error);
-        expect(await getMatch(pool, created.matchId)).toMatchObject({ eventId, tournamentId: null, roundLabel: null, state: 'upcoming', bestOf: 3, acceptedAt: null });
+        expect(await getMatch(pool, created.matchId)).toMatchObject({ eventId, tournamentId: null, roundLabel: null, bracketRound: null, state: 'upcoming', bestOf: 3, acceptedAt: null });
         expect(await callMatch(pool, created.matchId)).toEqual({ ok: false, error: 'not-accepted' });
         expect(await acceptChallenge(pool, created.matchId, players[0])).toEqual({ ok: false, error: 'not-allowed' });
-        expect(await acceptChallenge(pool, created.matchId, players[1])).toMatchObject({ ok: true });
-        expect((await getMatch(pool, created.matchId))!.acceptedAt).toBeInstanceOf(Date);
+        expect(await acceptChallenge(pool, created.matchId, players[1])).toMatchObject({ ok: true, called: true });
+        expect(await getMatch(pool, created.matchId)).toMatchObject({ state: 'called', acceptedAt: expect.any(Date), calledAt: expect.any(Date) });
         expect(await acceptChallenge(pool, created.matchId, players[1])).toEqual({ ok: false, error: 'state' });
         await start(created.matchId);
         await report(created.matchId, 1, 2);
@@ -516,6 +547,33 @@ describe('1v1 matches', () => {
         expect(await getMatch(pool, created.matchId)).toMatchObject({ state: 'cancelled', cancelReason: 'declined' });
         expect(await acceptChallenge(pool, created.matchId, players[1])).toEqual({ ok: false, error: 'state' });
         expect(await createChallenge(pool, players[1], players[0])).toMatchObject({ ok: true });
+    });
+
+    it('lets only the asker withdraw a 1v1 match, and only before it is accepted', async () => {
+        const { players } = await activeEvent(3);
+        const created = await createChallenge(pool, players[0], players[1]);
+        if (!created.ok) throw new Error(created.error);
+        expect(await withdrawChallenge(pool, created.matchId, players[1])).toEqual({ ok: false, error: 'not-allowed' });
+        expect(await withdrawChallenge(pool, created.matchId, players[2])).toEqual({ ok: false, error: 'not-allowed' });
+        handled.calls = [];
+        const cancelled = { type: 'cancelled', matchId: created.matchId, reason: 'withdrawn' };
+        expect(await withdrawChallenge(pool, created.matchId, players[0])).toMatchObject({ ok: true, events: [cancelled] });
+        expect(handled.calls).toEqual([[cancelled]]);
+        expect(await getMatch(pool, created.matchId)).toMatchObject({ state: 'cancelled', cancelReason: 'withdrawn' });
+        expect(await withdrawChallenge(pool, created.matchId, players[0])).toEqual({ ok: false, error: 'state' });
+        expect(await acceptChallenge(pool, created.matchId, players[1])).toEqual({ ok: false, error: 'state' });
+
+        // An accepted match can no longer be withdrawn, and a tournament match never.
+        const accepted = await createChallenge(pool, players[0], players[1]);
+        if (!accepted.ok) throw new Error(accepted.error);
+        await acceptChallenge(pool, accepted.matchId, players[1]);
+        expect(await withdrawChallenge(pool, accepted.matchId, players[0])).toEqual({ ok: false, error: 'state' });
+        expect(await withdrawChallenge(pool, 999999, players[0])).toEqual({ ok: false, error: 'not-found' });
+    });
+
+    it('refuses a withdraw of a tournament match', async () => {
+        const t = await tournament('single_elimination', 2);
+        expect(await withdrawChallenge(pool, t.ids[0], t.players[0])).toEqual({ ok: false, error: 'not-allowed' });
     });
 
     it('lets an admin cancel an accepted 1v1 match', async () => {
@@ -540,6 +598,243 @@ describe('1v1 matches', () => {
         await pool.query('UPDATE events SET is_active = false');
         expect(await acceptChallenge(pool, created.matchId, players[1])).toEqual({ ok: false, error: 'no-event' });
         expect(await createChallenge(pool, players[1], stranger)).toEqual({ ok: false, error: 'no-event' });
+    });
+});
+
+describe('calling a 1v1 match by itself', () => {
+    /** Asks for a 1v1 match and accepts it. Returns the match and whether accepting called it. */
+    async function accepted(a: number, b: number) {
+        const created = await createChallenge(pool, a, b);
+        if (!created.ok) throw new Error(created.error);
+        const result = await acceptChallenge(pool, created.matchId, b);
+        if (!result.ok) throw new Error(result.error);
+        return { id: created.matchId, called: result.called };
+    }
+
+    const stateOf = async (id: number) => (await getMatch(pool, id))!.state;
+
+    it('refuses a correction that would start a finished match again while a player is in another match', async () => {
+        const { players } = await activeEvent(3);
+        const [a, b, c] = players;
+        const created = await createChallenge(pool, a, b, { bestOf: 3 });
+        if (!created.ok) throw new Error(created.error);
+        expect(await acceptChallenge(pool, created.matchId, b)).toMatchObject({ ok: true, called: true });
+        const first = created.matchId;
+        expect(await setSeriesScore(pool, first, 2, 0)).toMatchObject({ ok: true });
+        expect(await stateOf(first)).toBe('finished');
+        // A is free again, and is called to a new match at once.
+        const next = await accepted(c, a);
+        expect(next.called).toBe(true);
+
+        expect(await setSeriesScore(pool, first, 1, 1)).toEqual({ ok: false, error: 'player-busy' });
+        expect(await getMatch(pool, first)).toMatchObject({ state: 'finished', score1: 2, score2: 0 });
+        // A correction that only changes the winner keeps the match finished, so it is allowed.
+        expect(await setSeriesScore(pool, first, 0, 2)).toMatchObject({ ok: true });
+        expect(await getMatch(pool, first)).toMatchObject({ state: 'finished', winnerId: b });
+        // Once the other match is over, the correction goes through.
+        expect(await cancelMatch(pool, next.id)).toMatchObject({ ok: true });
+        expect(await setSeriesScore(pool, first, 1, 1)).toMatchObject({ ok: true });
+        expect(await stateOf(first)).toBe('started');
+    });
+
+    it('calls the waiting 1v1 matches of an event when it is made active again', async () => {
+        const { eventId, players } = await activeEvent(3);
+        const [a, b, c] = players;
+        const busy = await accepted(a, b);
+        const waiting = await accepted(c, a);
+        expect(waiting.called).toBe(false);
+        const other = await createEvent(pool, { ...lan, code: 'LAN-OTHER' });
+        await setActiveEvent(pool, other);
+        // The busy match ends while its event is not active, so nothing is called.
+        expect(await cancelMatch(pool, busy.id)).toMatchObject({ ok: true });
+        expect(await stateOf(waiting.id)).toBe('upcoming');
+        await setActiveEvent(pool, eventId);
+        expect(await stateOf(waiting.id)).toBe('called');
+    });
+
+    it.each([
+        ['finishes', async (id: number) => report(id, 1, 1)],
+        ['ends in a no-show', async (id: number) => recordNoShow(pool, id, 2)],
+        ['is cancelled', async (id: number) => cancelMatch(pool, id)],
+    ])('keeps an accepted match waiting while a player is busy, and calls it when the busy match %s', async (_name, end) => {
+        const { players } = await activeEvent(3);
+        const [a, b, c] = players;
+        const busy = await accepted(a, b);
+        expect(busy.called).toBe(true);
+        await start(busy.id);
+        const waiting = await accepted(a, c);
+        expect(waiting.called).toBe(false);
+        expect(await stateOf(waiting.id)).toBe('upcoming');
+        expect(await end(busy.id)).toMatchObject({ ok: true });
+        expect(await stateOf(waiting.id)).toBe('called');
+    });
+
+    it('waits for both players, and calls the match accepted first', async () => {
+        const { players } = await activeEvent(6);
+        const [a, b, c, d, e, f] = players;
+        const first = await accepted(a, b);
+        const second = await accepted(c, d);
+        await start(first.id);
+        await start(second.id);
+        const both = await accepted(a, c);
+        const earlier = await accepted(e, a);
+        const later = await accepted(a, f);
+        expect([both.called, earlier.called, later.called]).toEqual([false, false, false]);
+        // a is free, but c is still busy, so the next match of a that can go is the one with e.
+        await report(first.id, 1, 1);
+        expect([await stateOf(both.id), await stateOf(earlier.id), await stateOf(later.id)]).toEqual(['upcoming', 'called', 'upcoming']);
+        // c is free now, but a plays e.
+        await report(second.id, 1, 1);
+        expect([await stateOf(both.id), await stateOf(later.id)]).toEqual(['upcoming', 'upcoming']);
+        await start(earlier.id);
+        await report(earlier.id, 1, 1);
+        expect([await stateOf(both.id), await stateOf(later.id)]).toEqual(['called', 'upcoming']);
+    });
+
+    it('lets an admin cancel a waiting match, and calls the next one instead', async () => {
+        const { players } = await activeEvent(4);
+        const [a, b, c, d] = players;
+        const busy = await accepted(a, b);
+        const cancelled = await accepted(a, c);
+        const next = await accepted(d, a);
+        expect(await cancelMatch(pool, cancelled.id)).toMatchObject({ ok: true });
+        expect(await stateOf(cancelled.id)).toBe('cancelled');
+        expect(await stateOf(next.id)).toBe('upcoming');
+        expect(await cancelMatch(pool, busy.id)).toMatchObject({ ok: true });
+        expect(await stateOf(next.id)).toBe('called');
+    });
+
+    it('calls a waiting 1v1 match after a tournament match, but never calls a tournament match', async () => {
+        const t = await tournament('single_elimination', 4, 1);
+        const [semi1, semi2] = t.ids;
+        const [x] = await playersOf(semi1);
+        const [z] = await playersOf(semi2);
+        await start(semi1);
+        const waiting = await accepted(x!, z!);
+        expect(waiting.called).toBe(false);
+        await report(semi1, 1, 1);
+        expect(await stateOf(waiting.id)).toBe('called');
+        // The tournament match stays for the admin, who must wait for the 1v1 match.
+        expect(await stateOf(semi2)).toBe('upcoming');
+        expect(await callMatch(pool, semi2)).toEqual({ ok: false, error: 'player-busy' });
+        await start(waiting.id);
+        await report(waiting.id, 1, 2);
+        expect(await stateOf(semi2)).toBe('upcoming');
+        expect(await callMatch(pool, semi2)).toMatchObject({ ok: true });
+    });
+
+    it('calls the match again when an admin resets it, since it is still accepted', async () => {
+        const { players } = await activeEvent(2);
+        const match = await accepted(players[0], players[1]);
+        await start(match.id);
+        await report(match.id, 1, 1);
+        expect(await resetMatch(pool, match.id)).toMatchObject({ ok: true });
+        expect(await getMatch(pool, match.id)).toMatchObject({ state: 'called', games: [], winnerId: null });
+    });
+
+    it('never leaves an accepted match waiting when the busy match ends at the same time', async () => {
+        const { players } = await activeEvent(24);
+        for (let i = 0; i < players.length; i += 3) {
+            const [a, b, c] = players.slice(i, i + 3);
+            const busy = await accepted(a, b);
+            await start(busy.id);
+            const created = await createChallenge(pool, c, a);
+            if (!created.ok) throw new Error(created.error);
+            const [ended, answer] = await Promise.all([report(busy.id, 1, 1), acceptChallenge(pool, created.matchId, a)]);
+            expect(ended).toMatchObject({ ok: true });
+            expect(answer).toMatchObject({ ok: true });
+            expect(await stateOf(created.matchId)).toBe('called');
+        }
+    });
+
+    it('changes the live stamp of the event on every step a player page shows, and not without a change', async () => {
+        const other = await createEvent(pool, { ...lan, code: 'LAN-OTHER' });
+        await addPlayers(other, 2, 'O');
+        const { eventId, players } = await activeEvent(3);
+        const [a, b, c] = players;
+        const version = async (event: number) => (await liveStamp(pool, event))!.split(':')[1];
+        const otherBefore = await version(other);
+        let before = await liveStamp(pool, eventId);
+        expect(await liveStamp(pool, eventId)).toBe(before);
+        let id = 0;
+        const steps: (() => Promise<unknown>)[] = [
+            async () => {
+                const created = await createChallenge(pool, a, b);
+                if (!created.ok) throw new Error(created.error);
+                id = created.matchId;
+            },
+            () => acceptChallenge(pool, id, b),
+            () => adjustBalance(pool, c, 100, 'Pizza money', null),
+            async () => expect(await placeBet(pool, c, { matchId: id, onPlayerId: a, amount: 10 }, new Date())).toMatchObject({ ok: true }),
+            () => reportPlayersConnected(pool, id),
+            () => report(id, 1, 1),
+            () => addPlayers(eventId, 1, 'Late'),
+            () => pool.query("UPDATE players SET nickname = 'Renamed', nickname_key = 'renamed' WHERE id = $1", [c]),
+            () => pool.query("UPDATE events SET name = 'LAN 2026 renamed' WHERE id = $1", [eventId]),
+        ];
+        for (const step of steps) {
+            await step();
+            const after = await liveStamp(pool, eventId);
+            expect(after).not.toBe(before);
+            before = after;
+        }
+        expect(await version(other)).toBe(otherBefore);
+        // Another event going active changes the stamp too, so an open front page moves to it.
+        await setActiveEvent(pool, other);
+        expect(await liveStamp(pool, eventId)).not.toBe(before);
+        expect(await liveStamp(pool, 999_999)).toBeNull();
+    });
+
+    it('takes challenges at the same time without a deadlock on the live version', async () => {
+        const { players } = await activeEvent(8);
+        const pairs = [0, 2, 4, 6].map((i) => [players[i], players[i + 1]] as const);
+        const results = await Promise.all(pairs.map(([x, y]) => createChallenge(pool, x, y)));
+        expect(results.every((r) => r.ok)).toBe(true);
+    });
+
+    it('moves the live version when a change commits, so a slow change is never hidden by a quicker one', async () => {
+        const { eventId, players } = await activeEvent(2);
+        const [a, b] = players;
+        const slow = await pool.connect();
+        try {
+            await slow.query('BEGIN');
+            await slow.query("UPDATE players SET nickname = 'Slow', nickname_key = 'slow' WHERE id = $1", [a]);
+            const before = await liveStamp(pool, eventId);
+            // A quicker change commits first.
+            await pool.query("UPDATE players SET nickname = 'Quick', nickname_key = 'quick' WHERE id = $1", [b]);
+            const quick = await liveStamp(pool, eventId);
+            expect(quick).not.toBe(before);
+            await slow.query('COMMIT');
+            expect(await liveStamp(pool, eventId)).not.toBe(quick);
+        } finally {
+            slow.release();
+        }
+    });
+
+    it('never calls two matches for one player when matches end and are accepted at once', async () => {
+        const { eventId, players } = await activeEvent(8);
+        const [a, b, c, d, e, f, g, h] = players;
+        const busy = [await accepted(a, b), await accepted(c, d)];
+        for (const m of busy) await start(m.id);
+        const created: { id: number; by: number }[] = [];
+        for (const [x, y] of [
+            [e, a],
+            [f, a],
+            [g, c],
+            [a, c],
+            [h, c],
+        ]) {
+            const made = await createChallenge(pool, x, y);
+            if (!made.ok) throw new Error(made.error);
+            created.push({ id: made.matchId, by: y });
+        }
+        await Promise.all([...busy.map((m) => report(m.id, 1, 1)), ...created.map((m) => acceptChallenge(pool, m.id, m.by))]);
+        const live = (await listMatches(pool, eventId)).filter((m) => m.state === 'called' || m.state === 'started');
+        const ids = live.flatMap((m) => m.players.map((p) => p!.id));
+        expect(new Set(ids).size).toBe(ids.length);
+        // a and c are free again and each has accepted matches, so each plays one.
+        expect(ids).toContain(a);
+        expect(ids).toContain(c);
     });
 });
 
@@ -686,19 +981,23 @@ describe('withMatchForBet', () => {
 });
 
 describe('fix round checks', () => {
-    it('calls only one of several matches that share a player when they are called at once', async () => {
-        const { players } = await activeEvent(7);
+    it('calls only one of several 1v1 matches that share a player when they are accepted at once', async () => {
+        const { eventId, players } = await activeEvent(7);
         const ids: number[] = [];
         for (const opponent of players.slice(1)) {
             const created = await createChallenge(pool, players[0], opponent);
             if (!created.ok) throw new Error(created.error);
-            await acceptChallenge(pool, created.matchId, opponent);
             ids.push(created.matchId);
         }
         await Promise.all(Array.from({ length: 8 }, () => pool.query('SELECT pg_sleep(0.05)')));
-        const results = await Promise.all(ids.map((id) => callMatch(pool, id)));
-        expect(results.filter((r) => r.ok)).toHaveLength(1);
-        expect(results.filter((r) => !r.ok && r.error === 'player-busy')).toHaveLength(ids.length - 1);
+        const results = await Promise.all(ids.map((id, i) => acceptChallenge(pool, id, players[i + 1])));
+        const called = results.map((r) => (r.ok ? r.called : null));
+        expect(called.filter((c) => c === true)).toHaveLength(1);
+        expect(called.filter((c) => c === false)).toHaveLength(ids.length - 1);
+        expect((await listMatches(pool, eventId)).filter((m) => m.state === 'called')).toHaveLength(1);
+        // The others stay accepted, and the admin cannot call them either.
+        const waiting = ids.filter((_, i) => called[i] === false);
+        expect(await Promise.all(waiting.map((id) => callMatch(pool, id)))).toEqual(waiting.map(() => ({ ok: false, error: 'player-busy' })));
     });
 
     it('refuses a game result where the winner does not have more points', async () => {
@@ -732,14 +1031,39 @@ describe('betting hook', () => {
 });
 
 describe('migration', () => {
+    it('turns the live version back with the down file, and applies again', async () => {
+        const down = readFileSync(join(MIGRATIONS_DIR, 'down', '0018_live_version.sql'), 'utf8');
+        const { eventId } = await activeEvent(2);
+        await pool.query(down);
+        const column = `SELECT 1 FROM information_schema.columns WHERE table_name = 'events' AND column_name = 'live_version'`;
+        expect((await pool.query(column)).rowCount).toBe(0);
+        await addPlayers(eventId, 1, 'Down');
+        expect(await migrate(pool)).toEqual(['0018_live_version.sql']);
+        expect((await pool.query(column)).rowCount).toBe(1);
+        const before = await liveStamp(pool, eventId);
+        await addPlayers(eventId, 1, 'Up');
+        expect(await liveStamp(pool, eventId)).not.toBe(before);
+    });
+
     it('adds a match row for each bracket match saved before it ran', async () => {
         await pool.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public');
         const dir = mkdtempSync(join(tmpdir(), 'bvt-migrations-'));
         try {
             for (const { name } of readMigrations().filter((m) => m.name < '0004')) copyFileSync(join(MIGRATIONS_DIR, name), join(dir, name));
             await migrate(pool, dir);
-            const eventId = await createEvent(pool, lan);
-            const [a, b] = await addPlayers(eventId, 2);
+            // Plain inserts, since the store functions write columns that later migrations add.
+            const eventId = (
+                await pool.query<{ id: number }>(
+                    `INSERT INTO events (name, starts_on, ends_on, code, starting_foza, daily_foza) VALUES ('LAN 2026', '2026-11-20', '2026-11-22', 'LAN-2026', 1000, 100) RETURNING id`,
+                )
+            ).rows[0].id;
+            const [a, b] = (
+                await pool.query<{ id: number }>(
+                    `INSERT INTO players (event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance)
+                     VALUES ($1, 'P1', 'p1', '\\x00', '\\x00', 0), ($1, 'P2', 'p2', '\\x00', '\\x00', 0) RETURNING id`,
+                    [eventId],
+                )
+            ).rows.map((row) => row.id);
             const t = await pool.query<{ id: number }>(`INSERT INTO tournaments (event_id, name, format, seeding) VALUES ($1, 'Old', 'single_elimination', 'manual') RETURNING id`, [eventId]);
             await pool.query('INSERT INTO tournament_players (tournament_id, event_id, player_id, seed) VALUES ($1, $2, $3, 1), ($1, $2, $4, 2)', [t.rows[0].id, eventId, a, b]);
             await pool.query(`INSERT INTO bracket_matches (tournament_id, section, round, position, best_of, rule_file, player1_id, player2_id) VALUES ($1, 'winners', 1, 1, 3, 'old.lua', $2, $3)`, [t.rows[0].id, a, b]);

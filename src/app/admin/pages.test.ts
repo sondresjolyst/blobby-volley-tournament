@@ -1,7 +1,7 @@
 import { readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const requireAdmin = vi.fn();
 const getPool = vi.fn(() => {
@@ -23,6 +23,13 @@ function pageFiles(dir: string): string[] {
 
 const pages = pageFiles(root).map((file) => relative(root, file).replaceAll('\\', '/'));
 
+// The modules are loaded once before the tests. A first load with a cold transform cache can take
+// longer than the timeout of a single test, and a test that timed out keeps running into the next one.
+const modules = new Map<string, unknown>();
+beforeAll(async () => {
+    for (const file of pages) modules.set(file, await import(/* @vite-ignore */ `./${file}`));
+}, 120_000);
+
 beforeEach(() => {
     requireAdmin.mockReset();
     getPool.mockClear();
@@ -34,10 +41,10 @@ describe('every /admin page', () => {
     });
 
     it.each(pages)('%s calls requireAdmin before it does anything else', async (page) => {
-        const mod = (await import(/* @vite-ignore */ `./${page}`)) as { default: (props: unknown) => Promise<unknown> };
+        const mod = modules.get(page) as { default: (props: unknown) => Promise<unknown> };
         // requireAdmin redirects by throwing, so a page that calls it first stops there.
-        requireAdmin.mockRejectedValueOnce(new Error('redirect:/signin'));
-        await expect(mod.default({ params: Promise.resolve({ id: '1' }), searchParams: Promise.resolve({}) })).rejects.toThrow('redirect:/signin');
+        requireAdmin.mockRejectedValueOnce(new Error('redirect:/login'));
+        await expect(mod.default({ params: Promise.resolve({ id: '1' }), searchParams: Promise.resolve({}) })).rejects.toThrow('redirect:/login');
         expect(requireAdmin).toHaveBeenCalledTimes(1);
         expect(getPool).not.toHaveBeenCalled();
     });

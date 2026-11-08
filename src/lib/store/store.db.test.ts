@@ -5,23 +5,31 @@ import { Pool } from 'pg';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { migrate, readMigrations } from '../../../scripts/migrate.mjs';
 import type { EventInput } from '@/lib/events/input';
+import { newJoinCode } from '@/lib/players/join-code';
 import { hashPin } from '@/lib/players/pin';
 import { hashSessionToken, SESSION_MS } from '@/lib/players/session';
-import { clearActiveEvent, createEvent, getActiveEvent, getEvent, listEvents, setActiveEvent, updateEvent } from './events';
+import { clearActiveEvent, createEvent, getActiveEvent, getEvent, isEventCodeTaken, listEvents, setActiveEvent, updateEvent } from './events';
 import { bumpAttempts, claimAttempts, readAttempts, windowStart } from './attempts';
 import {
     claimPinAttempt,
     CLIENT_FAILURES_PER_HOUR,
+    CLIENT_SIGN_UPS_PER_HOUR,
+    CLIENT_WRONG_PINS_PER_HOUR,
     createSession,
     deleteSession,
     EVENT_FAILURES_PER_HOUR,
     eventBucket,
     getSessionPlayer,
+    busiestPinClient,
     listPlayers,
+    pinBucket,
+    resetPinLimits,
     resetPlayerPin,
     signInPlayer,
+    signUpBucket,
     signUpPlayer,
     type SignUpInput,
+    unlockPlayer,
 } from './players';
 
 // Runs inside each PIN check, so a test can see how many connections are checked out at that moment.
@@ -142,7 +150,14 @@ describe('schema', () => {
         // The key is short and differs each time, so only the nickname column is checked.
         let n = 0;
         const insert = (nickname: string) =>
-            pool.query('INSERT INTO players (event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance) VALUES ($1, $2, $3, $4, $5, 0)', [eventId, nickname, `k${n++}`, pin.hash, pin.salt]);
+            pool.query('INSERT INTO players (event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance, join_code) VALUES ($1, $2, $3, $4, $5, 0, $6)', [
+                eventId,
+                nickname,
+                `k${n++}`,
+                pin.hash,
+                pin.salt,
+                newJoinCode(),
+            ]);
         await expect(insert('æøåæøåæø')).rejects.toThrow(/players_nickname_check/);
         await expect(insert(' padded')).rejects.toThrow(/players_nickname_check/);
         await insert('æøåæøåæa');
@@ -157,11 +172,33 @@ describe('schema', () => {
 describe('events', () => {
     it('creates, reads and edits an event', async () => {
         const id = await createEvent(pool, lan);
-        expect(await getEvent(pool, id)).toEqual({ id, ...lan, isActive: false });
-        expect(await updateEvent(pool, id, { ...lan, name: 'LAN 2026 B', dailyFoza: 150 })).toBe(true);
-        expect(await getEvent(pool, id)).toMatchObject({ name: 'LAN 2026 B', dailyFoza: 150 });
+        expect(await getEvent(pool, id)).toEqual({ id, ...lan, isActive: false, serverHost: null, serverPort: null, gameBoard: 'off', bigScreen: { screens: ['overview'], seconds: 60 } });
+        expect(await updateEvent(pool, id, { ...lan, name: 'LAN 2026 B', dailyFoza: 150, serverHost: 'lan-pc.local', serverPort: 1234 })).toBe(true);
+        expect(await getEvent(pool, id)).toMatchObject({ name: 'LAN 2026 B', dailyFoza: 150, serverHost: 'lan-pc.local', serverPort: 1234 });
+        expect(await updateEvent(pool, id, { ...lan, serverHost: null, serverPort: null })).toBe(true);
+        expect(await getEvent(pool, id)).toMatchObject({ serverHost: null, serverPort: null });
         expect(await updateEvent(pool, id + 100, lan)).toBe(false);
         expect(await getEvent(pool, id + 100)).toBeNull();
+    });
+
+    it('knows when another event has the code', async () => {
+        expect(await isEventCodeTaken(pool, 'LAN-2026')).toBe(false);
+        const id = await createEvent(pool, lan);
+        expect(await isEventCodeTaken(pool, 'LAN-2026')).toBe(true);
+        // The event itself may keep its code when it is saved again.
+        expect(await isEventCodeTaken(pool, 'LAN-2026', id)).toBe(false);
+        const other = await createEvent(pool, lastYear);
+        expect(await isEventCodeTaken(pool, 'LAN-2026', other)).toBe(true);
+        expect(await isEventCodeTaken(pool, 'LAN-2025', id)).toBe(true);
+        expect(await isEventCodeTaken(pool, 'LAN-2024', id)).toBe(false);
+    });
+
+    it('moves the game server of the active event at once', async () => {
+        const id = await createEvent(pool, { ...lan, serverHost: '192.168.1.50', serverPort: 1234 });
+        await setActiveEvent(pool, id);
+        expect(await getActiveEvent(pool)).toMatchObject({ id, serverHost: '192.168.1.50', serverPort: 1234 });
+        expect(await updateEvent(pool, id, { ...lan, serverHost: '192.168.1.77', serverPort: 1240 })).toBe(true);
+        expect(await getActiveEvent(pool)).toMatchObject({ id, isActive: true, serverHost: '192.168.1.77', serverPort: 1240 });
     });
 
     it('lists events with the newest first and keeps past events', async () => {
@@ -304,6 +341,7 @@ describe('sessions', () => {
         const { token } = await createSession(pool, playerId, now);
         await deleteSession(pool, token);
         expect(await getSessionPlayer(pool, token, now)).toBeNull();
+        expect((await pool.query('SELECT 1 FROM player_sessions WHERE player_id = $1', [playerId])).rowCount).toBe(0);
     });
 
     it('does not find a player for an unknown token', async () => {
@@ -325,6 +363,51 @@ describe('resetPlayerPin', () => {
 
     it('returns null for a player that does not exist', async () => {
         expect(await resetPlayerPin(pool, 999, await hashPin('5678'))).toBeNull();
+    });
+});
+
+describe('unlockPlayer', () => {
+    it('forgets the wrong PINs and lifts the lock, and keeps the PIN and the sessions', async () => {
+        const { playerId, eventId } = await activeEventWithPlayer('Ola', '1234');
+        const { token } = await createSession(pool, playerId, now);
+        for (let i = 0; i < 2; i++) await signIn('ola', '0000');
+        expect(await listPlayers(pool, eventId)).toEqual([expect.objectContaining({ failedPinAttempts: 2, lastFailedPinAt: now, lockedUntil: null })]);
+        for (let i = 0; i < 3; i++) await signIn('ola', '0000');
+        expect(await signIn('ola', '1234')).toMatchObject({ ok: false, error: 'locked' });
+
+        expect(await unlockPlayer(pool, playerId)).toEqual({ eventId });
+        expect(await listPlayers(pool, eventId)).toEqual([expect.objectContaining({ failedPinAttempts: 0, lastFailedPinAt: null, lockedUntil: null })]);
+        const { rows } = await pool.query('SELECT lock_level FROM players WHERE id = $1', [playerId]);
+        expect(rows[0].lock_level).toBe(0);
+        expect(await getSessionPlayer(pool, token, now)).not.toBeNull();
+        expect(await signIn('ola', '0000')).toEqual({ ok: false, error: 'wrong' });
+        expect((await signIn('ola', '1234')).ok).toBe(true);
+    });
+
+    it('returns null for a player that does not exist', async () => {
+        expect(await unlockPlayer(pool, 999)).toBeNull();
+    });
+});
+
+describe('the network PIN limit', () => {
+    it('shows the busiest client of this hour, and a reset lets every client try PINs again and keeps the other counts', async () => {
+        const { eventId } = await activeEventWithPlayer('Ola', '1234');
+        expect(await busiestPinClient(pool, now)).toBe(0);
+        await setAttempts(pinBucket(client), CLIENT_WRONG_PINS_PER_HOUR);
+        await setAttempts(pinBucket('ip:192.0.2.11'), 3);
+        await setAttempts(pinBucket(client), 7, new Date(now.getTime() - 60 * MINUTE));
+        await setAttempts(client, 9);
+        await setAttempts(signUpBucket(client), 4);
+        await setAttempts(eventBucket(eventId), 11);
+        expect(await busiestPinClient(pool, now)).toBe(CLIENT_WRONG_PINS_PER_HOUR);
+        expect(await signIn('ola', '1234')).toEqual({ ok: false, error: 'pins' });
+
+        await resetPinLimits(pool);
+        expect(await busiestPinClient(pool, now)).toBe(0);
+        expect(await readAttempts(pool, client, now)).toBe(9);
+        expect(await readAttempts(pool, signUpBucket(client), now)).toBe(4);
+        expect(await readAttempts(pool, eventBucket(eventId), now)).toBe(11);
+        expect((await signIn('ola', '1234')).ok).toBe(true);
     });
 });
 
@@ -482,6 +565,63 @@ describe('sign-in limits', () => {
         expect(await signIn('ola', '1234')).toMatchObject({ ok: false, error: 'locked' });
     });
 
+    it('refuses every PIN from a client over its wrong PIN limit until the hour is over, without a PIN check', async () => {
+        await activeEventWithPlayer('Ola', '1234');
+        await setAttempts(pinBucket(client), CLIENT_WRONG_PINS_PER_HOUR - 1);
+        expect(await signIn('ola', '0000')).toEqual({ ok: false, error: 'wrong' });
+        const checks: number[] = [];
+        verifyHook.run = () => checks.push(1);
+        try {
+            expect(await signIn('ola', '1234')).toEqual({ ok: false, error: 'pins' });
+        } finally {
+            verifyHook.run = null;
+        }
+        expect(checks).toEqual([]);
+        expect(await readAttempts(pool, pinBucket(client), now)).toBe(CLIENT_WRONG_PINS_PER_HOUR);
+        expect((await signIn('ola', '1234', now, 'ip:192.0.2.99')).ok).toBe(true);
+        expect((await signIn('ola', '1234', new Date(now.getTime() + 60 * MINUTE))).ok).toBe(true);
+    });
+
+    it('counts wrong PINs across players against the client, and takes back right PINs and tries on a locked player', async () => {
+        await activeEventWithPlayer('Ola', '1234');
+        await signUp({ code: lan.code, nickname: 'Kari', nicknameKey: 'kari', pin: '1111' }, 'ip:192.0.2.50');
+        await signIn('ola', '0000');
+        await signIn('kari', '0000');
+        expect(await readAttempts(pool, pinBucket(client), now)).toBe(2);
+        expect((await signIn('kari', '1111')).ok).toBe(true);
+        expect(await readAttempts(pool, pinBucket(client), now)).toBe(2);
+        for (let i = 0; i < 4; i++) await signIn('ola', '0000');
+        expect(await readAttempts(pool, pinBucket(client), now)).toBe(6);
+        expect(await signIn('ola', '0000')).toMatchObject({ ok: false, error: 'locked' });
+        expect(await readAttempts(pool, pinBucket(client), now)).toBe(6);
+    });
+
+    it('lets no more wrong PINs through than the client limit when many arrive at the same time', async () => {
+        await activeEventWithPlayer('Ola', '1234');
+        const nicknames = Array.from({ length: 12 }, (_, i) => `p${i}`);
+        for (const nickname of nicknames) await signUp({ code: lan.code, nickname, nicknameKey: nickname, pin: '1111' }, `ip:192.0.2.${100 + Number(nickname.slice(1))}`);
+        await setAttempts(pinBucket(client), CLIENT_WRONG_PINS_PER_HOUR - 3);
+        const results = await Promise.all(nicknames.map((nickname) => signIn(nickname, '0000')));
+        expect(results.filter((r) => !r.ok && r.error === 'wrong')).toHaveLength(3);
+        expect(results.filter((r) => !r.ok && r.error === 'pins')).toHaveLength(9);
+    });
+
+    it('forgets wrong PINs when the last one is more than a day old', async () => {
+        await activeEventWithPlayer('Ola', '1234');
+        for (let i = 0; i < 4; i++) await signIn('ola', '0000', now, `ip:192.0.2.${i}`);
+        const later = new Date(now.getTime() + 24 * 60 * MINUTE + 1);
+        expect(await signIn('ola', '0000', later)).toEqual({ ok: false, error: 'wrong' });
+        const { rows } = await pool.query("SELECT failed_pin_attempts, locked_until, last_failed_pin_at FROM players WHERE nickname_key = 'ola'");
+        expect(rows[0]).toEqual({ failed_pin_attempts: 1, locked_until: null, last_failed_pin_at: later });
+    });
+
+    it('keeps wrong PINs within a day of the last one', async () => {
+        await activeEventWithPlayer('Ola', '1234');
+        for (let i = 0; i < 4; i++) await signIn('ola', '0000', new Date(now.getTime() + i * 20 * 60 * MINUTE), `ip:192.0.2.${i}`);
+        const fifth = new Date(now.getTime() + 80 * 60 * MINUTE);
+        expect(await signIn('ola', '0000', fifth)).toEqual({ ok: false, error: 'locked', until: new Date(fifth.getTime() + 15 * MINUTE) });
+    });
+
     it('does not hold a database connection while scrypt runs, for a real or an unknown nickname', async () => {
         await activeEventWithPlayer('Ola', '1234');
         const busy: number[] = [];
@@ -504,6 +644,24 @@ describe('sign-up limits', () => {
         expect(await signUp({ ...input, code: 'WRONG-CODE' })).toEqual({ ok: false, error: 'code' });
         expect((await signUp(input)).ok).toBe(true);
         expect(await readAttempts(pool, client, now)).toBe(1);
+    });
+
+    it('refuses new players from a client over its sign-up limit until the hour is over', async () => {
+        await setActiveEvent(pool, await createEvent(pool, lan));
+        await setAttempts(signUpBucket(client), CLIENT_SIGN_UPS_PER_HOUR - 1);
+        expect((await signUp(input)).ok).toBe(true);
+        expect(await signUp({ ...input, nickname: 'Kari', nicknameKey: 'kari' })).toEqual({ ok: false, error: 'sign-ups' });
+        expect(await readAttempts(pool, signUpBucket(client), now)).toBe(CLIENT_SIGN_UPS_PER_HOUR);
+        expect((await signUp({ ...input, nickname: 'Kari', nicknameKey: 'kari' }, 'ip:192.0.2.99')).ok).toBe(true);
+        expect((await signUp({ ...input, nickname: 'Per', nicknameKey: 'per' }, client, new Date(now.getTime() + 60 * MINUTE))).ok).toBe(true);
+    });
+
+    it('counts only new players against the sign-up limit', async () => {
+        await setActiveEvent(pool, await createEvent(pool, lan));
+        expect((await signUp(input)).ok).toBe(true);
+        expect(await signUp(input)).toEqual({ ok: false, error: 'taken' });
+        expect(await signUp({ ...input, code: 'WRONG-CODE' })).toEqual({ ok: false, error: 'code' });
+        expect(await readAttempts(pool, signUpBucket(client), now)).toBe(1);
     });
 
     it('refuses a client over its limit, even with the right code', async () => {

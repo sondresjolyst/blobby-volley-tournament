@@ -13,8 +13,16 @@ describe('parseTournamentDraft', () => {
     it('reads the form', () => {
         expect(parseTournamentDraft(form())).toEqual({
             ok: true,
-            value: { name: 'Cup', format: 'single_elimination', seeding: 'random', randomSeed: 7, playerIds: [1, 2, 3], manualOrder: null, thirdPlaceMatch: false, rounds: {}, roundsFor: '' },
+            value: { name: 'Cup', format: 'single_elimination', seeding: 'random', randomSeed: 7, playerIds: [1, 2, 3], manualOrder: null, thirdPlaceMatch: false, scoreToWin: 15, speed: 75, rounds: {}, roundsFor: '' },
         });
+    });
+
+    it('reads the points to win and the game speed, and checks their range', () => {
+        expect(parseTournamentDraft(form([['scoreToWin', '21'], ['speed', '100']]))).toMatchObject({ ok: true, value: { scoreToWin: 21, speed: 100 } });
+        expect(parseTournamentDraft(form([['scoreToWin', '1'], ['speed', '30']]))).toMatchObject({ ok: true, value: { scoreToWin: 1, speed: 30 } });
+        expect(parseTournamentDraft(form([['scoreToWin', '99'], ['speed', '120']]))).toMatchObject({ ok: true, value: { scoreToWin: 99, speed: 120 } });
+        for (const value of ['0', '100', '1.5', 'x', '-3']) expect(parseTournamentDraft(form([['scoreToWin', value]]))).toEqual({ ok: false, error: 'score-to-win' });
+        for (const value of ['29', '121', '75.5', 'fast']) expect(parseTournamentDraft(form([['speed', value]]))).toEqual({ ok: false, error: 'speed' });
     });
 
     it('reads FormData too', () => {

@@ -31,8 +31,20 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
     output: 'standalone',
     poweredByHeader: false,
+    // sharp loads libvips at run time, so the file trace misses it. Only the packages for the
+    // platform of the build are installed, so this copies just those.
+    outputFileTracingIncludes: { '/**/*': ['./node_modules/@img/**/*'] },
     async headers() {
-        return [{ source: '/:path*', headers: securityHeaders }];
+        // The big screen address can hold its key, so it never goes out as a referrer or into a cache.
+        const bigScreen = [
+            { key: 'Referrer-Policy', value: 'no-referrer' },
+            { key: 'Cache-Control', value: 'no-store' },
+        ];
+        return [
+            { source: '/:path*', headers: securityHeaders },
+            { source: '/big', headers: bigScreen },
+            { source: '/api/big', headers: bigScreen },
+        ];
     },
 };
 

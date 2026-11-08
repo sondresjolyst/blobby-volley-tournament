@@ -1,10 +1,12 @@
-import Link from 'next/link';
+import { AdminShell } from '@/components/admin/AdminShell';
 import { BracketView } from '@/components/tournaments/BracketView';
 import { requireAdmin } from '@/lib/auth/options';
 import { BEST_OF, FORMATS, type PlannedBracket } from '@/lib/bracket';
 import { getPool } from '@/lib/db';
 import { getActiveEvent } from '@/lib/store/events';
 import { listPlayers } from '@/lib/store/players';
+import { eloRatings } from '@/lib/store/stats';
+import { ELO_START, shownRating } from '@/lib/stats/elo';
 import {
     bestOfField,
     fieldsOf,
@@ -33,16 +35,13 @@ export default async function NewTournament({ searchParams }: { searchParams: Pr
     const event = await getActiveEvent(pool);
     if (!event) {
         return (
-            <main>
+            <AdminShell section="tournaments">
                 <h1>New tournament</h1>
-                <p>
-                    <Link href="/admin/tournaments">Tournaments</Link>
-                </p>
                 <p>There is no active event. Set an event active first.</p>
-            </main>
+            </AdminShell>
         );
     }
-    const players = await listPlayers(pool, event.id);
+    const [players, ratings] = await Promise.all([listPlayers(pool, event.id), eloRatings(pool, event.id)]);
     const params = toSearchParams(await searchParams);
     const read = fieldsOf(params);
     const value = (name: string) => read(name)[0] ?? '';
@@ -57,18 +56,15 @@ export default async function NewTournament({ searchParams }: { searchParams: Pr
         else if (!parsed.value.playerIds.every((id) => players.some((p) => p.id === id))) message ??= tournamentErrorMessage('players');
         else {
             draft = parsed.value;
-            plan = planTournament(draft);
+            plan = planTournament(draft, ratings);
         }
     }
     const randomSeed = value('randomSeed') || String(newRandomSeed());
     const nickname = new Map(players.map((p) => [p.id, p.nickname]));
 
     return (
-        <main>
+        <AdminShell section="tournaments">
             <h1>New tournament</h1>
-            <p>
-                <Link href="/admin/tournaments">Tournaments</Link>
-            </p>
             <p>Event: {event.name}</p>
             {message && <p role="alert">{message}</p>}
             <form method="get" action="/admin/tournaments/new">
@@ -112,38 +108,53 @@ export default async function NewTournament({ searchParams }: { searchParams: Pr
                         Random seed <input name="randomSeed" inputMode="numeric" pattern="[0-9]{1,10}" required defaultValue={randomSeed} />
                     </label>
                 </p>
-                <p>Elo ratings come later. Until then every player counts as 1000, so Elo seeding follows the order the players signed up in.</p>
+                <p>
+                    <label>
+                        Points to win a game <input name="scoreToWin" type="number" min={1} max={99} step={1} required defaultValue={value('scoreToWin') || '15'} />
+                    </label>
+                </p>
+                <p>
+                    <label>
+                        Game speed in frames per second <input name="speed" type="number" min={30} max={120} step={1} required defaultValue={value('speed') || '75'} />
+                    </label>
+                </p>
+                <p>75 frames per second is the normal speed of the game.</p>
+                <p>Seeding by Elo rating puts the highest rating first. It uses the ratings when you save, so a match that ends after the preview can change the seeds. Equal ratings go in the order the players signed up in.</p>
 
                 <fieldset>
                     <legend>Players</legend>
                     {players.length === 0 ? (
                         <p>No players in this event yet.</p>
                     ) : (
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Play</th>
-                                    <th>Seed when seeding by hand</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {players.map((player) => (
-                                    <tr key={player.id}>
-                                        <td>
-                                            <label>
-                                                <input type="checkbox" name="player" value={player.id} defaultChecked={chosen.has(String(player.id))} /> {player.nickname}
-                                            </label>
-                                        </td>
-                                        <td>
-                                            <label>
-                                                Seed for {player.nickname}{' '}
-                                                <input name={seedField(player.id)} inputMode="numeric" size={3} defaultValue={value(seedField(player.id))} />
-                                            </label>
-                                        </td>
+                        <div className="admin-table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Play</th>
+                                        <th>Seed when seeding by hand</th>
+                                        <th>Elo rating</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {players.map((player) => (
+                                        <tr key={player.id}>
+                                            <td>
+                                                <label>
+                                                    <input type="checkbox" name="player" value={player.id} defaultChecked={chosen.has(String(player.id))} /> {player.nickname}
+                                                </label>
+                                            </td>
+                                            <td>
+                                                <label>
+                                                    Seed for {player.nickname}{' '}
+                                                    <input name={seedField(player.id)} inputMode="numeric" size={3} defaultValue={value(seedField(player.id))} />
+                                                </label>
+                                            </td>
+                                            <td data-label="Elo rating">{shownRating(ratings.get(player.id) ?? ELO_START)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     )}
                 </fieldset>
 
@@ -151,39 +162,41 @@ export default async function NewTournament({ searchParams }: { searchParams: Pr
                     <fieldset>
                         <legend>Rounds</legend>
                         <input type="hidden" name="roundsFor" value={roundsSignature(plan)} />
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Round</th>
-                                    <th>Best of</th>
-                                    <th>Rules</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {plan.rounds.map((round) => (
-                                    <tr key={round.key}>
-                                        <td>{round.name}</td>
-                                        <td>
-                                            <label>
-                                                Best of for {round.name}{' '}
-                                                <select name={bestOfField(round.key)} defaultValue={String(round.bestOf)}>
-                                                    {BEST_OF.map((n) => (
-                                                        <option key={n} value={n}>
-                                                            {n}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </label>
-                                        </td>
-                                        <td>
-                                            <label>
-                                                Rules for {round.name} <input name={rulesField(round.key)} maxLength={64} defaultValue={round.ruleFile} />
-                                            </label>
-                                        </td>
+                        <div className="admin-table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Round</th>
+                                        <th>Best of</th>
+                                        <th>Rules</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {plan.rounds.map((round) => (
+                                        <tr key={round.key}>
+                                            <td data-label="Round">{round.name}</td>
+                                            <td>
+                                                <label>
+                                                    Best of for {round.name}{' '}
+                                                    <select name={bestOfField(round.key)} defaultValue={String(round.bestOf)}>
+                                                        {BEST_OF.map((n) => (
+                                                            <option key={n} value={n}>
+                                                                {n}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </label>
+                                            </td>
+                                            <td>
+                                                <label>
+                                                    Rules for {round.name} <input name={rulesField(round.key)} maxLength={64} defaultValue={round.ruleFile} />
+                                                </label>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </fieldset>
                 )}
 
@@ -210,6 +223,6 @@ export default async function NewTournament({ searchParams }: { searchParams: Pr
                     <BracketView rounds={describeBracket(plan.format, plan.matches, (id) => nickname.get(id) ?? `Player ${id}`)} />
                 </>
             )}
-        </main>
+        </AdminShell>
     );
 }

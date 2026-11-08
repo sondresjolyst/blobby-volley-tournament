@@ -1,4 +1,6 @@
-const AUTH_PATHS = new Set(['/signin', '/denied', '/auth-error']);
+// /login is left out on purpose. Players sign in there too, and the GitHub sign-in it starts goes
+// through /api/auth, which is checked.
+const AUTH_PATHS = new Set(['/denied', '/auth-error']);
 
 /** Decodes a path until it stops changing. Returns null when it cannot be decoded. */
 function decodePath(pathname: string): string | null {
@@ -50,7 +52,7 @@ export function safeCallback(value: unknown): string {
 
 /** Builds the sign-in URL. The callback is a path on this site, never a full URL. */
 export function signInUrl(url: URL): string {
-    const target = new URL('/signin', url.origin);
+    const target = new URL('/login', url.origin);
     target.searchParams.set('callbackUrl', safeCallback(url.pathname + url.search));
     return target.pathname + target.search;
 }

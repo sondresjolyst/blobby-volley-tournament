@@ -1,11 +1,13 @@
+import { isBestOf } from '@/lib/bracket';
 import { parseId } from '@/lib/http';
+import { DEFAULT_GAME_SPEED, DEFAULT_SCORE_TO_WIN, formNumber, isGameSpeed, isPoints, isScoreToWin } from './settings';
 import type { MatchState } from './state';
 
-/** A whole number from 0 to 1000 from a form field, or null. */
+/** A whole number from 0 to MAX_POINTS from a form field, or null. */
 export function parseCount(value: string | undefined): number | null {
     if (value === undefined || !/^[0-9]{1,4}$/.test(value.trim())) return null;
     const n = Number(value.trim());
-    return n <= 1000 ? n : null;
+    return isPoints(n) ? n : null;
 }
 
 /** Slot 1 or 2 from a form field, or null. */
@@ -59,6 +61,34 @@ export function parseMatchForm(form: Record<string, string>): MatchForm | null {
     }
 }
 
+export interface ChallengeForm {
+    opponentId: number;
+    bestOf: number;
+    scoreToWin: number;
+    speed: number;
+}
+
+/**
+ * Reads the form a player sends to ask another player for a 1v1 match. An empty best-of, points
+ * or speed gives 1, 15 and 75. Returns null when a field is missing or out of bounds.
+ */
+export function parseChallengeForm(form: Record<string, string>): ChallengeForm | null {
+    const opponentId = parseId(form.opponent ?? '');
+    const bestOf = formNumber(form.bestOf ?? '', 1);
+    const scoreToWin = formNumber(form.scoreToWin ?? '', DEFAULT_SCORE_TO_WIN);
+    const speed = formNumber(form.speed ?? '', DEFAULT_GAME_SPEED);
+    if (opponentId === null || bestOf === null || !isBestOf(bestOf) || !isScoreToWin(scoreToWin) || !isGameSpeed(speed)) return null;
+    return { opponentId, bestOf, scoreToWin, speed };
+}
+
+export const CHALLENGE_ANSWERS = ['accept', 'decline', 'withdraw'] as const;
+export type ChallengeAnswer = (typeof CHALLENGE_ANSWERS)[number];
+
+/** Reads an answer to a 1v1 match: accept or decline from the asked player, withdraw from the asker. Null for anything else. */
+export function parseChallengeAnswer(form: Record<string, string>): ChallengeAnswer | null {
+    return (CHALLENGE_ANSWERS as readonly string[]).includes(form.answer) ? (form.answer as ChallengeAnswer) : null;
+}
+
 export const STATE_LABELS: Record<MatchState, string> = {
     upcoming: 'Upcoming',
     called: 'Called',
@@ -77,6 +107,7 @@ const MESSAGES: Record<string, string> = {
     game: 'The game must be one of the games played or the next one.',
     score: 'The score is not valid. The winner of a game must have more points, and a series score must fit the best-of.',
     forfeit: 'This match was decided by a no-show. Its games cannot change it.',
+    decided: 'The series is decided, so no more games can be added. Correct a game that was played instead.',
     'downstream-played': 'The change would move a player out of a later match that is already called, started or finished. Reset that match to upcoming first.',
     'tournament-cancel': 'A tournament match cannot be cancelled, since the bracket could not move on. Record a no-show instead.',
 };

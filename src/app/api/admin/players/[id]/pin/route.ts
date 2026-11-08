@@ -1,4 +1,4 @@
-import { requireAdminApi } from '@/lib/auth/options';
+import { requireAdminPost } from '@/lib/auth/options';
 import { getPool } from '@/lib/db';
 import { parseId, readForm, seeOther } from '@/lib/http';
 import { hashPin, isValidPin } from '@/lib/players/pin';
@@ -6,7 +6,7 @@ import { resetPlayerPin } from '@/lib/store/players';
 
 /** Gives a player the new PIN from the form. The player is unlocked and signed out everywhere. */
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
-    const admin = await requireAdminApi(req);
+    const admin = await requireAdminPost(req);
     if (admin instanceof Response) return admin;
     const id = parseId((await ctx.params).id);
     if (id === null) return Response.json({ error: 'not found' }, { status: 404 });

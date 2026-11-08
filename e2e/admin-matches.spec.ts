@@ -14,10 +14,10 @@ test('an admin calls a tournament match, enters the result and sees the placings
         const player = await browser.newContext({ baseURL: process.env.E2E_BASE_URL });
         const playerPage = await player.newPage();
         await playerPage.goto('/join');
-        await playerPage.getByLabel('Event code').fill(process.env.E2E_EVENT_CODE ?? '');
-        await playerPage.getByLabel('Nickname').fill(nickname);
-        await playerPage.getByLabel('PIN (4 digits)').fill('1234');
-        await playerPage.getByRole('button', { name: 'Sign up' }).click();
+        await playerPage.getByLabel('LAN-kode').fill(process.env.E2E_EVENT_CODE ?? '');
+        await playerPage.getByLabel('Kallenavn').fill(nickname);
+        await playerPage.getByLabel('PIN-kode (4 siffer)').fill('1234');
+        await playerPage.getByRole('button', { name: 'Bli med på LANet' }).click();
         await expect(playerPage).toHaveURL(/\/me$/);
         await player.close();
     }
@@ -49,7 +49,7 @@ test('an admin calls a tournament match, enters the result and sees the placings
     await expect(page.getByText('State: Finished')).toBeVisible();
     await expect(page.getByText(`${nicknames[1]} wins`)).toBeVisible();
 
-    await page.getByRole('link', { name: 'Tournament' }).click();
+    await page.getByRole('link', { name: 'Tournament', exact: true }).click();
     await expect(page.getByRole('list', { name: 'Placings' }).getByRole('listitem')).toHaveText([`1. ${nicknames[1]}`, `2. ${nicknames[0]}`]);
 });
 
@@ -69,10 +69,10 @@ async function signUp(browser: Browser, nickname: string) {
     const player = await browser.newContext({ baseURL: process.env.E2E_BASE_URL });
     const playerPage = await player.newPage();
     await playerPage.goto('/join');
-    await playerPage.getByLabel('Event code').fill(process.env.E2E_EVENT_CODE ?? '');
-    await playerPage.getByLabel('Nickname').fill(nickname);
-    await playerPage.getByLabel('PIN (4 digits)').fill('1234');
-    await playerPage.getByRole('button', { name: 'Sign up' }).click();
+    await playerPage.getByLabel('LAN-kode').fill(process.env.E2E_EVENT_CODE ?? '');
+    await playerPage.getByLabel('Kallenavn').fill(nickname);
+    await playerPage.getByLabel('PIN-kode (4 siffer)').fill('1234');
+    await playerPage.getByRole('button', { name: 'Bli med på LANet' }).click();
     await expect(playerPage).toHaveURL(/\/me$/);
     await player.close();
 }

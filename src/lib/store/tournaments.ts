@@ -1,5 +1,6 @@
 import type { Pool } from 'pg';
 import { MAX_PLAYERS, MIN_PLAYERS, type BestOf, type FormatId, type PlannedBracket, type Section, type SeedingMethod } from '@/lib/bracket';
+import { DEFAULT_GAME_SPEED, DEFAULT_SCORE_TO_WIN, isNextGameDelay } from '@/lib/matches/settings';
 import { createBracketMatches } from './matches';
 import { inTransaction } from './transaction';
 
@@ -9,6 +10,10 @@ export interface NewTournament {
     /** Set for random seeding, null otherwise. */
     randomSeed: number | null;
     bracket: PlannedBracket;
+    /** Points that win a game. 15 when not given. */
+    scoreToWin?: number;
+    /** Game speed in frames per second. 75 when not given. */
+    speed?: number;
 }
 
 export interface TournamentPlayer {
@@ -37,6 +42,10 @@ export interface SavedTournament {
     seeding: SeedingMethod;
     randomSeed: number | null;
     thirdPlaceMatch: boolean;
+    scoreToWin: number;
+    speed: number;
+    /** The pause in seconds between two games of a series. */
+    nextGameDelay: number;
     /** In seed order. */
     players: TournamentPlayer[];
     /** In play order. A match only links to matches later in the list. */
@@ -75,15 +84,18 @@ export async function saveTournament(pool: Pool, eventId: number, input: NewTour
     if (!seedsMatchPlayers(bracket)) return { ok: false, error: 'players' };
     try {
         const id = await inTransaction(pool, async (client) => {
-            // Locks the event row, so it cannot be closed while the tournament is saved.
-            const event = await client.query('SELECT 1 FROM events WHERE id = $1 AND is_active FOR SHARE', [eventId]);
+            // Locks the event row, so it cannot be closed while the tournament is saved. The save bumps
+            // the live version of the row when it commits, so it takes the update lock now. A share lock
+            // here would let two saves deadlock when both upgrade it at commit.
+            const event = await client.query('SELECT 1 FROM events WHERE id = $1 AND is_active FOR NO KEY UPDATE', [eventId]);
             if (event.rowCount !== 1) throw new Abort('no-event');
             const known = await client.query<{ n: number }>('SELECT count(*)::int AS n FROM players WHERE event_id = $1 AND id = ANY($2::int[])', [eventId, bracket.seeds]);
             if (known.rows[0].n !== bracket.seeds.length) throw new Abort('players');
 
             const { rows } = await client.query<{ id: number }>(
-                'INSERT INTO tournaments (event_id, name, format, seeding, random_seed, third_place_match) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
-                [eventId, input.name, bracket.format, input.seeding, input.randomSeed, bracket.thirdPlaceMatch],
+                `INSERT INTO tournaments (event_id, name, format, seeding, random_seed, third_place_match, score_to_win, game_speed)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+                [eventId, input.name, bracket.format, input.seeding, input.randomSeed, bracket.thirdPlaceMatch, input.scoreToWin ?? DEFAULT_SCORE_TO_WIN, input.speed ?? DEFAULT_GAME_SPEED],
             );
             const tournamentId = rows[0].id;
             await client.query(
@@ -142,8 +154,8 @@ interface MatchRecord {
 }
 
 export async function getTournament(pool: Pool, id: number): Promise<SavedTournament | null> {
-    const found = await pool.query<{ id: number; event_id: number; name: string; format: FormatId; seeding: SeedingMethod; random_seed: number | null; third_place_match: boolean }>(
-        'SELECT id, event_id, name, format, seeding, random_seed, third_place_match FROM tournaments WHERE id = $1',
+    const found = await pool.query<{ id: number; event_id: number; name: string; format: FormatId; seeding: SeedingMethod; random_seed: number | null; third_place_match: boolean; score_to_win: number; game_speed: number; next_game_delay: number }>(
+        'SELECT id, event_id, name, format, seeding, random_seed, third_place_match, score_to_win, game_speed, next_game_delay FROM tournaments WHERE id = $1',
         [id],
     );
     const row = found.rows[0];
@@ -168,6 +180,9 @@ export async function getTournament(pool: Pool, id: number): Promise<SavedTourna
         seeding: row.seeding,
         randomSeed: row.random_seed,
         thirdPlaceMatch: row.third_place_match,
+        scoreToWin: row.score_to_win,
+        speed: row.game_speed,
+        nextGameDelay: row.next_game_delay,
         players: players.rows.map((p) => ({ playerId: p.player_id, nickname: p.nickname, seed: p.seed })),
         matches: matches.rows.map((m) => ({
             id: m.id,
@@ -191,4 +206,11 @@ export async function listTournaments(pool: Pool, eventId: number): Promise<Tour
         [eventId],
     );
     return rows.map((row) => ({ id: row.id, name: row.name, format: row.format, playerCount: row.player_count }));
+}
+
+/** Sets the pause in seconds between two games of a series. Returns false when the tournament does not exist or the pause is out of bounds. */
+export async function setNextGameDelay(pool: Pool, id: number, seconds: number): Promise<boolean> {
+    if (!isNextGameDelay(seconds)) return false;
+    const { rowCount } = await pool.query('UPDATE tournaments SET next_game_delay = $2 WHERE id = $1', [id, seconds]);
+    return rowCount === 1;
 }
