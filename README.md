@@ -25,11 +25,11 @@ To change the schema, add a new file with the next number. Do not edit a file th
 
 ## Events and players
 
-An admin creates an event for each LAN under `/admin/events`, with a name, dates, an event code, a starting Foza amount and a daily Foza amount. One event at a time is active. Past events stay stored.
+An admin creates an event for each LAN under `/admin/events`, with a name, dates, an event code, a starting Foza amount and a daily Foza amount. One event at a time is active. Past events stay stored. The code field suggests a code from the name with four random characters at the end, since the name is public. Generate makes a fully random code from letters and digits that are easy to read out. Two events cannot have the same code.
 
 Players sign up at `/join` with the event code, a nickname and a 4 digit PIN, and sign in at `/login`. A nickname is at most 15 bytes in UTF-8, so æ, ø and å count as 2. Nicknames are unique per event, ignoring case. An event code is 8 to 32 characters. An admin can reset a player's PIN on the event page.
 
-An event can also have the host and port of the game server at the LAN. The site builds join links from them. Each player gets a secret join code at sign-up, 10 characters from `ABCDEFGHJKMNPQRSTUVWXYZ23456789`, so 0, O, 1, I and L are never used. Codes are drawn from a cryptographic random source and are unique per event. On the event page an admin can give a player a new code, which stops the old one at the next sync of the game server. The admin page does not show codes. A player sees their own code only on their own `/me`, in the join link `blobby://join?server=<host>:<port>&code=<code>` and as text.
+An event can also have the host and port of the game server at the LAN. The site builds join links from them. The host is the LAN address of the PC that runs the game server, so localhost and its other names, 127.0.0.1 and web addresses with http:// are refused. A host that looks like a number must be a plain IPv4 address such as 192.168.1.50. An empty port means 1234, and a new port needs the game server container started again with the new port. An admin can change the host on the event page while the event runs, and the next load of `/me` and `/admin/game-server` shows the new address. Each player gets a secret join code at sign-up, 10 characters from `ABCDEFGHJKMNPQRSTUVWXYZ23456789`, so 0, O, 1, I and L are never used. Codes are drawn from a cryptographic random source and are unique per event. On the event page an admin can give a player a new code, which stops the old one at the next sync of the game server. The admin page does not show codes. A player sees their own code only on their own `/me`, in the join link `blobby://join?server=<host>:<port>&code=<code>` and as text.
 
 Sign-in has these limits:
 
@@ -181,21 +181,19 @@ Reports for one match must be sent one at a time and in game order. Wait for the
 
 There is one token for the whole site, since the game server serves the active event. An admin makes it on `/admin/game-server`, linked from `/admin` as Game server. The token is 32 bytes from the cryptographic random source, written as 43 URL-safe characters. The site stores only its SHA-256 hash, so the token shows once, in the answer to the admin who makes it. It is never in an address or a log. Until a token is made the game server API answers 503.
 
-New token, with the box checked to confirm, replaces the token at once. The old token gets 401 from then on. The page shows when the token was made and when the game server last used it. The last use is written at most once a minute, so a busy game server does not write on every call.
+Make a new token, with the box checked to confirm, replaces the token at once. The old token gets 401 from then on. The page shows when the token was made and when the game server last reported.
 
-The easy way to start the game server is the start script in the game repository, which the page links. It asks for the site address and the token once, keeps them in a file only the user can read, and passes the token to Docker in a temporary env file. Its `update` command gets the newest server image and starts it again with the saved token.
+The page is one flow from top to bottom. The health line comes first. Under Start the game server, Make a token shows one command with this site, the token and the port filled in, with a copy button. It is the same line in PowerShell and bash. Run it on the PC at the LAN that hosts the game server, and the health line turns green within a few seconds. The command maps the game server port of the active event, or 1234 without one, to port 1234 in the container:
 
-The alternative is one line. With the new token the page shows the command that starts the game server in Docker, for PowerShell and for bash, with this site and the token filled in. The token then ends up in the shell history. It maps the game server port of the active event, or 1234 without one, to port 1234 in the container:
+    docker run -d --name blobby-server --restart unless-stopped -p 1234:1234/udp -v blobby-data:/data -e BLOBBY_TOURNAMENT=1 -e BLOBBY_SITE_URL=<NEXTAUTH_URL> -e BLOBBY_SITE_TOKEN=<token> sondresjo/blobby-server:<BLOBBY_SERVER_TAG>
 
-    docker run -d --name blobby-server --restart unless-stopped -p 1234:1234/udp -v blobby-data:/data -e BLOBBY_TOURNAMENT=1 -e BLOBBY_SITE_URL=<NEXTAUTH_URL> -e BLOBBY_SITE_TOKEN=<token> sondresjo/blobby-server:latest
+Three folded sections follow. First time on this PC covers Docker, the Windows firewall rule for the UDP port and a fixed IP address for the PC, which is the game server host of the event. Stop, logs and update lists `docker stop blobby-server`, `docker start blobby-server`, `docker logs -f blobby-server` and `docker pull` of the image. Other ways has the start scripts of the game repository. They ask for the site address, the token and the port once, keep them in a file only the user can read, and pass the token to Docker in a temporary env file. Their `update` gets the newest image without a new token, and `set-token` puts in a new token.
 
 The game server reads these variables in tournament mode:
 
 - `BLOBBY_TOURNAMENT`: `1` turns tournament mode on.
 - `BLOBBY_SITE_URL`: the public address of the site, the origin of `NEXTAUTH_URL`.
 - `BLOBBY_SITE_TOKEN`: the game server token, sent as `Authorization: Bearer <token>`.
-
-The page also lists `docker stop blobby-server`, `docker start blobby-server` and `docker logs -f blobby-server`. To update without the script, run `docker pull sondresjo/blobby-server:latest` and `docker rm -f blobby-server`, make a new token and run the start command again.
 
 ### Join codes
 
@@ -373,6 +371,8 @@ Pages under `/admin` and routes under `/api/admin` need a GitHub login. All othe
 - `NEXTAUTH_SECRET`: a long random string that signs the session.
 - `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`: from a GitHub OAuth app. Set its callback URL to `<NEXTAUTH_URL>/api/auth/callback/github`.
 - `ALLOWED_GITHUB_USER_IDS`: the numeric GitHub user IDs of the admins, separated by commas. An empty value lets nobody in. Find an ID at `https://api.github.com/users/<login>`.
+
+- `BLOBBY_SERVER_TAG`: the tag of the `sondresjo/blobby-server` image in the commands on `/admin/game-server`, such as `dev` on a test site. It is `latest` when it is not set or not a valid Docker tag.
 
 The token of the game server API is made on `/admin/game-server`, not set here. See Game server token above.
 

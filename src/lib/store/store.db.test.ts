@@ -8,7 +8,7 @@ import type { EventInput } from '@/lib/events/input';
 import { newJoinCode } from '@/lib/players/join-code';
 import { hashPin } from '@/lib/players/pin';
 import { hashSessionToken, SESSION_MS } from '@/lib/players/session';
-import { clearActiveEvent, createEvent, getActiveEvent, getEvent, listEvents, setActiveEvent, updateEvent } from './events';
+import { clearActiveEvent, createEvent, getActiveEvent, getEvent, isEventCodeTaken, listEvents, setActiveEvent, updateEvent } from './events';
 import { bumpAttempts, claimAttempts, readAttempts, windowStart } from './attempts';
 import {
     claimPinAttempt,
@@ -179,6 +179,26 @@ describe('events', () => {
         expect(await getEvent(pool, id)).toMatchObject({ serverHost: null, serverPort: null });
         expect(await updateEvent(pool, id + 100, lan)).toBe(false);
         expect(await getEvent(pool, id + 100)).toBeNull();
+    });
+
+    it('knows when another event has the code', async () => {
+        expect(await isEventCodeTaken(pool, 'LAN-2026')).toBe(false);
+        const id = await createEvent(pool, lan);
+        expect(await isEventCodeTaken(pool, 'LAN-2026')).toBe(true);
+        // The event itself may keep its code when it is saved again.
+        expect(await isEventCodeTaken(pool, 'LAN-2026', id)).toBe(false);
+        const other = await createEvent(pool, lastYear);
+        expect(await isEventCodeTaken(pool, 'LAN-2026', other)).toBe(true);
+        expect(await isEventCodeTaken(pool, 'LAN-2025', id)).toBe(true);
+        expect(await isEventCodeTaken(pool, 'LAN-2024', id)).toBe(false);
+    });
+
+    it('moves the game server of the active event at once', async () => {
+        const id = await createEvent(pool, { ...lan, serverHost: '192.168.1.50', serverPort: 1234 });
+        await setActiveEvent(pool, id);
+        expect(await getActiveEvent(pool)).toMatchObject({ id, serverHost: '192.168.1.50', serverPort: 1234 });
+        expect(await updateEvent(pool, id, { ...lan, serverHost: '192.168.1.77', serverPort: 1240 })).toBe(true);
+        expect(await getActiveEvent(pool)).toMatchObject({ id, isActive: true, serverHost: '192.168.1.77', serverPort: 1240 });
     });
 
     it('lists events with the newest first and keeps past events', async () => {

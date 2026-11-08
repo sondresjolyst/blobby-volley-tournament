@@ -115,7 +115,7 @@ export default async function Home() {
                     ) : (
                         <>
                             <p className={s.heroPitch}>
-                                Blobby Volley-turnering med pizza og ostepopp. Bli med, så får du {foza(event.startingFoza)} å satsa på kampane. Ingen ekte pengar, bare æra.
+                                Blobby Volley-turnering med pizza og ostepopp. Bli med, så får du {foza(event.startingFoza)} å satsa på kampane.
                             </p>
                             <div className={s.heroActions}>
                                 <Link href="/join" className={p.joinButton}>
@@ -125,7 +125,6 @@ export default async function Home() {
                                     Logg inn
                                 </Link>
                             </div>
-                            <p className={s.heroNote}>LAN-koden står på storskjermen i lokalet.</p>
                         </>
                     )}
                 </div>
@@ -160,7 +159,7 @@ export default async function Home() {
                         )}
                     </div>
                     {upcoming.length === 0 ? (
-                        <p className={p.empty}>Ingen kampar på plakaten enno. Ta deg ein bit pizza og vent litt.</p>
+                        <p className={p.empty}>Ingen kampar enno. Ta deg ei øl og nokon nædæ.</p>
                     ) : (
                         <div className={p.cards}>
                             {upcoming.slice(0, UPCOMING_SHOWN).map((m) => (
@@ -180,7 +179,7 @@ export default async function Home() {
                         <li>
                             <Link href="/bracket" className={s.linkCard}>
                                 <span className={s.linkTitle}>Kampoppsett</span>
-                                <span className={s.linkText}>Heile turneringa, runde for runde. Du må vera logga inn.</span>
+                                <span className={s.linkText}>Heile turneringa, runde for runde.</span>
                             </Link>
                         </li>
                         <li>
@@ -192,7 +191,7 @@ export default async function Home() {
                         <li>
                             <Link href="/big" className={s.linkCard}>
                                 <span className={s.linkTitle}>Storskjermen</span>
-                                <span className={s.linkText}>Det som vises på TV-en i lokalet, med live-stilling.</span>
+                                <span className={s.linkText}>Live-stilling og kampoppsett.</span>
                             </Link>
                         </li>
                     </ul>

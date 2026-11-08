@@ -2,14 +2,14 @@ import { AdminShell } from '@/components/admin/AdminShell';
 import { adminTime } from '@/components/admin/time';
 import { GameServerHealth } from '@/components/game-server/GameServerHealth';
 import { GameServerToken } from '@/components/game-server/GameServerToken';
-import { SetupGuide } from '@/components/game-server/SetupGuide';
+import { EventHost, FirstTimeSetup } from '@/components/game-server/SetupGuide';
 import { requireAdmin } from '@/lib/auth/options';
 import { getPool } from '@/lib/db';
-import { CONTAINER_PORT, siteUrl } from '@/lib/game-server/commands';
+import { CONTAINER_PORT, serverImage, siteUrl } from '@/lib/game-server/commands';
 import { getActiveEvent } from '@/lib/store/events';
 import { getGameServerReportAge, getGameServerTokenInfo, LAST_USED_STEP_MS } from '@/lib/store/game-server-token';
 
-/** The health of the game server and its token. Admins make the token here. Only its hash is stored, so the page never shows an old token. */
+/** The health of the game server and the one way to start it. Only the hash of the token is stored, so the page never shows an old token. */
 export default async function GameServer() {
     await requireAdmin();
     const pool = getPool();
@@ -25,18 +25,26 @@ export default async function GameServer() {
                 game server syncs every few seconds while it runs. Green means the last recorded report is less than a minute old.
             </p>
             <GameServerHealth initialAge={age} />
-            <SetupGuide siteUrl={site} port={port} />
-            <h2>Token</h2>
-            <p>The game server sends this token to the site API. There is one token for the whole site. The game server serves the active event.</p>
-            {info ? (
-                <dl>
-                    <dt>Token made</dt>
-                    <dd>{adminTime(info.createdAt)}</dd>
-                </dl>
-            ) : (
-                <p>There is no token yet. The game server API refuses every call until there is one.</p>
-            )}
-            <GameServerToken hasToken={info !== null} siteUrl={site} port={port} />
+            <section aria-labelledby="start">
+                <h2 id="start">Start the game server</h2>
+                <p>
+                    Make a token. The page then shows one command that starts the game server with the token, on UDP port {port}. There is one token for the whole site, and the game
+                    server serves the active event.
+                </p>
+                {!site && <p role="alert">NEXTAUTH_URL is not set, so this page does not know the address of the site. Put it in the command by hand.</p>}
+                <EventHost port={port} event={event} />
+                {info ? (
+                    <dl>
+                        <dt>Token made</dt>
+                        <dd>{adminTime(info.createdAt)}</dd>
+                    </dl>
+                ) : (
+                    <p>There is no token yet. The game server API refuses every call until there is one.</p>
+                )}
+                <GameServerToken hasToken={info !== null} siteUrl={site} port={port} image={serverImage(process.env)}>
+                    <FirstTimeSetup port={port} />
+                </GameServerToken>
+            </section>
         </AdminShell>
     );
 }
