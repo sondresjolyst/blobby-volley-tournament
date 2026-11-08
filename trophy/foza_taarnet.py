@@ -25,7 +25,7 @@ import alt_common as C
 # ---------------------------------------------------------------------------
 
 YEAR = 2026
-TEXT = "Svettaste Blåbby"
+TEXT = "Svettaste Blåbbyen"
 OVERALL_HEIGHT = 175.0           # mm, bed to top of the blob (150 to 200)
 TOLERANCE = 0.3                  # mm total clearance per fit. PLA 0.3, PETG 0.4
 PART = "all"

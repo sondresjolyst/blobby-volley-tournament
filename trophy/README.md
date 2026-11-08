@@ -242,7 +242,7 @@ Assembly: glue a pin into the plinth, the foot onto it, a pin into the top of th
 
 A blob on a wobbly stack of Foza coins, the betting points from the tournament site. Every coin is the same part, printed five times. The pin on top of each coin sits 6 mm off centre and is turned 140 degrees against the hole underneath. So each coin can only go on one way, and the stack steps round in a fixed spiral that stays centred over the base. The edge of each coin reads "FOZA" three times, with an engraved pizza slice between the words.
 
-The base is a big coin. Its rim is a separate white ring with "Svettaste Blåbby" and the year cut through it. The dark blue core shows through the letters, so the text reads like the stencil plaque. Twelve pizza slices are engraved round the top of the core.
+The base is a big coin. Its rim is a separate white ring with "Svettaste Blåbbyen" and the year cut through it. The dark blue core shows through the letters, so the text reads like the stencil plaque. Twelve pizza slices are engraved round the top of the core.
 
 ![Foza-tårnet, front left](renders/foza_taarnet/angle.png)
 
