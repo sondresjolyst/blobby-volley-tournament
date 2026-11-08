@@ -325,7 +325,7 @@ describe('buildBigScreen', () => {
     });
 
     it('links the sponsor logos with their hash', () => {
-        const sponsor = { id: 3, eventId: 1, name: 'Pizzabakeren', link: null, position: 1, enabled: true, gameBackground: null, logoType: 'image/png' as const, logoWidth: 300, logoHeight: 100, logoHash: 'ab12', gameLogoHash: 'cd34' };
+        const sponsor = { id: 3, eventId: 1, libraryId: 3, name: 'Pizzabakeren', link: null, position: 1, enabled: true, gameBackground: null, logoType: 'image/png' as const, logoWidth: 300, logoHeight: 100, logoHash: 'ab12', gameLogoHash: 'cd34' };
         expect(buildBigScreen(input({ sponsors: [sponsor] })).sponsors).toEqual([{ id: 3, name: 'Pizzabakeren', src: '/api/sponsors/3/logo?v=ab12', width: 300, height: 100, background: null }]);
     });
 });

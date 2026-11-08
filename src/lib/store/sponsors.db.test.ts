@@ -270,7 +270,7 @@ describe('game logos from before the alpha channel', () => {
         await Promise.all([upgradeGameLogosOnce(pool, counting, state), upgradeGameLogosOnce(pool, counting, state)]);
         expect(calls).toBe(2);
         expect(state.done).toBe(true);
-        await pool.query('UPDATE sponsors SET game_logo = set_byte(game_logo, 28, 24)');
+        await pool.query('UPDATE sponsor_library SET game_logo = set_byte(game_logo, 28, 24)');
         await upgradeGameLogosOnce(pool, counting, state);
         expect(calls).toBe(2);
     });
@@ -299,38 +299,50 @@ describe('game logos from before the alpha channel', () => {
 describe('the game logo size', () => {
     it('allows a 160 by 32 BMP with alpha and nothing larger', async () => {
         const eventId = await createEvent(pool, lan);
-        const id = await add(eventId, 'Acme');
+        await add(eventId, 'Acme');
+        const id = (await listSponsors(pool, eventId))[0].libraryId;
         const widest = encodeBmp32(new Uint8Array(160 * 32 * 4), 160, 32);
         expect(widest.length).toBe(20602);
-        await pool.query('UPDATE sponsors SET game_logo = $2 WHERE id = $1', [id, Buffer.from(widest)]);
-        await expect(pool.query('UPDATE sponsors SET game_logo = $2 WHERE id = $1', [id, Buffer.alloc(20603)])).rejects.toThrow(/sponsors_game_logo_check/);
+        await pool.query('UPDATE sponsor_library SET game_logo = $2 WHERE id = $1', [id, Buffer.from(widest)]);
+        await expect(pool.query('UPDATE sponsor_library SET game_logo = $2 WHERE id = $1', [id, Buffer.alloc(20603)])).rejects.toThrow(/sponsor_library_game_logo_check/);
     });
 });
 
-describe('the sponsors table', () => {
-    const insert = (eventId: number, change: Record<string, unknown> = {}) => {
-        const row = { name: 'Acme', link: null, position: 1, logo: Buffer.from(logo.bytes), logo_type: 'image/png', game_background: '#ffffff', game_logo: Buffer.from(gameLogo), ...change };
-        return pool.query(
-            `INSERT INTO sponsors (event_id, name, link, position, logo, logo_type, logo_width, logo_height, game_background, game_logo) VALUES ($1, $2, $3, $4, $5, $6, 60, 20, $7, $8)`,
-            [eventId, row.name, row.link, row.position, row.logo, row.logo_type, row.game_background, row.game_logo],
+describe('the sponsor tables', () => {
+    const insert = (change: Record<string, unknown> = {}) => {
+        const row = { name: 'Acme', link: null, logo: Buffer.from(logo.bytes), logo_type: 'image/png', game_background: '#ffffff', game_logo: Buffer.from(gameLogo), ...change };
+        return pool.query<{ id: number }>(
+            `INSERT INTO sponsor_library (name, link, logo, logo_type, logo_width, logo_height, game_background, game_logo) VALUES ($1, $2, $3, $4, 60, 20, $5, $6) RETURNING id`,
+            [row.name, row.link, row.logo, row.logo_type, row.game_background, row.game_logo],
         );
     };
+    const place = (eventId: number, libraryId: number, position: number) =>
+        pool.query('INSERT INTO sponsors (event_id, library_id, position) VALUES ($1, $2, $3)', [eventId, libraryId, position]);
 
-    it('refuses SVG, a link that is not http, a bad colour, an empty name and a game logo that is too large', async () => {
-        const eventId = await createEvent(pool, lan);
-        await expect(insert(eventId, { logo_type: 'image/svg+xml' })).rejects.toThrow(/sponsors_logo_type_check/);
-        await expect(insert(eventId, { link: 'javascript:alert(1)' })).rejects.toThrow(/sponsors_link_check/);
-        await expect(insert(eventId, { game_background: 'white' })).rejects.toThrow(/sponsors_game_background_check/);
-        await expect(insert(eventId, { name: ' ' })).rejects.toThrow(/sponsors_name_check/);
-        await expect(insert(eventId, { game_logo: Buffer.alloc(20603) })).rejects.toThrow(/sponsors_game_logo_check/);
-        await expect(insert(eventId, { logo: Buffer.alloc(1048577) })).rejects.toThrow(/sponsors_logo_check/);
+    it('refuse SVG, a link that is not http, a bad colour, an empty name and a game logo that is too large', async () => {
+        await expect(insert({ logo_type: 'image/svg+xml' })).rejects.toThrow(/sponsor_library_logo_type_check/);
+        await expect(insert({ link: 'javascript:alert(1)' })).rejects.toThrow(/sponsor_library_link_check/);
+        await expect(insert({ game_background: 'white' })).rejects.toThrow(/sponsor_library_game_background_check/);
+        await expect(insert({ name: ' ' })).rejects.toThrow(/sponsor_library_name_check/);
+        await expect(insert({ game_logo: Buffer.alloc(20603) })).rejects.toThrow(/sponsor_library_game_logo_check/);
+        await expect(insert({ logo: Buffer.alloc(1048577) })).rejects.toThrow(/sponsor_library_logo_check/);
     });
 
-    it('refuses two sponsors of one event in one position, but another event may use it', async () => {
+    it('refuse two sponsors of one event in one position and one sponsor twice at an event, but another event may have both', async () => {
         const first = await createEvent(pool, lan);
         const second = await createEvent(pool, { ...lan, name: 'LAN 2027', code: 'LAN-2027' });
-        await insert(first);
-        await expect(insert(first)).rejects.toThrow(/sponsors_event_id_position_key/);
-        await insert(second);
+        const acme = (await insert()).rows[0].id;
+        const beta = (await insert({ name: 'Beta' })).rows[0].id;
+        await place(first, acme, 1);
+        await expect(place(first, beta, 1)).rejects.toThrow(/sponsors_event_id_position_key/);
+        await expect(place(first, acme, 2)).rejects.toThrow(/sponsors_event_id_library_id_key/);
+        await place(second, acme, 1);
+    });
+
+    it('keep a library sponsor that an event uses', async () => {
+        const eventId = await createEvent(pool, lan);
+        const acme = (await insert()).rows[0].id;
+        await place(eventId, acme, 1);
+        await expect(pool.query('DELETE FROM sponsor_library WHERE id = $1', [acme])).rejects.toThrow(/sponsors_library_id_fkey/);
     });
 });

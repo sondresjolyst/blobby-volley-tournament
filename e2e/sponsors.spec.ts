@@ -166,18 +166,72 @@ test('an admin adds, orders, turns off and deletes sponsors, and the footer and 
     sync = await readSponsors(request);
     expect(ours().map((s) => s.name)).toEqual([second]);
 
-    // Delete asks first. Cancel keeps the sponsor.
-    await page.getByRole('button', { name: `Delete ${first}` }).click();
-    await page.getByRole('group', { name: `Delete ${first}?` }).getByRole('button', { name: 'Cancel' }).click();
-    await expect(page.getByRole('button', { name: `Delete ${first}` })).toBeFocused();
+    // Remove asks first. Cancel keeps the sponsor.
+    await page.getByRole('button', { name: `Remove ${first}` }).click();
+    await page.getByRole('group', { name: `Remove ${first}?` }).getByRole('button', { name: 'Cancel' }).click();
+    await expect(page.getByRole('button', { name: `Remove ${first}` })).toBeFocused();
     for (const name of [first, second]) {
-        await page.getByRole('button', { name: `Delete ${name}` }).click();
-        await page.getByRole('group', { name: `Delete ${name}?` }).getByRole('button', { name: 'Yes, delete' }).click();
-        await expect(page.getByRole('status')).toHaveText('The sponsor is deleted.');
+        await page.getByRole('button', { name: `Remove ${name}` }).click();
+        await page.getByRole('group', { name: `Remove ${name}?` }).getByRole('button', { name: 'Yes, remove' }).click();
+        await expect(page.getByRole('status')).toHaveText('The sponsor is removed from this event. It stays in the sponsor library.');
     }
     await expect(page).toHaveURL(/\/admin\/events\/\d+\?sponsorDeleted=1#sponsors$/);
     sync = await readSponsors(request);
     expect(ours()).toEqual([]);
+    await home.close();
+});
+
+test('an admin adds a sponsor to the library, puts it on the event, and it shows in the footer', async ({ page }) => {
+    const tag = randomBytes(3).toString('hex');
+    const name = `Library ${tag}`;
+
+    await page.goto('/admin');
+    await page.getByRole('navigation', { name: 'Admin' }).getByRole('link', { name: 'Sponsor library' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Sponsor library' })).toBeVisible();
+    await page.getByRole('button', { name: 'Add sponsor' }).click();
+    const form = page.getByRole('form', { name: 'Add a sponsor' });
+    // The library has no Shown box. That belongs to each event.
+    await expect(form.getByLabel('Shown on the site and in the game')).toHaveCount(0);
+    await form.getByLabel('Name').fill(name);
+    await form.getByLabel('Link').fill(`https://${tag}.example.test/`);
+    await form.getByLabel('Logo').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: await png(300, 100, '#2a6fdb') });
+    await form.getByRole('button', { name: 'Add sponsor' }).click();
+    await expect(page.getByRole('status')).toHaveText(`Saved the sponsor ${name}.`);
+    const card = page.getByRole('listitem').filter({ hasText: name });
+    await expect(card).toContainText('Not used at any event');
+    await expect.poll(() => card.getByRole('img', { name: `Logo of ${name}` }).evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(300);
+
+    // Put it on the event from the picker.
+    await page.goto('/admin/events');
+    await page.getByRole('row', { name: /E2E LAN/ }).getByRole('link').click();
+    await page.getByLabel('Add from the library').selectOption({ label: name });
+    await page.getByRole('button', { name: 'Add to event' }).click();
+    await expect(page.getByRole('status')).toHaveText(`Saved the sponsor ${name}.`);
+    await expect(page.getByRole('switch', { name: `Shown: ${name}` })).toHaveAttribute('aria-checked', 'true');
+    // It is no longer offered for this event.
+    await expect(page.getByLabel('Add from the library').getByRole('option', { name })).toHaveCount(0);
+
+    // The footer shows it with its link.
+    const home = await page.context().browser()!.newContext({ baseURL: process.env.E2E_BASE_URL });
+    const homePage = await home.newPage();
+    await homePage.goto('/');
+    const footer = homePage.getByRole('contentinfo', { name: 'Sponsors' });
+    await expect(footer.getByRole('link', { name })).toHaveAttribute('href', `https://${tag}.example.test/`);
+
+    // The library cannot delete it while the event uses it. Removing it from the event keeps it in the library.
+    await page.goto('/admin/sponsors');
+    await expect(card.getByRole('button', { name: `Delete ${name}` })).toBeDisabled();
+    await expect(card.getByRole('link', { name: 'E2E LAN' })).toBeVisible();
+    await card.getByRole('link', { name: 'E2E LAN' }).click();
+    await page.getByRole('button', { name: `Remove ${name}` }).click();
+    await page.getByRole('group', { name: `Remove ${name}?` }).getByRole('button', { name: 'Yes, remove' }).click();
+    await homePage.goto('/');
+    await expect(footer.getByRole('link', { name })).toHaveCount(0);
+    await page.goto('/admin/sponsors');
+    await card.getByRole('button', { name: `Delete ${name}` }).click();
+    await page.getByRole('group', { name: `Delete ${name}?` }).getByRole('button', { name: 'Yes, delete' }).click();
+    await expect(page.getByRole('status')).toHaveText('The sponsor is deleted from the library.');
+    await expect(card).toHaveCount(0);
     await home.close();
 });
 

@@ -12,7 +12,7 @@ import { parseId } from '@/lib/http';
 import { getBigScreenKey, getEvent } from '@/lib/store/events';
 import { countedWrongPins, isLocked, MAX_WRONG_PINS } from '@/lib/players/lockout';
 import { busiestPinClient, CLIENT_WRONG_PINS_PER_HOUR, listPlayers } from '@/lib/store/players';
-import { listSponsors } from '@/lib/store/sponsors';
+import { listLibrary, listSponsors } from '@/lib/store/sponsors';
 
 type Search = {
     error?: string | string[];
@@ -39,7 +39,7 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
     const now = new Date();
     const players = await listPlayers(pool, id);
     const pinPeak = await busiestPinClient(pool, now);
-    const sponsors = await listSponsors(pool, id);
+    const [sponsors, library] = await Promise.all([listSponsors(pool, id), listLibrary(pool)]);
     const bigScreenKey = await getBigScreenKey(pool, id);
     const search = await searchParams;
     const message = eventErrorMessage(search.error) ?? adjustErrorMessage(search.error) ?? bigScreenErrorMessage(search.error);
@@ -58,7 +58,7 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
     const sponsorStatus = savedSponsor
         ? `Saved the sponsor ${savedSponsor.name}.`
         : search.sponsorDeleted === '1'
-          ? 'The sponsor is deleted.'
+          ? 'The sponsor is removed from this event. It stays in the sponsor library.'
           : search.boardSaved === '1'
             ? 'Saved the sponsor board.'
             : null;
@@ -159,7 +159,7 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
 
             {bigScreenKey && <BigScreenSection eventId={event.id} address={bigScreenUrl(bigScreenKey, process.env)} isActive={event.isActive} rotation={event.bigScreen} />}
 
-            <SponsorSection eventId={event.id} gameBoard={event.gameBoard} sponsors={sponsors} error={sponsorError} status={sponsorStatus} />
+            <SponsorSection eventId={event.id} gameBoard={event.gameBoard} sponsors={sponsors} library={library} error={sponsorError} status={sponsorStatus} />
         </AdminShell>
     );
 }
