@@ -128,6 +128,15 @@ A regular hexagon or octagon base does not work. The plaque needs a flat front a
 
 Each style has an assembled render and a print render in `renders/bases/`, for example `renders/bases/tiers_angle.png` and `renders/bases/tiers_print_base.png`. Run `python render_previews.py --bases` to render them again. `python pizzakongen.py --place 1 --base drum --part base` writes the base of one style to `stl/pizzakongen/place1/base.stl`, in place of the default.
 
+## Print files
+
+`print/pizzakongen/place1/` to `place3/` hold the Bambu Studio files used to print the set on a Bambu Lab P1S. Each folder has two files:
+
+- `placeN.3mf` is the project with the parts on their plates and the print settings. Open it in Bambu Studio to change or slice it again.
+- `placeN.gcode.3mf` is the same project sliced for the P1S. Send it to that printer as it is.
+
+Check the pause for the plaque filament switch in the layer slider before you print. If you export new STL files from the scripts, update the projects as well.
+
 ## Assembly
 
 1. Test fit the pin in the socket on the top of the base and in the socket under the blob. The flat side of the pin matches the flat side of each socket. If it is too tight, sand the pin or reprint with a larger tolerance.
