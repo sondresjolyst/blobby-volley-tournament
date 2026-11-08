@@ -1,4 +1,6 @@
+import { InfoLabel } from '@/components/InfoButton';
 import { CopyJoinLink } from '@/components/player/CopyJoinLink';
+import { FIELD_INFO } from '@/components/player/info';
 import { MatchCard } from '@/components/player/MatchCard';
 import { LiveRefresh } from '@/components/LiveRefresh';
 import { Pizza } from '@/components/pizza/Pizza';
@@ -276,31 +278,37 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                                     ))}
                                 </select>
                             </label>
-                            <label className={styles.field}>
-                                Best av
-                                <select name="bestOf" className={styles.input} defaultValue="1">
+                            <div className={styles.field}>
+                                <InfoLabel htmlFor="bestOf" text="Best av" info={FIELD_INFO.bestOf.label}>
+                                    <p>{FIELD_INFO.bestOf.text}</p>
+                                </InfoLabel>
+                                <select id="bestOf" name="bestOf" aria-describedby="bestOf-help" className={styles.input} defaultValue="1">
                                     {BEST_OF.map((n) => (
                                         <option key={n} value={n}>
                                             {n}
                                         </option>
                                     ))}
                                 </select>
-                            </label>
+                            </div>
                             <div className={styles.fieldRow}>
-                                <label className={styles.field}>
-                                    Først te
-                                    <input name="scoreToWin" type="number" className={styles.input} min={MIN_SCORE_TO_WIN} max={MAX_SCORE_TO_WIN} step={1} defaultValue={DEFAULT_SCORE_TO_WIN} required />
-                                    <span className={styles.hint}>
+                                <div className={styles.field}>
+                                    <InfoLabel htmlFor="scoreToWin" text="Først te" info={FIELD_INFO.scoreToWin.label}>
+                                        <p>{FIELD_INFO.scoreToWin.text}</p>
+                                    </InfoLabel>
+                                    <input id="scoreToWin" name="scoreToWin" type="number" className={styles.input} min={MIN_SCORE_TO_WIN} max={MAX_SCORE_TO_WIN} step={1} defaultValue={DEFAULT_SCORE_TO_WIN} required aria-describedby="scoreToWin-hint scoreToWin-help" />
+                                    <span id="scoreToWin-hint" className={styles.hint}>
                                         poeng i kvart sett, {MIN_SCORE_TO_WIN} te {MAX_SCORE_TO_WIN}, vanleg e {DEFAULT_SCORE_TO_WIN}
                                     </span>
-                                </label>
-                                <label className={styles.field}>
-                                    Fart i fps
-                                    <input name="speed" type="number" className={styles.input} min={MIN_GAME_SPEED} max={MAX_GAME_SPEED} step={1} defaultValue={DEFAULT_GAME_SPEED} required />
-                                    <span className={styles.hint}>
+                                </div>
+                                <div className={styles.field}>
+                                    <InfoLabel htmlFor="speed" text="Fart i fps" info={FIELD_INFO.speed.label}>
+                                        <p>{FIELD_INFO.speed.text}</p>
+                                    </InfoLabel>
+                                    <input id="speed" name="speed" type="number" className={styles.input} min={MIN_GAME_SPEED} max={MAX_GAME_SPEED} step={1} defaultValue={DEFAULT_GAME_SPEED} required aria-describedby="speed-hint speed-help" />
+                                    <span id="speed-hint" className={styles.hint}>
                                         {MIN_GAME_SPEED} te {MAX_GAME_SPEED}, vanleg e {DEFAULT_GAME_SPEED}
                                     </span>
-                                </label>
+                                </div>
                             </div>
                             <button type="submit" className={styles.button}>
                                 Send utfordring

@@ -160,6 +160,33 @@
     white-space: nowrap;
 }
 
+/* The wallet links to /me, and a signed out visitor gets the yellow Bli med. The selectors win over `.shell a`. */
+.header a.walletLink {
+    text-decoration: none;
+    color: var(--yellow);
+}
+
+.header a.walletLink:hover {
+    color: var(--white);
+}
+
+.header a.navCta {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 18px;
+    border-radius: 12px;
+    background: var(--yellow);
+    color: var(--ink);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.header a.navCta:hover {
+    background: #ffd35c;
+    color: var(--ink);
+}
+
 .signOut {
     min-height: 44px;
     padding: 0 14px;

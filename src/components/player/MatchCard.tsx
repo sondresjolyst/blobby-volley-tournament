@@ -1,6 +1,8 @@
 import type { MatchPool } from '@/lib/store/bets';
 import type { MatchSummary } from '@/lib/store/matches';
 import { nicknameOf } from '@/lib/stats/players';
+import { InfoLabel } from '../InfoButton';
+import { FIELD_INFO } from './info';
 import styles from './player.module.css';
 import { calledText, STATE_TAGS } from '@/lib/tournaments/board';
 import { matchTitle } from '../matches/describe';
@@ -89,10 +91,12 @@ export function MatchCard({ match, pool, viewerId, balance, bet }: CardProps) {
                             ))}
                         </div>
                         <div className={styles.stakeRow}>
-                            <label className={styles.field}>
-                                Kor mykje Foza tør du?
-                                <input className={styles.input} name="amount" type="number" min={1} max={Math.max(1, balance)} step={1} required inputMode="numeric" />
-                            </label>
+                            <div className={styles.field}>
+                                <InfoLabel htmlFor={`amount-${match.id}`} text="Kor mykje Foza tør du?" info={FIELD_INFO.stake.label}>
+                                    <p>{FIELD_INFO.stake.text}</p>
+                                </InfoLabel>
+                                <input id={`amount-${match.id}`} aria-describedby={`amount-${match.id}-help`} className={styles.input} name="amount" type="number" min={1} max={Math.max(1, balance)} step={1} required inputMode="numeric" />
+                            </div>
                             <button type="submit" className={styles.button}>
                                 {bet ? 'Høgn spelet' : 'Sats'}
                             </button>

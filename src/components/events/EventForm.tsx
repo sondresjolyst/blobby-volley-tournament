@@ -1,4 +1,4 @@
-import { InfoButton } from '@/components/admin/InfoButton';
+import { InfoButton } from '@/components/InfoButton';
 import type { EventInput } from '@/lib/events/input';
 import { MAX_FOZA } from '@/lib/foza';
 import { CONTAINER_PORT } from '@/lib/game-server/commands';
@@ -58,7 +58,7 @@ export function EventForm({ action, event, submitLabel, suggestedCode = '' }: { 
             <div className="admin-field">
                 <div className="admin-field-label">
                     <label htmlFor="serverHost">Game server host</label>
-                    <InfoButton label="Where to find the host">
+                    <InfoButton label="Where to find the host" textId="serverHost-help">
                         <p>
                             The address that the games of the players connect to. It is the LAN IP address of the PC that runs the game server in Docker, for example 192.168.1.50. Find it
                             with ipconfig on Windows or ip addr on Linux.
@@ -72,7 +72,7 @@ export function EventForm({ action, event, submitLabel, suggestedCode = '' }: { 
                         <p>After you change the host or the port, players who are already connected stay on the old server. They must use the new join link or join again.</p>
                     </InfoButton>
                 </div>
-                <input id="serverHost" name="serverHost" maxLength={253} autoComplete="off" spellCheck={false} placeholder="192.168.1.50" defaultValue={event?.serverHost ?? ''} />
+                <input id="serverHost" name="serverHost" aria-describedby="serverHost-help" maxLength={253} autoComplete="off" spellCheck={false} placeholder="192.168.1.50" defaultValue={event?.serverHost ?? ''} />
             </div>
             <p>
                 <label>

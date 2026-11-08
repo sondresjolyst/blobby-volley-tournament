@@ -1,32 +1,6 @@
 /* The front page and the sign-up and sign-in pages. They sit inside .shell of player.module.css,
    so they share its colours, fonts and header. Selectors start with .site to win over `.shell a`. */
 
-.site a.navCta {
-    display: flex;
-    align-items: center;
-    min-height: 44px;
-    padding: 0 18px;
-    border-radius: 12px;
-    background: var(--yellow);
-    color: var(--ink);
-    font-weight: 700;
-    text-decoration: none;
-}
-
-.site a.navCta:hover {
-    background: #ffd35c;
-    color: var(--ink);
-}
-
-.site a.walletLink {
-    text-decoration: none;
-    color: var(--yellow);
-}
-
-.site a.walletLink:hover {
-    color: var(--white);
-}
-
 /* Front page hero */
 
 .hero {

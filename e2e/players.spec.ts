@@ -31,8 +31,18 @@ test('a player signs up with the event code and sees the starting Foza', async (
     await page.goto('/me');
     await expect(page.getByRole('heading', { name: nickname })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Logg ut' }).click();
+    // The front page header signs out too, and the player lands on the front page signed out.
+    await page.goto('/');
+    const menu = page.getByRole('navigation', { name: 'Hovudmeny' });
+    await menu.getByRole('button', { name: 'Logg ut' }).click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(menu.getByRole('link', { name: 'Logg inn' })).toBeVisible();
+    await expect(menu).not.toContainText(nickname);
+    await page.goto('/me');
     await expect(page).toHaveURL(/\/login$/);
+
+    // The old cookie no longer works, since its session is gone.
+    await context.addCookies([cookie!]);
     await page.goto('/me');
     await expect(page).toHaveURL(/\/login$/);
 });
@@ -52,7 +62,8 @@ test('sign-in with a wrong PIN is refused and the right PIN works', async ({ pag
     await signUp(page, nickname, '1234');
     await expect(page).toHaveURL(/\/me$/);
     await page.getByRole('button', { name: 'Logg ut' }).click();
-    await expect(page).toHaveURL(/\/login$/);
+    await expect(page).toHaveURL(/\/$/);
+    await page.goto('/login');
 
     await page.getByLabel('Kallenavn').fill(nickname.toUpperCase());
     await page.getByLabel('PIN-kode', { exact: true }).fill('9999');

@@ -64,7 +64,8 @@ test('the front page links a signed in player to their page', async ({ page }) =
 test('sign-up has labelled fields with hints and keeps the PIN rules', async ({ page }) => {
     await page.goto('/join');
     await expect(page.getByRole('heading', { level: 1, name: 'E2E LAN' })).toBeVisible();
-    await expect(page.getByLabel('LAN-kode')).toHaveAccessibleDescription('Står på storskjermen, eller spør ein admin.');
+    // The hint, then the help behind the i button.
+    await expect(page.getByLabel('LAN-kode')).toHaveAccessibleDescription(/^Står på storskjermen, eller spør ein admin. Koden står på storskjermen i lokalet/);
     await expect(page.getByLabel('Kallenavn')).toHaveAttribute('maxlength', '15');
     const pin = page.getByLabel('PIN-kode (4 siffer)');
     await expect(pin).toHaveAttribute('type', 'password');

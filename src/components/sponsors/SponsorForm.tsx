@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 import { FileField } from '@/components/admin/FileField';
-import { InfoButton } from '@/components/admin/InfoButton';
+import { InfoButton } from '@/components/InfoButton';
 import { MAX_LINK_LENGTH, MAX_NAME_LENGTH } from '@/lib/sponsors/input';
 import { LOGO_ACCEPT, LOGO_HINT } from '@/lib/sponsors/limits';
 import type { LibrarySponsor, SponsorRow } from '@/lib/store/sponsors';
@@ -100,12 +100,12 @@ export function SponsorForm({
                     <span id={`${id}-background`} className="admin-field-title">
                         Background colour
                     </span>
-                    <InfoButton label="About the background colour">
+                    <InfoButton label="About the background colour" textId={`${id}-background-help`}>
                         <p>The colour of the tile behind the logo, on the site, on the big screen and on the sponsor board in the game. A logo with transparent parts sits on this colour.</p>
                         <p>With Standard, the site and the big screen use a cream tile, and the game shows its board through the transparent parts.</p>
                     </InfoButton>
                 </div>
-                <div role="radiogroup" aria-labelledby={`${id}-background`} className="admin-choice">
+                <div role="radiogroup" aria-labelledby={`${id}-background`} aria-describedby={`${id}-background-help`} className="admin-choice">
                     <label>
                         <input type="radio" name="ownBackground" value="off" checked={!ownBackground} onChange={() => setOwnBackground(false)} /> Standard
                     </label>
