@@ -126,7 +126,8 @@ describe('the move to the sponsor library', () => {
         const [first, second] = await oldData();
         const before = (await pool.query(`SELECT ${OLD_COLUMNS} FROM sponsors ORDER BY id`)).rows;
         const serverBefore = (await pool.query(OLD_SERVER_QUERY)).rows;
-        expect(await migrate(pool)).toEqual(['0017_sponsor_library.sql']);
+        // This one and the ones after it run.
+        expect(await migrate(pool)).toEqual(readMigrations().filter((m) => m.name >= '0017').map((m) => m.name));
 
         const server = await listServerSponsors(pool);
         expect(server.eventId).toBe(first);

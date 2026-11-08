@@ -1,4 +1,4 @@
-import { copyFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { copyFileSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Pool, type PoolClient } from 'pg';
@@ -27,10 +27,12 @@ import {
     restartCurrentGame,
     setSeriesScore,
     withdrawChallenge,
-    playerMatchesStamp,
     withMatchForBet,
 } from './matches';
 import { getTournament, saveTournament } from './tournaments';
+import { placeBet } from './bets';
+import { adjustBalance } from './foza';
+import { liveStamp } from './live';
 
 const handled = vi.hoisted(() => ({ calls: [] as MatchEvent[][], fail: false }));
 
@@ -745,29 +747,67 @@ describe('calling a 1v1 match by itself', () => {
         }
     });
 
-    it('changes the stamp of both players on every step of a 1v1 match, and not for others', async () => {
-        const { players } = await activeEvent(3);
+    it('changes the live stamp of the event on every step a player page shows, and not without a change', async () => {
+        const other = await createEvent(pool, { ...lan, code: 'LAN-OTHER' });
+        await addPlayers(other, 2, 'O');
+        const { eventId, players } = await activeEvent(3);
         const [a, b, c] = players;
-        const stamps = async () => Promise.all([a, b, c].map((p) => playerMatchesStamp(pool, p)));
-        let before = await stamps();
-        expect(before).toEqual(['', '', '']);
-        const steps: (() => Promise<unknown>)[] = [];
+        const version = async (event: number) => (await liveStamp(pool, event))!.split(':')[1];
+        const otherBefore = await version(other);
+        let before = await liveStamp(pool, eventId);
+        expect(await liveStamp(pool, eventId)).toBe(before);
         let id = 0;
-        steps.push(async () => {
-            const created = await createChallenge(pool, a, b);
-            if (!created.ok) throw new Error(created.error);
-            id = created.matchId;
-        });
-        steps.push(() => acceptChallenge(pool, id, b));
-        steps.push(() => reportPlayersConnected(pool, id));
-        steps.push(() => report(id, 1, 1));
+        const steps: (() => Promise<unknown>)[] = [
+            async () => {
+                const created = await createChallenge(pool, a, b);
+                if (!created.ok) throw new Error(created.error);
+                id = created.matchId;
+            },
+            () => acceptChallenge(pool, id, b),
+            () => adjustBalance(pool, c, 100, 'Pizza money', null),
+            async () => expect(await placeBet(pool, c, { matchId: id, onPlayerId: a, amount: 10 }, new Date())).toMatchObject({ ok: true }),
+            () => reportPlayersConnected(pool, id),
+            () => report(id, 1, 1),
+            () => addPlayers(eventId, 1, 'Late'),
+            () => pool.query("UPDATE players SET nickname = 'Renamed', nickname_key = 'renamed' WHERE id = $1", [c]),
+            () => pool.query("UPDATE events SET name = 'LAN 2026 renamed' WHERE id = $1", [eventId]),
+        ];
         for (const step of steps) {
             await step();
-            const after = await stamps();
-            expect(after[0]).not.toBe(before[0]);
-            expect(after[1]).not.toBe(before[1]);
-            expect(after[2]).toBe('');
+            const after = await liveStamp(pool, eventId);
+            expect(after).not.toBe(before);
             before = after;
+        }
+        expect(await version(other)).toBe(otherBefore);
+        // Another event going active changes the stamp too, so an open front page moves to it.
+        await setActiveEvent(pool, other);
+        expect(await liveStamp(pool, eventId)).not.toBe(before);
+        expect(await liveStamp(pool, 999_999)).toBeNull();
+    });
+
+    it('takes challenges at the same time without a deadlock on the live version', async () => {
+        const { players } = await activeEvent(8);
+        const pairs = [0, 2, 4, 6].map((i) => [players[i], players[i + 1]] as const);
+        const results = await Promise.all(pairs.map(([x, y]) => createChallenge(pool, x, y)));
+        expect(results.every((r) => r.ok)).toBe(true);
+    });
+
+    it('moves the live version when a change commits, so a slow change is never hidden by a quicker one', async () => {
+        const { eventId, players } = await activeEvent(2);
+        const [a, b] = players;
+        const slow = await pool.connect();
+        try {
+            await slow.query('BEGIN');
+            await slow.query("UPDATE players SET nickname = 'Slow', nickname_key = 'slow' WHERE id = $1", [a]);
+            const before = await liveStamp(pool, eventId);
+            // A quicker change commits first.
+            await pool.query("UPDATE players SET nickname = 'Quick', nickname_key = 'quick' WHERE id = $1", [b]);
+            const quick = await liveStamp(pool, eventId);
+            expect(quick).not.toBe(before);
+            await slow.query('COMMIT');
+            expect(await liveStamp(pool, eventId)).not.toBe(quick);
+        } finally {
+            slow.release();
         }
     });
 
@@ -991,6 +1031,20 @@ describe('betting hook', () => {
 });
 
 describe('migration', () => {
+    it('turns the live version back with the down file, and applies again', async () => {
+        const down = readFileSync(join(MIGRATIONS_DIR, 'down', '0018_live_version.sql'), 'utf8');
+        const { eventId } = await activeEvent(2);
+        await pool.query(down);
+        const column = `SELECT 1 FROM information_schema.columns WHERE table_name = 'events' AND column_name = 'live_version'`;
+        expect((await pool.query(column)).rowCount).toBe(0);
+        await addPlayers(eventId, 1, 'Down');
+        expect(await migrate(pool)).toEqual(['0018_live_version.sql']);
+        expect((await pool.query(column)).rowCount).toBe(1);
+        const before = await liveStamp(pool, eventId);
+        await addPlayers(eventId, 1, 'Up');
+        expect(await liveStamp(pool, eventId)).not.toBe(before);
+    });
+
     it('adds a match row for each bracket match saved before it ran', async () => {
         await pool.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public');
         const dir = mkdtempSync(join(tmpdir(), 'bvt-migrations-'));

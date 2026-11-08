@@ -2,11 +2,13 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { number, odds, percent, ratingChange, signed } from '@/components/stats/format';
 import styles from '@/components/stats/stats.module.css';
+import { LiveRefresh } from '@/components/LiveRefresh';
 import { getPool } from '@/lib/db';
 import { parseId } from '@/lib/http';
 import { shownRating } from '@/lib/stats/elo';
 import { nicknameOf } from '@/lib/stats/players';
 import { listEvents, type EventRow } from '@/lib/store/events';
+import { liveStamp } from '@/lib/store/live';
 import { getLeaderboard, type Leaderboard } from '@/lib/store/stats';
 import { listTournaments } from '@/lib/store/tournaments';
 
@@ -83,6 +85,9 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
     const boardParam = one(search.board);
     const board: Board = Object.hasOwn(BOARDS, boardParam) ? (boardParam as Board) : 'foza';
 
+    // Only the active event changes, so only its page reads the stamp. It is read before the data, so a
+    // change that commits during the reads loads the page once more.
+    const stamp = event.isActive ? await liveStamp(pool, event.id) : null;
     const [data, tournaments] = await Promise.all([getLeaderboard(pool, event.id, tournamentId), listTournaments(pool, event.id)]);
     if (!data) notFound();
     const view: View = { event, tournamentId, board };
@@ -105,6 +110,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
 
     return (
         <main lang="nn" className={styles.page}>
+            {stamp !== null && <LiveRefresh eventId={event.id} stamp={stamp} />}
             <h1 className={styles.title}>Toppliste</h1>
             <p className={styles.subtitle}>
                 {event.name}

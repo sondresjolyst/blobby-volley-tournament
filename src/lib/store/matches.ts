@@ -468,11 +468,19 @@ async function callWaitingChallenges(client: PoolClient, playerIds: readonly (nu
 }
 
 /**
+ * Takes the lock that match changes of the event take first. A change to the event row itself takes
+ * it before the row, since a match change takes the event row last, when it commits.
+ */
+export async function lockEventMatches(client: PoolClient, eventId: number) {
+    await client.query('SELECT pg_advisory_xact_lock($1, $2)', [EVENT_MATCHES_LOCK, eventId]);
+}
+
+/**
  * Calls the waiting 1v1 matches of an event that was just made active, in the transaction that
  * activates it. They were left waiting while the event was not active.
  */
 export async function callWaitingInEvent(client: PoolClient, eventId: number) {
-    await client.query('SELECT pg_advisory_xact_lock($1, $2)', [EVENT_MATCHES_LOCK, eventId]);
+    await lockEventMatches(client, eventId);
     const { rows } = await client.query<MatchRow>(
         `SELECT ${MATCH_COLUMNS} FROM matches m
          WHERE event_id = $1 AND tournament_id IS NULL AND state = 'upcoming' AND accepted_at IS NOT NULL
@@ -822,10 +830,12 @@ export async function createChallenge(pool: Pool, challengerId: number, opponent
     if (challengerId === opponentId) return { ok: false, error: 'players' };
     try {
         const matchId = await inTransaction(pool, async (client) => {
-            // Locks the event row, so it cannot be closed while the match is added.
+            // Locks the event row, so it cannot be closed while the match is added. The new match bumps
+            // the live version of the row at commit, so it takes the update lock now. A share lock here
+            // would let two challenges deadlock when both upgrade it at commit.
             const { rows } = await client.query<{ id: number; event_id: number }>(
                 `SELECT p.id, p.event_id FROM players p JOIN events e ON e.id = p.event_id AND e.is_active
-                 WHERE p.id = ANY($1::int[]) FOR SHARE OF e`,
+                 WHERE p.id = ANY($1::int[]) FOR NO KEY UPDATE OF e`,
                 [[challengerId, opponentId]],
             );
             if (rows.length !== 2 || rows[0].event_id !== rows[1].event_id) throw new Refused('no-event');
@@ -862,20 +872,6 @@ export async function acceptChallenge(pool: Pool, matchId: number, playerId: num
         tx.match = rows[0];
         return { called: await callIfFree(tx) };
     });
-}
-
-/**
- * A short text that changes whenever a match of the player changes in a way /me shows: a new 1v1
- * match, an answer to one, a call, a start, a score, an end. /me reads it often and loads again
- * only when it changes, so it must stay one small query.
- */
-export async function playerMatchesStamp(pool: Pool, playerId: number): Promise<string> {
-    const { rows } = await pool.query<{ stamp: string | null }>(
-        `SELECT string_agg(concat_ws(':', id, state, accepted_at IS NOT NULL, score1, score2), ',' ORDER BY id) AS stamp
-         FROM matches WHERE player1_id = $1 OR player2_id = $1`,
-        [playerId],
-    );
-    return rows[0]?.stamp ?? '';
 }
 
 /** Player 2 declines a 1v1 match. It is cancelled. */

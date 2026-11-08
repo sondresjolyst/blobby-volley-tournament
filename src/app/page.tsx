@@ -7,10 +7,12 @@ import { foza, matchSettings, payout } from '@/components/player/text';
 import { SiteShell } from '@/components/site/SiteShell';
 import s from '@/components/site/site.module.css';
 import { eventDates } from '@/components/site/text';
+import { LiveRefresh } from '@/components/LiveRefresh';
 import { getPool } from '@/lib/db';
 import { getActivePlayer } from '@/lib/players/current';
 import { listMatchPools, type MatchPool } from '@/lib/store/bets';
 import { getActiveEvent } from '@/lib/store/events';
+import { liveStamp } from '@/lib/store/live';
 import { listMatches, type MatchSummary } from '@/lib/store/matches';
 
 /** How many upcoming matches the front page lists. The bracket has the rest. */
@@ -65,6 +67,8 @@ export default async function Home() {
     await connection();
     const pool = getPool();
     const event = await getActiveEvent(pool);
+    // The stamp is read before the data, so a change that commits during the reads loads the page once more.
+    const stamp = event ? await liveStamp(pool, event.id) : null;
     const player = event ? await getActivePlayer() : null;
     const shellPlayer = player && player.eventId === event?.id ? { nickname: player.nickname, balance: player.fozaBalance } : null;
 
@@ -95,6 +99,7 @@ export default async function Home() {
 
     return (
         <SiteShell eventName={event.name} player={shellPlayer}>
+            {stamp !== null && <LiveRefresh eventId={event.id} stamp={stamp} />}
             <section className={s.hero} aria-labelledby="tittel">
                 <div className={s.heroText}>
                     {dates && <p className={s.heroDates}>{dates}</p>}

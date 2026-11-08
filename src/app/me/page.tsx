@@ -1,6 +1,6 @@
 import { CopyJoinLink } from '@/components/player/CopyJoinLink';
 import { MatchCard } from '@/components/player/MatchCard';
-import { MatchesRefresh } from '@/components/player/MatchesRefresh';
+import { LiveRefresh } from '@/components/LiveRefresh';
 import { Pizza } from '@/components/pizza/Pizza';
 import { PlayerShell } from '@/components/player/PlayerShell';
 import styles from '@/components/player/player.module.css';
@@ -15,7 +15,8 @@ import { joinLink } from '@/lib/players/join-code';
 import { listMatchPools, listPlayerBets } from '@/lib/store/bets';
 import { getEvent } from '@/lib/store/events';
 import { getBalance } from '@/lib/store/foza';
-import { listMatches, playerMatchesStamp, type MatchSummary } from '@/lib/store/matches';
+import { liveStamp } from '@/lib/store/live';
+import { listMatches, type MatchSummary } from '@/lib/store/matches';
 import { getJoinCode, listPlayers } from '@/lib/store/players';
 
 type Search = { error?: string | string[]; bet?: string | string[]; challenge?: string | string[]; challengeError?: string | string[] };
@@ -29,9 +30,9 @@ const isPending = (m: MatchSummary) => m.tournamentId === null && m.state === 'u
 export default async function Me({ searchParams }: { searchParams: Promise<Search> }) {
     const player = await requireActivePlayer();
     const pool = getPool();
+    // The stamp is read before the data, so a change that commits during the reads loads the page once more.
+    const stamp = await liveStamp(pool, player.eventId);
     const balance = (await getBalance(pool, player.id, new Date())) ?? player.fozaBalance;
-    // The stamp is read first, so a change during the reads below loads the page once more.
-    const stamp = await playerMatchesStamp(pool, player.id);
     const [matches, pools, bets, players, event] = await Promise.all([
         listMatches(pool, player.eventId),
         listMatchPools(pool, player.eventId),
@@ -62,7 +63,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
     const challengeNotice = noticeMessage(search.challenge);
     return (
         <PlayerShell page="matches" eventName={player.eventName} nickname={player.nickname} balance={balance}>
-            <MatchesRefresh stamp={stamp} />
+            {stamp !== null && <LiveRefresh eventId={player.eventId} stamp={stamp} />}
             <div className={styles.column}>
                 <h1 className={styles.h1}>Hei, {player.nickname}!</h1>
                 {betError && (
