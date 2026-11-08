@@ -9,8 +9,9 @@ import { currentBoard, nextBoard, REFRESH_MS, ROTATION_MS, screenMs, shownScreen
 import type { ScreenType } from '@/lib/big-screen/screens';
 import { BOARD_ROWS, type BigScreenData, type BoardKey, type ScreenBracket, type ScreenMatch, type ScreenSponsor } from '@/lib/big-screen/view';
 import { BoardPanel, BracketPanel, RankRows, ScreenTop, SponsorLogo } from './parts';
+import { SPONSORS_LABEL } from '@/components/site/text';
 import { OtherScreen } from './screens';
-import { BOARD_TEXT, joinLine, livePoints, matchOdds, matchPill, SIDE_NAMES, NO_EVENT, NO_MATCH, poolLine, SPONSOR_LABEL, SPONSORS_LABEL } from './text';
+import { BOARD_TEXT, joinLine, livePoints, matchOdds, matchPill, SIDE_NAMES, NO_EVENT, NO_MATCH, poolLine, SPONSOR_LABEL } from './text';
 import styles from './big.module.css';
 
 export interface JoinQr {

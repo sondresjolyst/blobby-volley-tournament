@@ -1,5 +1,5 @@
 import { connection } from 'next/server';
-import { SPONSORS_LABEL } from '@/components/big-screen/text';
+import { SPONSORS_LABEL } from '@/components/site/text';
 import { getPool } from '@/lib/db';
 import { listShownSponsors, type SponsorRow } from '@/lib/store/sponsors';
 

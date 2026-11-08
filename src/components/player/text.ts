@@ -1,6 +1,7 @@
 // The words of the player pages. They are written in the jokey Rogaland dialect of the LAN.
 import type { MatchSummary } from '@/lib/store/matches';
 import type { BetStatus } from '@/lib/store/bets';
+import { MATCH_NOT_FOUND } from '@/lib/texts';
 import { odds } from '../stats/format';
 
 const NUMBER = new Intl.NumberFormat('nb-NO');
@@ -34,7 +35,7 @@ const CHALLENGE_MESSAGES: Record<string, string> = {
     players: 'Du kan ikkje utfordra deg sjøl.',
     'no-event': 'Begge må vera med på LANet som e i gang.',
     taken: 'Dåkke har allerede ein open 1v1. Spel han ferdig først.',
-    'not-found': 'Den kampen fins ikkje.',
+    'not-found': MATCH_NOT_FOUND,
     'not-allowed': 'Bare den som e utfordra kan svara, og bare den som utfordra kan trekka tebake.',
     state: 'Den utfordringå e allerede svart på eller trekt tebake.',
 };

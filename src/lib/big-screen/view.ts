@@ -9,7 +9,7 @@ import type { LiveScore } from '@/lib/store/game-server';
 import type { MatchSummary } from '@/lib/store/matches';
 import type { SponsorRow } from '@/lib/store/sponsors';
 import type { Leaderboard } from '@/lib/store/stats';
-import { signed } from '@/components/stats/format';
+import { signed } from '@/lib/format';
 import { compareNet } from '@/lib/stats/betting';
 import { nicknameOf } from '@/lib/stats/players';
 import { boardRoundName, buildBoard, feedName, type BoardBracketMatch, type BoardRound, type BoardSection, type BoardSlot } from '@/lib/tournaments/board';
@@ -406,7 +406,7 @@ export function screenBoards(leaderboard: Leaderboard): ScreenBoard[] {
             return { rank: i + 1, nickname: name(id), value };
         });
     return [
-        { key: 'foza', rows: top([...leaderboard.bettors].sort(compareNet), (b) => ({ id: b.playerId, value: signed(b.net) })) },
+        { key: 'foza', rows: top(leaderboard.bettors, (b) => ({ id: b.playerId, value: signed(b.net) })) },
         { key: 'sigra', rows: top(leaderboard.wins, (s) => ({ id: s.playerId, value: `${s.matchesWon} ${s.matchesWon === 1 ? 'seier' : 'seira'}` })) },
         { key: 'elo', rows: top(leaderboard.elo, (e) => ({ id: e.playerId, value: String(shownRating(e.rating)) })) },
     ];

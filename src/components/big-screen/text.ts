@@ -72,8 +72,6 @@ export const correctLine = (correct: number, bets: number) => `${correct} av ${b
 
 /** The title of the sponsor screen, the same words as on the strip. */
 export const SPONSOR_LABEL = 'Stolt sponsa av';
-/** The label of every sponsor strip, on the big screen and under the pages. */
-export const SPONSORS_LABEL = 'Sponsora';
 export const NO_SPONSORS = 'Ingen sponsora enno. Lyst te å vera den fyrste?';
 export const NO_FACTS = BOARD_TEXT.sigra.empty;
 

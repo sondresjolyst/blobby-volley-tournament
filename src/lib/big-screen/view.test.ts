@@ -6,6 +6,7 @@ import type { LiveScore } from '@/lib/store/game-server';
 import type { MatchSummary } from '@/lib/store/matches';
 import type { Leaderboard } from '@/lib/store/stats';
 import { DEFAULT_ROTATION } from './screens';
+import { compareNet } from '@/lib/stats/betting';
 import { buildBigScreen, floorMatches, focusMatches, pickSide, pickTournament, roundWindow, screenBoards, screenFoza, type ScreenInput } from './view';
 
 const names: Record<number, string> = { 11: 'Blobfisk', 12: 'Skvett', 13: 'Ostebit', 14: 'Kantina' };
@@ -145,7 +146,8 @@ describe('screenBoards', () => {
     it('ranks bettors by Foza won net, like the Foza screen, and shows the top five of each board', () => {
         const board = leaderboard();
         const net: Record<number, number> = { 11: 300, 12: 120, 13: 50, 14: -20, 15: 0, 16: 10 };
-        board.bettors = board.bettors.map((b) => ({ ...b, net: net[b.playerId] }));
+        // The store hands the bettors over in this order.
+        board.bettors = board.bettors.map((b) => ({ ...b, net: net[b.playerId] })).sort(compareNet);
         const [foza, sigra, elo] = screenBoards(board);
         expect(foza.key).toBe('foza');
         expect(foza.rows.map((r) => r.nickname)).toEqual(['Blobfisk', 'Skvett', 'Ostebit', 'Spelar 16', 'Spelar 15']);
