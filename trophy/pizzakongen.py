@@ -27,7 +27,7 @@ TEXT = "Svettaste Blåbby"        # first line on the plaque
 OVERALL_HEIGHT = 170.0           # mm, bottom of base to the top of the crown balls (150 to 200)
 TOLERANCE = 0.3                  # mm total clearance per fit. PLA 0.3, PETG 0.4
 PART = "all"                     # all, blob, crown, base, plaque, pin
-BASE_STYLE = "pizza"             # pizza, plain, tiers, drum or court. See BASE_STYLES
+BASE_STYLE = "tiers"             # pizza, plain, tiers, drum or court. See BASE_STYLES
 
 # Base: a closed pizza box with a round pizza on top
 BOX_W = 140.0                    # mm, square box

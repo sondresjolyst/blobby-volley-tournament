@@ -35,7 +35,7 @@ NAMES = {BLACK: "black", BLUE: "dark blue", WHITE: "white"}
 # after one filament change.
 SCHEME = dict(base=BLACK, blob=BLUE, crown=BLACK, plaque=BLACK, plaque_top=WHITE, pin=BLACK,
               base_top=WHITE)
-TITLE = "Dark blue blob, black crown and box, white letters"
+TITLE = "Dark blue blob, black crown and base, white letters"
 
 
 def prep(m, color, gloss=0.6):

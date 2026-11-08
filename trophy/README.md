@@ -1,19 +1,19 @@
 # Pizzakongen trophy
 
-A first concept model of the tournament trophy. An upright Blobby blob wears a classic crown with seven points and a ball on each tip. It stands on a round pizza that sits on a closed pizza box. The front of the box holds a plaque with "Svettaste Blåbby" and the year.
+A first concept model of the tournament trophy. An upright Blobby blob wears a classic crown with seven points and a ball on each tip. It stands on a black plinth of three stepped tiers. The front of the bottom tier holds a plaque with "Svettaste Blåbby" and the year.
 
 The blob is spun from the real outline of `data/gfx/blobbym1.bmp` in the game. Like the game art, it has no face.
 
 ![Assembled, front left](renders/assembled_angle.png)
 
-Overall height: 170.0 mm. Footprint: 142 x 144 mm.
+Overall height: 170.0 mm. Footprint: 140 x 143 mm.
 
 ## Colours
 
 The filaments on hand are black, white, dark blue and dark green. Pizzakongen uses three of them:
 
 - The blob is dark blue. The game draws the left blob in pure blue (RGB 0, 0, 255 in `data/config.xml`). Dark blue is the only blue filament on hand, so it is the closest match.
-- The box with the pizza, the crown and the pin are black.
+- The base, the crown and the pin are black.
 - The plaque is black with raised white letters and frame. White is the only light colour on hand, so it is the one that reads on black.
 
 Every part is one colour, except the plaque. The plaque gets its second colour from one filament switch. No part has more than one switch.
@@ -24,7 +24,7 @@ Print one of each part. The weights assume PLA with 4 walls and 15 percent infil
 
 | Part | File | Colour | Print orientation | Approx. filament |
 |---|---|---|---|---|
-| Base (box and pizza) | `stl/pizzakongen_base.stl` | Black | Upright, box bottom on the bed | 276 g |
+| Base (three tiers) | `stl/pizzakongen_base.stl` | Black | Upright, flat bottom on the bed | 257 g |
 | Blob | `stl/pizzakongen_blob.stl` | Dark blue | Upright, flat foot on the bed | 131 g |
 | Crown | `stl/pizzakongen_crown.stl` | Black | Upright, band on the bed | 34 g |
 | Plaque | `stl/pizzakongen_plaque.stl` | Black, letters white (one switch) | Flat, front facing up | 13 g black, 1 g white |
@@ -32,11 +32,11 @@ Print one of each part. The weights assume PLA with 4 walls and 15 percent infil
 
 The STL files are already in print orientation.
 
-Filament per colour, about 456 g in total:
+Filament per colour, about 437 g in total:
 
 | Colour | Parts | Approx. filament |
 |---|---|---|
-| Black | Base, crown, plaque plate, pin | 324 g |
+| Black | Base, crown, plaque plate, pin | 305 g |
 | Dark blue | Blob | 131 g |
 | White | Plaque letters and frame | 1 g |
 
@@ -54,15 +54,15 @@ The crown is one part. Its band is the same as before. The inside follows the sh
 
 ### Base styles
 
-The base comes in five styles. The default is still the pizza box. Pick another with `--base` or with `BASE_STYLE` at the top of `pizzakongen.py`. Every style keeps the same blob seat, pin socket and plaque pocket, so the blob, the crown, the plaque and the pin stay the same. Every style is black, has a flat bottom, fits within 142 x 142 mm and has no faces steeper than 45 degrees.
+The base comes in five styles. The default is `tiers`. Pick another with `--base` or with `BASE_STYLE` at the top of `pizzakongen.py`. Every style keeps the same blob seat, pin socket and plaque pocket, so the blob, the crown, the plaque and the pin stay the same. Every style is black, has a flat bottom, fits within 142 x 142 mm and has no faces steeper than 45 degrees.
 
 ![Base styles](renders/bases/compare.png)
 
 | Style | Look | Base filament |
 |---|---|---|
-| `pizza` (default) | Pizza box with a lid line and a pizza on top | 276 g black |
+| `pizza` | Pizza box with a lid line and a pizza on top | 276 g black |
 | `plain` | Plain box with a 2 mm chamfer round the top. The plaque sits in the middle of the front | 277 g black |
-| `tiers` | Three stepped tiers, like a classic trophy plinth. The plaque sits in the bottom tier | 257 g black |
+| `tiers` (default) | Three stepped tiers, like a classic trophy plinth. The plaque sits in the bottom tier | 257 g black |
 | `drum` | Rounded pedestal with a flat front for the plaque and a flared foot | 237 g black |
 | `court` | Plain box with a raised white volleyball court on top: the court lines, the net line and a ball | 276 g black, 2 g white |
 
@@ -88,18 +88,18 @@ The plaque has the text and the frame raised 1.2 mm on a black plate. After the 
 
 ![Plaque, raised two colour text](renders/plaque_closeup.png)
 
-Run with `--stencil`, or set `STENCIL = True`, to get the one colour stencil plaque instead. The text is cut all the way through the plaque and the floor of the pocket shows through the letters. Closed letters such as e, a, å, B, b, 0 and 6 then need 1.2 mm bridges, which the script adds by itself. It stops if the plaque is not one piece. With the black box behind it, a stencil plaque does not read, so use the raised text.
+Run with `--stencil`, or set `STENCIL = True`, to get the one colour stencil plaque instead. The text is cut all the way through the plaque and the floor of the pocket shows through the letters. Closed letters such as e, a, å, B, b, 0 and 6 then need 1.2 mm bridges, which the script adds by itself. It stops if the plaque is not one piece. With the black base behind it, a stencil plaque does not read, so use the raised text.
 
-The pizza on the box has 1.2 mm pepperoni and olives. The cheese cuts and crust notches are 1 mm deep. They are all black, like the rest of the base. The plaque text is DejaVu Sans Bold, about 7 mm cap height. The plaque is 122 x 28 mm and its pocket is 0.3 mm larger each way with the default tolerance.
+With the `pizza` base, the pizza on the box has 1.2 mm pepperoni and olives. The cheese cuts and crust notches are 1 mm deep. They are all black, like the rest of the base. The plaque text is DejaVu Sans Bold, about 7 mm cap height. The plaque is 122 x 28 mm and its pocket is 0.3 mm larger each way with the default tolerance.
 
-No part needs supports. The steepest surfaces are 45 degrees, on purpose. These are the bottom chamfers against elephant's foot, the underside of the box lid, the roof of the plaque pocket, the undersides of the crown band rings and the pointed roof of the pin socket in the blob. The blob belly is at most 37 degrees from vertical. The inside of the crown band follows the head at up to 44 degrees. The crown points lean out 10 degrees. The ball on each tip has a cone under it at 42 degrees, so its underside prints without support.
+No part needs supports. The steepest surfaces are 45 degrees, on purpose. These are the bottom chamfers against elephant's foot, the underside of the pizza box lid, the roof of the plaque pocket, the undersides of the crown band rings and the pointed roof of the pin socket in the blob. The blob belly is at most 37 degrees from vertical. The inside of the crown band follows the head at up to 44 degrees. The crown points lean out 10 degrees. The ball on each tip has a cone under it at 42 degrees, so its underside prints without support.
 
 ## Assembly
 
 1. Test fit the pin in the socket on the top of the base and in the socket under the blob. The flat side of the pin matches the flat side of each socket. If it is too tight, sand the pin or reprint with a larger tolerance.
 2. Glue the pin into the base, then glue the blob onto the pin. Use CA glue for PLA and two-part epoxy for PETG.
 3. Lower the crown over the head with a point at the front. The inside of the band follows the shape of the head, so it seats by itself. Glue it.
-4. Glue the plaque into the pocket on the front of the box, with the year at the bottom.
+4. Glue the plaque into the pocket on the front of the base, with the year at the bottom.
 
 ## Change the year or the text
 
