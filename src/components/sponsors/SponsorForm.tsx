@@ -5,21 +5,52 @@ import { FileField } from '@/components/admin/FileField';
 import { InfoButton } from '@/components/admin/InfoButton';
 import { MAX_LINK_LENGTH, MAX_NAME_LENGTH } from '@/lib/sponsors/input';
 import { LOGO_ACCEPT, LOGO_HINT } from '@/lib/sponsors/limits';
-import type { SponsorRow } from '@/lib/store/sponsors';
+import type { LibrarySponsor, SponsorRow } from '@/lib/store/sponsors';
 import { SponsorTile } from './SponsorTile';
 
 /** The height of a logo in the admin tiles, in pixels. */
 export const TILE_LOGO_HEIGHT = 40;
 
-export const tileWidth = (sponsor: SponsorRow) => Math.round((TILE_LOGO_HEIGHT * sponsor.logoWidth) / sponsor.logoHeight);
+export const tileWidth = (sponsor: { logoWidth: number; logoHeight: number }) => Math.round((TILE_LOGO_HEIGHT * sponsor.logoWidth) / sponsor.logoHeight);
 
 export const adminLogoSrc = (sponsor: SponsorRow) => `/api/admin/sponsors/${sponsor.id}/logo?v=${sponsor.logoHash}`;
 
+export const libraryLogoSrc = (sponsor: LibrarySponsor) => `/api/admin/library/${sponsor.id}/logo?v=${sponsor.logoHash}`;
+
+/** What the form shows of a sponsor that is edited. `enabled` is left out where Shown has no meaning, as in the library. */
+export interface FormSponsor {
+    name: string;
+    link: string | null;
+    gameBackground: string | null;
+    enabled?: boolean;
+    logoSrc: string;
+    logoWidth: number;
+    logoHeight: number;
+}
+
 /**
- * The add and edit form of a sponsor. Without `sponsor` it adds one and the logo is required. When
- * editing, an empty logo field keeps the current logo. The preview shows the logo in its tile.
+ * The add and edit form of a sponsor, at an event and in the library. Without `sponsor` it adds
+ * one and the logo is required. When editing, an empty logo field keeps the current logo. The
+ * preview shows the logo in its tile. Without `withShown` the form has no Shown box. `note` is
+ * a line above the buttons.
  */
-export function SponsorForm({ action, sponsor, title, submitLabel, onCancel }: { action: string; sponsor?: SponsorRow; title: string; submitLabel: string; onCancel: () => void }) {
+export function SponsorForm({
+    action,
+    sponsor,
+    title,
+    submitLabel,
+    onCancel,
+    withShown = true,
+    note,
+}: {
+    action: string;
+    sponsor?: FormSponsor;
+    title: string;
+    submitLabel: string;
+    onCancel: () => void;
+    withShown?: boolean;
+    note?: string;
+}) {
     const id = useId();
     const [ownBackground, setOwnBackground] = useState(sponsor ? sponsor.gameBackground !== null : false);
     const [colour, setColour] = useState(sponsor?.gameBackground ?? '#ffffff');
@@ -42,7 +73,7 @@ export function SponsorForm({ action, sponsor, title, submitLabel, onCancel }: {
 
     const background = ownBackground ? colour : null;
     // A new file has no known size yet, so its width follows the image.
-    const tile = preview ? { src: preview, width: undefined } : sponsor ? { src: adminLogoSrc(sponsor), width: tileWidth(sponsor) } : null;
+    const tile = preview ? { src: preview, width: undefined } : sponsor ? { src: sponsor.logoSrc, width: tileWidth(sponsor) } : null;
     return (
         <form method="post" action={action} encType="multipart/form-data" aria-labelledby={sponsor ? undefined : `${id}-title`} aria-label={sponsor ? title : undefined} className="admin-sponsor-form">
             {!sponsor && <h3 id={`${id}-title`}>{title}</h3>}
@@ -101,11 +132,14 @@ export function SponsorForm({ action, sponsor, title, submitLabel, onCancel }: {
                     <span className="admin-hint">Pick a logo to see it here.</span>
                 )}
             </div>
-            <p>
-                <label>
-                    <input name="enabled" type="checkbox" defaultChecked={sponsor?.enabled ?? true} /> Shown on the site and in the game
-                </label>
-            </p>
+            {withShown && (
+                <p>
+                    <label>
+                        <input name="enabled" type="checkbox" defaultChecked={sponsor?.enabled ?? true} /> Shown on the site and in the game
+                    </label>
+                </p>
+            )}
+            {note && <p className="admin-hint">{note}</p>}
             <div className="admin-actions">
                 <button type="submit">{submitLabel}</button>
                 <button type="button" className="admin-quiet" onClick={onCancel}>

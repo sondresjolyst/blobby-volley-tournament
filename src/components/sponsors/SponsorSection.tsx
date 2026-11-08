@@ -1,7 +1,8 @@
 import { InfoButton } from '@/components/admin/InfoButton';
 import { GAME_BOARDS, MAX_LINK_LENGTH, MAX_NAME_LENGTH, type GameBoard } from '@/lib/sponsors/input';
 import { GAME_LOGO_HEIGHT, GAME_LOGO_MAX_WIDTH, LOGO_TYPE_LIST, MAX_LOGO_MB, MAX_LOGO_SIDE } from '@/lib/sponsors/limits';
-import { MAX_SPONSORS, type SponsorRow } from '@/lib/store/sponsors';
+import Link from 'next/link';
+import { MAX_LIBRARY_SPONSORS, MAX_SPONSORS, type LibrarySponsor, type SponsorRow } from '@/lib/store/sponsors';
 import { AddSponsor, SponsorCards } from './SponsorCards';
 
 const SPONSOR_ERRORS: Record<string, string> = {
@@ -14,6 +15,10 @@ const SPONSOR_ERRORS: Record<string, string> = {
     'logo-type': `The logo must be a ${LOGO_TYPE_LIST} file. SVG is not allowed.`,
     'logo-image': `The logo file could not be read. Save it again as ${LOGO_TYPE_LIST} and try again.`,
     'logo-dimensions': `The logo can be at most ${MAX_LOGO_SIDE} pixels wide and high.`,
+    'sponsor-taken': 'This event already has that sponsor.',
+    'library-pick': 'Pick a sponsor from the library.',
+    'library-limit': `The sponsor library is full. A new sponsor can be added while it holds fewer than ${MAX_LIBRARY_SPONSORS}. Delete sponsors that no event uses in the sponsor library first, or add one from the library.`,
+    'library-in-use': 'An event still uses this sponsor. Remove it from those events first.',
 };
 
 export function sponsorErrorMessage(code: string | string[] | undefined): string | null {
@@ -39,15 +44,21 @@ export function SponsorSection({
     eventId,
     gameBoard,
     sponsors,
+    library,
     error,
     status,
 }: {
     eventId: number;
     gameBoard: GameBoard;
     sponsors: SponsorRow[];
+    /** Every sponsor in the library, with the events that use it. */
+    library: LibrarySponsor[];
     error: string | null;
     status: string | null;
 }) {
+    const here = new Set(sponsors.map((sponsor) => sponsor.libraryId));
+    const available = library.filter((sponsor) => !here.has(sponsor.id));
+    const shared = library.filter((sponsor) => here.has(sponsor.id) && sponsor.events.some((event) => event.id !== eventId)).map((sponsor) => sponsor.id);
     return (
         <section aria-labelledby="sponsors">
             <h2 id="sponsors">Sponsors</h2>
@@ -81,8 +92,31 @@ export function SponsorSection({
             </form>
             {error && <p role="alert">{error}</p>}
             {status && <p role="status">{status}</p>}
-            {sponsors.length === 0 ? <p>No sponsors yet.</p> : <SponsorCards sponsors={sponsors} />}
-            <AddSponsor eventId={eventId} />
+            {sponsors.length === 0 ? <p>No sponsors yet.</p> : <SponsorCards sponsors={sponsors} shared={shared} />}
+            {available.length > 0 && (
+                <form method="post" action={`/api/admin/events/${eventId}/sponsors/library`} className="admin-panel">
+                    <p>
+                        <label>
+                            Add from the library{' '}
+                            <select name="libraryId" required defaultValue="">
+                                <option value="" disabled>
+                                    Pick a sponsor
+                                </option>
+                                {available.map((sponsor) => (
+                                    <option key={sponsor.id} value={sponsor.id}>
+                                        {sponsor.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                    </p>
+                    <button type="submit">Add to event</button>
+                </form>
+            )}
+            <AddSponsor action={`/api/admin/events/${eventId}/sponsors`} />
+            <p className="admin-hint">
+                A new sponsor goes into the <Link href="/admin/sponsors">sponsor library</Link> too, so other events can use it.
+            </p>
         </section>
     );
 }

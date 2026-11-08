@@ -1,8 +1,8 @@
 'use client';
 
-import { useRef, useState } from 'react';
 import type { SponsorRow } from '@/lib/store/sponsors';
 import { adminLogoSrc, SponsorForm, TILE_LOGO_HEIGHT, tileWidth } from './SponsorForm';
+import { ConfirmBox, useOpenClose } from './InPlace';
 import { SponsorTile } from './SponsorTile';
 
 /** Turns a sponsor on or off. It posts only the new state, so an edit made meanwhile is kept. */
@@ -18,21 +18,10 @@ function ShownSwitch({ sponsor }: { sponsor: SponsorRow }) {
     );
 }
 
-/** One sponsor: its tile, name and link, and the buttons to show, move, edit and delete it. */
-function SponsorCard({ sponsor, first, last }: { sponsor: SponsorRow; first: boolean; last: boolean }) {
-    const [editing, setEditing] = useState(false);
-    const [confirming, setConfirming] = useState(false);
-    const editButton = useRef<HTMLButtonElement>(null);
-    const deleteButton = useRef<HTMLButtonElement>(null);
-    const closeEdit = () => {
-        setEditing(false);
-        // The button is back after the render, so focus waits a frame.
-        requestAnimationFrame(() => editButton.current?.focus());
-    };
-    const cancelDelete = () => {
-        setConfirming(false);
-        requestAnimationFrame(() => deleteButton.current?.focus());
-    };
+/** One sponsor at the event: its tile, name and link, and the buttons to show, move, edit and remove it. */
+function SponsorCard({ sponsor, first, last, usedElsewhere }: { sponsor: SponsorRow; first: boolean; last: boolean; usedElsewhere: boolean }) {
+    const { isOpen: editing, trigger: editButton, open: openEdit, close: closeEdit } = useOpenClose();
+    const { isOpen: removing, trigger: removeButton, open: openRemove, close: closeRemove } = useOpenClose();
     return (
         <li className="admin-sponsor" data-hidden={!sponsor.enabled || undefined}>
             <div className="admin-sponsor-row">
@@ -55,64 +44,60 @@ function SponsorCard({ sponsor, first, last }: { sponsor: SponsorRow; first: boo
                         </button>
                     </form>
                     {!editing && (
-                        <button ref={editButton} type="button" aria-label={`Edit ${sponsor.name}`} className="admin-quiet" onClick={() => setEditing(true)}>
+                        <button ref={editButton} type="button" aria-label={`Edit ${sponsor.name}`} className="admin-quiet" onClick={openEdit}>
                             Edit
                         </button>
                     )}
-                    {!confirming && (
-                        <button ref={deleteButton} type="button" aria-label={`Delete ${sponsor.name}`} className="admin-quiet" onClick={() => setConfirming(true)}>
-                            Delete
+                    {!removing && (
+                        <button ref={removeButton} type="button" aria-label={`Remove ${sponsor.name}`} className="admin-quiet" onClick={openRemove}>
+                            Remove
                         </button>
                     )}
                 </div>
             </div>
-            {confirming && (
-                <form method="post" action={`/api/admin/sponsors/${sponsor.id}/delete`} className="admin-confirm" role="group" aria-label={`Delete ${sponsor.name}?`}>
-                    <span>Delete {sponsor.name}? This cannot be undone.</span>
-                    {/* The admin asked for this button, so it takes the focus. */}
-                    <button type="submit" autoFocus>
-                        Yes, delete
-                    </button>
-                    <button type="button" className="admin-quiet" onClick={cancelDelete}>
-                        Cancel
-                    </button>
-                </form>
+            {removing && (
+                <ConfirmBox
+                    action={`/api/admin/sponsors/${sponsor.id}/delete`}
+                    label={`Remove ${sponsor.name}?`}
+                    question={`Remove ${sponsor.name} from this event? It stays in the sponsor library.`}
+                    yes="Yes, remove"
+                    onCancel={closeRemove}
+                />
             )}
-            {editing && <SponsorForm action={`/api/admin/sponsors/${sponsor.id}`} sponsor={sponsor} title={`Edit ${sponsor.name}`} submitLabel="Save" onCancel={closeEdit} />}
+            {editing && (
+                <SponsorForm
+                    action={`/api/admin/sponsors/${sponsor.id}`}
+                    sponsor={{ ...sponsor, logoSrc: adminLogoSrc(sponsor) }}
+                    title={`Edit ${sponsor.name}`}
+                    submitLabel="Save"
+                    onCancel={closeEdit}
+                    note={usedElsewhere ? 'Other events use this sponsor too. The name, link, logo and colour change there as well. Shown is for this event only.' : undefined}
+                />
+            )}
         </li>
     );
 }
 
-/** The sponsors of an event as cards, in the order the site and the game show them. */
-export function SponsorCards({ sponsors }: { sponsors: SponsorRow[] }) {
+/**
+ * The sponsors of an event as cards, in the order the site and the game show them. `shared` holds
+ * the library ids that other events use too.
+ */
+export function SponsorCards({ sponsors, shared }: { sponsors: SponsorRow[]; shared: number[] }) {
     return (
         <ul className="admin-sponsors">
             {sponsors.map((sponsor, index) => (
-                <SponsorCard key={sponsor.id} sponsor={sponsor} first={index === 0} last={index === sponsors.length - 1} />
+                <SponsorCard key={sponsor.id} sponsor={sponsor} first={index === 0} last={index === sponsors.length - 1} usedElsewhere={shared.includes(sponsor.libraryId)} />
             ))}
         </ul>
     );
 }
 
-/** The Add sponsor button, which opens the sponsor form. */
-export function AddSponsor({ eventId }: { eventId: number }) {
-    const [open, setOpen] = useState(false);
-    const button = useRef<HTMLButtonElement>(null);
-    if (open) {
-        return (
-            <SponsorForm
-                action={`/api/admin/events/${eventId}/sponsors`}
-                title="Add a sponsor"
-                submitLabel="Add sponsor"
-                onCancel={() => {
-                    setOpen(false);
-                    requestAnimationFrame(() => button.current?.focus());
-                }}
-            />
-        );
-    }
+/** The Add sponsor button, which opens the sponsor form. It posts to `action`, for an event or for the library. */
+export function AddSponsor({ action, withShown = true }: { action: string; withShown?: boolean }) {
+    const { isOpen, trigger, open, close } = useOpenClose();
+    if (isOpen) return <SponsorForm action={action} title="Add a sponsor" submitLabel="Add sponsor" onCancel={close} withShown={withShown} />;
     return (
-        <button ref={button} type="button" onClick={() => setOpen(true)}>
+        <button ref={trigger} type="button" onClick={open}>
             Add sponsor
         </button>
     );

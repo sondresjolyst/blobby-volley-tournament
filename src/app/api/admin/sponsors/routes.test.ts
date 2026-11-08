@@ -9,6 +9,7 @@ const moveSponsor = vi.fn();
 const deleteSponsor = vi.fn();
 const setSponsorShown = vi.fn();
 const getSponsorLogo = vi.fn();
+const getSponsorEventId = vi.fn();
 const setGameBoard = vi.fn();
 
 vi.mock('@/lib/auth/options', () => ({
@@ -23,6 +24,7 @@ vi.mock('@/lib/store/sponsors', () => ({
     deleteSponsor: (...args: unknown[]) => deleteSponsor(...args),
     setSponsorShown: (...args: unknown[]) => setSponsorShown(...args),
     getSponsorLogo: (...args: unknown[]) => getSponsorLogo(...args),
+    getSponsorEventId: (...args: unknown[]) => getSponsorEventId(...args),
 }));
 vi.mock('@/lib/store/events', () => ({ setGameBoard: (...args: unknown[]) => setGameBoard(...args) }));
 
@@ -43,7 +45,7 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
-    for (const mock of [requireAdminPost, createSponsor, updateSponsor, moveSponsor, deleteSponsor, getSponsorLogo, setGameBoard, setSponsorShown]) mock.mockReset();
+    for (const mock of [requireAdminPost, createSponsor, updateSponsor, moveSponsor, deleteSponsor, getSponsorLogo, getSponsorEventId, setGameBoard, setSponsorShown]) mock.mockReset();
     requireAdminPost.mockResolvedValue({ githubId: '1' });
 });
 
@@ -105,7 +107,11 @@ describe('POST /api/admin/events/{id}/sponsors', () => {
     });
 
     it('says when the event has too many sponsors, and answers 404 for no event', async () => {
-        createSponsor.mockResolvedValueOnce({ ok: false, error: 'limit' }).mockResolvedValueOnce({ ok: false, error: 'not-found' });
+        createSponsor
+            .mockResolvedValueOnce({ ok: false, error: 'library-limit' })
+            .mockResolvedValueOnce({ ok: false, error: 'limit' })
+            .mockResolvedValueOnce({ ok: false, error: 'not-found' });
+        expect((await add(form(fields, { bytes: logo, type: 'image/png', name: 'a.png' }))).headers.get('location')).toBe('/admin/events/3?error=library-limit#sponsors');
         expect((await add(form(fields, { bytes: logo, type: 'image/png', name: 'a.png' }))).headers.get('location')).toBe('/admin/events/3?error=sponsor-limit#sponsors');
         expect((await add(form(fields, { bytes: logo, type: 'image/png', name: 'a.png' }))).status).toBe(404);
     });
@@ -134,36 +140,50 @@ describe('POST /api/admin/sponsors/{id}/shown', () => {
 
 describe('POST /api/admin/sponsors/{id}', () => {
     const save = async (body: FormData, id = '9') => update(await upload(`/api/admin/sponsors/${id}`, body), params(id));
+    /** Lets the mocked store run the maker the route gives it on this logo, and keeps the result. */
+    function storeMakes(from: { bytes: Uint8Array; type: string; width: number; height: number }) {
+        const made: Uint8Array[] = [];
+        updateSponsor.mockImplementation(async (_pool, _id, input: { gameBackground: string | null }, logo, make: (l: unknown, b: string | null) => Promise<Uint8Array>) => {
+            made.push(await make(logo ?? from, input.gameBackground));
+            return 'saved';
+        });
+        return made;
+    }
 
-    it('keeps the stored logo without a new file, and makes the game logo again for the new background', async () => {
-        getSponsorLogo.mockResolvedValue(stored());
-        updateSponsor.mockResolvedValue(3);
+    it('lets the store make the game logo from the stored logo without a new file, for the new background', async () => {
+        getSponsorEventId.mockResolvedValue(3);
+        const made = storeMakes(stored());
         const res = await save(form({ name: 'Acme', ownBackground: 'on', gameBackground: '#ff0000' }));
         expect(res.headers.get('location')).toBe('/admin/events/3?sponsor=9#sponsors');
-        const [, id, input, newLogo, gameLogo] = updateSponsor.mock.calls[0];
+        const [, id, input, newLogo] = updateSponsor.mock.calls[0];
         expect(id).toBe(9);
         expect(input).toEqual({ name: 'Acme', link: null, enabled: false, gameBackground: '#ff0000' });
         expect(newLogo).toBeNull();
         // The stored logo is transparent, so the game logo is all background, opaque.
-        expect(Array.from(gameLogo.slice(BMP_HEADER_BYTES, BMP_HEADER_BYTES + 4))).toEqual([0, 0, 255, 255]);
+        expect(Array.from(made[0].slice(BMP_HEADER_BYTES, BMP_HEADER_BYTES + 4))).toEqual([0, 0, 255, 255]);
     });
 
     it('replaces the logo with a new file', async () => {
-        getSponsorLogo.mockResolvedValue(stored());
-        updateSponsor.mockResolvedValue(3);
+        getSponsorEventId.mockResolvedValue(3);
+        const made = storeMakes(stored());
         const square = new Uint8Array(await sharp({ create: { width: 50, height: 50, channels: 3, background: '#00ff00' } }).jpeg().toBuffer());
         await save(form(fields, { bytes: square, type: 'image/jpeg', name: 'new.jpg' }));
-        const [, , , newLogo, gameLogo] = updateSponsor.mock.calls[0];
+        const [, , , newLogo] = updateSponsor.mock.calls[0];
         expect(newLogo).toMatchObject({ type: 'image/jpeg', width: 50, height: 50 });
-        expect(readBmpInfo(gameLogo)).toEqual({ width: 32, height: 32, bitsPerPixel: 32 });
+        expect(readBmpInfo(made[0])).toEqual({ width: 32, height: 32, bitsPerPixel: 32 });
     });
 
-    it('sends a bad form back to the event of the sponsor, and answers 404 for no sponsor', async () => {
-        getSponsorLogo.mockResolvedValueOnce(stored()).mockResolvedValueOnce(null);
+    it('sends a bad form or a logo that cannot be made back to the event, and answers 404 for no sponsor', async () => {
+        getSponsorEventId.mockResolvedValue(3);
         expect((await save(form({ ...fields, gameBackground: 'red' }))).headers.get('location')).toBe('/admin/events/3?error=sponsor-background#sponsors');
+        expect(updateSponsor).not.toHaveBeenCalled();
+        updateSponsor.mockResolvedValueOnce('logo-image').mockResolvedValueOnce('not-found');
+        expect((await save(form(fields))).headers.get('location')).toBe('/admin/events/3?error=logo-image#sponsors');
+        expect((await save(form(fields))).status).toBe(404);
+        getSponsorEventId.mockResolvedValue(null);
         expect((await save(form(fields))).status).toBe(404);
         expect((await save(form(fields), 'x')).status).toBe(404);
-        expect(updateSponsor).not.toHaveBeenCalled();
+        expect(updateSponsor).toHaveBeenCalledTimes(2);
     });
 });
 
