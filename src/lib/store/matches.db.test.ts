@@ -613,6 +613,45 @@ describe('calling a 1v1 match by itself', () => {
 
     const stateOf = async (id: number) => (await getMatch(pool, id))!.state;
 
+    it('refuses a correction that would start a finished match again while a player is in another match', async () => {
+        const { players } = await activeEvent(3);
+        const [a, b, c] = players;
+        const created = await createChallenge(pool, a, b, { bestOf: 3 });
+        if (!created.ok) throw new Error(created.error);
+        expect(await acceptChallenge(pool, created.matchId, b)).toMatchObject({ ok: true, called: true });
+        const first = created.matchId;
+        expect(await setSeriesScore(pool, first, 2, 0)).toMatchObject({ ok: true });
+        expect(await stateOf(first)).toBe('finished');
+        // A is free again, and is called to a new match at once.
+        const next = await accepted(c, a);
+        expect(next.called).toBe(true);
+
+        expect(await setSeriesScore(pool, first, 1, 1)).toEqual({ ok: false, error: 'player-busy' });
+        expect(await getMatch(pool, first)).toMatchObject({ state: 'finished', score1: 2, score2: 0 });
+        // A correction that only changes the winner keeps the match finished, so it is allowed.
+        expect(await setSeriesScore(pool, first, 0, 2)).toMatchObject({ ok: true });
+        expect(await getMatch(pool, first)).toMatchObject({ state: 'finished', winnerId: b });
+        // Once the other match is over, the correction goes through.
+        expect(await cancelMatch(pool, next.id)).toMatchObject({ ok: true });
+        expect(await setSeriesScore(pool, first, 1, 1)).toMatchObject({ ok: true });
+        expect(await stateOf(first)).toBe('started');
+    });
+
+    it('calls the waiting 1v1 matches of an event when it is made active again', async () => {
+        const { eventId, players } = await activeEvent(3);
+        const [a, b, c] = players;
+        const busy = await accepted(a, b);
+        const waiting = await accepted(c, a);
+        expect(waiting.called).toBe(false);
+        const other = await createEvent(pool, { ...lan, code: 'LAN-OTHER' });
+        await setActiveEvent(pool, other);
+        // The busy match ends while its event is not active, so nothing is called.
+        expect(await cancelMatch(pool, busy.id)).toMatchObject({ ok: true });
+        expect(await stateOf(waiting.id)).toBe('upcoming');
+        await setActiveEvent(pool, eventId);
+        expect(await stateOf(waiting.id)).toBe('called');
+    });
+
     it.each([
         ['finishes', async (id: number) => report(id, 1, 1)],
         ['ends in a no-show', async (id: number) => recordNoShow(pool, id, 2)],
