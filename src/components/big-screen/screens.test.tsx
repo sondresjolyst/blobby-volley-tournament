@@ -27,8 +27,8 @@ const full: BigScreenData = {
     ...empty,
     boards: [{ key: 'foza', rows: [{ rank: 1, nickname: 'Tippekongen', value: '4 av 5' }] }],
     sponsors: [
-        { id: 1, name: 'Pizzabakeren', src: '/api/sponsors/1/logo?v=a', width: 300, height: 100 },
-        { id: 2, name: 'Ostehuset', src: '/api/sponsors/2/logo?v=b', width: 300, height: 100 },
+        { id: 1, name: 'Pizzabakeren', src: '/api/sponsors/1/logo?v=a', width: 300, height: 100, background: null },
+        { id: 2, name: 'Ostehuset', src: '/api/sponsors/2/logo?v=b', width: 300, height: 100, background: '#1e5aa8' },
     ],
     fullBracket: {
         tournamentId: 5,
@@ -124,6 +124,12 @@ describe('the sponsor screen', () => {
         expect(out).toContain('Stolt sponsa av');
         expect(out).toContain('alt="Pizzabakeren"');
         expect(out).toContain('alt="Ostehuset"');
+    });
+
+    it('puts each logo on the background colour of its sponsor, or on the cream tile', () => {
+        const out = html(<SponsorScreen data={full} />);
+        expect(out).toContain('style="background:#fff8ec"');
+        expect(out).toContain('style="background:#1e5aa8"');
     });
 
     it('says there are no sponsors yet', () => {

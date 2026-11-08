@@ -195,10 +195,12 @@ test('the big screen shows the live score, the odds, the bracket and the sign-up
         await adminPage.getByRole('row', { name: /E2E LAN/ }).getByRole('link').click();
         const colours = ['#c8321f', '#f6c445', '#3e7a2f', '#8a4b1e', '#2a6fdb', '#6b5444', '#e07a2f', '#1f4d22'];
         for (const [i, colour] of colours.entries()) {
-            await adminPage.getByLabel('Name of the new sponsor').fill(`Sponsor ${i + 1} ${tag}`);
-            const logo = await sharp({ create: { width: 300, height: 100, channels: 4, background: colour } }).png().toBuffer();
-            await adminPage.getByLabel('Logo of the new sponsor').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: logo });
             await adminPage.getByRole('button', { name: 'Add sponsor' }).click();
+            const form = adminPage.getByRole('form', { name: 'Add a sponsor' });
+            await form.getByLabel('Name').fill(`Sponsor ${i + 1} ${tag}`);
+            const logo = await sharp({ create: { width: 300, height: 100, channels: 4, background: colour } }).png().toBuffer();
+            await form.getByLabel('Logo').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: logo });
+            await form.getByRole('button', { name: 'Add sponsor' }).click();
             await expect(adminPage.getByRole('status')).toHaveText(`Saved the sponsor Sponsor ${i + 1} ${tag}.`);
         }
     }

@@ -45,7 +45,7 @@ describe('currentBoard', () => {
 describe('the screen rotation', () => {
     const match = { matchId: 1 } as ScreenMatch;
     const winner: ScreenWinner = { tournamentId: 1, tournamentName: 'Hovedcupen', champion: 'Ostebit', podium: [], final: null };
-    const sponsor = { id: 1, name: 'Pizzabakeren', src: '/x', width: 3, height: 1 };
+    const sponsor = { id: 1, name: 'Pizzabakeren', src: '/x', width: 3, height: 1, background: null };
     const fact = { key: 'wins' as const, label: 'Flest seira', value: '3 seira', who: 'Ostebit' };
     const full = { tournamentId: 1, name: 'Hovedcupen', dense: false, sections: [] };
     /** Every screen has something to show, except those in `empty`. */
