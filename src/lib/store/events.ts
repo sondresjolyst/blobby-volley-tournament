@@ -2,6 +2,7 @@ import type { Pool } from 'pg';
 import type { EventInput } from '@/lib/events/input';
 import { toRotation, type ScreenRotation } from '@/lib/big-screen/screens';
 import type { GameBoard } from '@/lib/sponsors/input';
+import { callWaitingInEvent } from './matches';
 
 export interface EventRow extends EventInput {
     id: number;
@@ -141,6 +142,8 @@ export async function setActiveEvent(pool: Pool, id: number): Promise<boolean> {
             }
             await client.query('UPDATE events SET is_active = false WHERE is_active AND id <> $1', [id]);
             await client.query('UPDATE events SET is_active = true WHERE id = $1', [id]);
+            // Accepted 1v1 matches waited while the event was not active. Their free players are called now.
+            await callWaitingInEvent(client, id);
             await client.query('COMMIT');
             return true;
         } catch (error) {

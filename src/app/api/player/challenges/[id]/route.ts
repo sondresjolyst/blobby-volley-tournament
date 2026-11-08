@@ -4,11 +4,10 @@ import { parseChallengeAnswer } from '@/lib/matches/input';
 import { getActivePlayer } from '@/lib/players/current';
 import { acceptChallenge, declineChallenge, withdrawChallenge, type MatchResult } from '@/lib/store/matches';
 
-
 /**
  * Answers a 1v1 match from /me. The asked player accepts or declines it, and the asker can withdraw
- * it until it is accepted. An accepted match is called at once, or queued while a player is busy. The store checks that the signed in player may do this. Sends a signed
- * out browser to sign-in.
+ * it until it is accepted. An accepted match is called at once, or queued while a player is busy.
+ * The store checks that the signed in player may do this. Sends a signed out browser to sign-in.
  */
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
     if (!isTrustedPost(req, process.env)) return seeOther('/me?challengeError=form#utfordringa');

@@ -207,9 +207,9 @@ const EVENT_MATCHES_LOCK = 7_310_404;
  * to matches of the same tournament run one after the other. The tournament is always locked
  * before the match, so two changes cannot wait on each other. Returns null when there is no match.
  *
- * A change also takes a lock for the whole event first, so the changes to the matches of one event
- * run one after the other. A change that frees players and one that accepts a 1v1 match then always
- * see each other, so a waiting 1v1 match is never left uncalled and a player is never called twice.
+ * A change first takes a lock for the whole event, so the changes to the matches of one event run
+ * one at a time. A change that frees players and a change that accepts a 1v1 match then always see
+ * the result of the other. So a waiting 1v1 match is never left uncalled, and no player is called twice.
  * Bets do not take it, so they never wait for a change to another match.
  */
 async function lockMatch(client: PoolClient, matchId: number, change: boolean): Promise<MatchRow | null> {
@@ -312,6 +312,8 @@ async function settleSeries(tx: MatchTx) {
     const previous = match.state === 'finished' ? match.winner_id : null;
     if (winnerId === previous) return;
     if (previous !== null) {
+        // A match left undecided is started again. A player may have been called to another match since.
+        if (winnerId === null && (await playersBusy(tx))) throw new Refused('player-busy');
         await tx.transition('reopen', { winner_id: null, result: null });
         tx.emit({ type: 'reopened', matchId: match.id, previousWinnerId: previous });
     }
@@ -420,25 +422,35 @@ const isPlaying = (state: MatchState) => state === 'called' || state === 'starte
 /** True when a change leaves the players of the match free, or sends it back to upcoming. */
 const freesPlayers = (from: MatchState, to: MatchState) => !isPlaying(to) && (isPlaying(from) || (to === 'upcoming' && from !== 'upcoming'));
 
-/** Calls the locked upcoming match when both players are free. Returns false and changes nothing when one is busy. */
-async function callIfFree(tx: MatchTx): Promise<boolean> {
+/** True when a player of the locked match is in another called or started match. Locks both players. */
+async function playersBusy(tx: MatchTx): Promise<boolean> {
     const players = bothPlayers(tx.match);
-    // Two calls of different matches with a shared player wait here, so only one sees the player free.
+    // Two changes of different matches with a shared player wait here, so only one sees the player free.
     await tx.client.query('SELECT 1 FROM players WHERE id = ANY($1::int[]) ORDER BY id FOR NO KEY UPDATE', [players]);
     const busy = await tx.client.query(
         `SELECT 1 FROM matches WHERE id <> $1 AND state IN ('called', 'started')
          AND (player1_id = ANY($2::int[]) OR player2_id = ANY($2::int[])) LIMIT 1`,
         [tx.match.id, players],
     );
-    if (busy.rowCount) return false;
+    return (busy.rowCount ?? 0) > 0;
+}
+
+/** Calls the locked upcoming match when both players are free. Returns false and changes nothing when one is busy. */
+async function callIfFree(tx: MatchTx): Promise<boolean> {
+    if (await playersBusy(tx)) return false;
     await tx.transition('call');
     return true;
 }
 
+/** Calls the locked waiting 1v1 matches whose players are free, the earliest accepted first. */
+async function callAccepted(client: PoolClient, rows: MatchRow[]) {
+    rows.sort((a, b) => a.accepted_at!.getTime() - b.accepted_at!.getTime() || a.id - b.id);
+    for (const row of rows) await callIfFree(new MatchTx(client, row));
+}
+
 /**
- * Calls the accepted 1v1 matches of the players that wait for a busy player, the one accepted
- * first first. Runs in the change that freed the players. A tournament match is never called
- * here, since an admin calls those.
+ * Calls the accepted 1v1 matches of the players that wait for a busy player. Runs in the change
+ * that freed the players. A tournament match is never called here, since an admin calls those.
  */
 async function callWaitingChallenges(client: PoolClient, playerIds: readonly (number | null)[]) {
     const ids = playerIds.filter((id): id is number => id !== null);
@@ -452,14 +464,30 @@ async function callWaitingChallenges(client: PoolClient, playerIds: readonly (nu
          ORDER BY id FOR UPDATE OF m`,
         [ids],
     );
-    rows.sort((a, b) => a.accepted_at!.getTime() - b.accepted_at!.getTime() || a.id - b.id);
-    for (const row of rows) await callIfFree(new MatchTx(client, row));
+    await callAccepted(client, rows);
+}
+
+/**
+ * Calls the waiting 1v1 matches of an event that was just made active, in the transaction that
+ * activates it. They were left waiting while the event was not active.
+ */
+export async function callWaitingInEvent(client: PoolClient, eventId: number) {
+    await client.query('SELECT pg_advisory_xact_lock($1, $2)', [EVENT_MATCHES_LOCK, eventId]);
+    const { rows } = await client.query<MatchRow>(
+        `SELECT ${MATCH_COLUMNS} FROM matches m
+         WHERE event_id = $1 AND tournament_id IS NULL AND state = 'upcoming' AND accepted_at IS NOT NULL
+         ORDER BY id FOR UPDATE OF m`,
+        [eventId],
+    );
+    await callAccepted(client, rows);
 }
 
 /** Tells the players to join. Both players must be known and free, and a 1v1 match must be accepted. */
 export async function callMatch(pool: Pool, matchId: number): Promise<MatchResult> {
     return withMatch(pool, matchId, async (tx) => {
         if (tx.match.state !== 'upcoming') throw new Refused('state');
+        // An admin may call a match of an event that is not active. That override is on purpose.
+        // Refuses a match with an empty player slot.
         bothPlayers(tx.match);
         if (tx.match.tournament_id === null && tx.match.accepted_at === null) throw new Refused('not-accepted');
         if (!(await callIfFree(tx))) throw new Refused('player-busy');
