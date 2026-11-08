@@ -67,13 +67,14 @@ const EMPTY: Record<Board, string> = {
 export default async function LeaderboardPage({ searchParams }: { searchParams: Promise<Search> }) {
     const search = await searchParams;
     const pool = getPool();
-    const [events, header] = await Promise.all([listEvents(pool), siteHeader(pool)]);
+    const events = await listEvents(pool);
+    const header = await siteHeader(events.find((e) => e.isActive) ?? null);
     const eventParam = one(search.event);
     const event = eventParam ? events.find((e) => e.id === parseId(eventParam)) : (events.find((e) => e.isActive) ?? events[0]);
     if (eventParam && !event) notFound();
     if (!event) {
         return (
-            <SiteShell {...header}>
+            <SiteShell {...header} current="/leaderboard">
                 <div lang="nn" className={styles.page}>
                     <h1 className={styles.title}>Toppliste</h1>
                     <p className={styles.empty}>Her e det ingen LAN enno. Kom tebake når det e i gang!</p>
@@ -108,7 +109,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
     const podium = tournamentId === null ? [] : data.placings;
 
     return (
-        <SiteShell {...header}>
+        <SiteShell {...header} current="/leaderboard">
             <div lang="nn" className={styles.page}>
                 <h1 className={styles.title}>Toppliste</h1>
                 <p className={styles.subtitle}>

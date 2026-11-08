@@ -32,7 +32,7 @@ export default async function Join({ searchParams }: { searchParams: Promise<{ e
                     <InfoLabel htmlFor="code" className={s.authLabel} text="LAN-kode" info={FIELD_INFO.code.label}>
                         <p>{FIELD_INFO.code.text}</p>
                     </InfoLabel>
-                    <input id="code" name="code" required autoComplete="off" autoCapitalize="characters" spellCheck={false} aria-describedby="code-hint" className={`${s.authInput} ${s.authCode}`} />
+                    <input id="code" name="code" required autoComplete="off" autoCapitalize="characters" spellCheck={false} aria-describedby="code-hint code-help" className={`${s.authInput} ${s.authCode}`} />
                     <span id="code-hint" className={s.authHint}>
                         Står på storskjermen, eller spør ein admin.
                     </span>
@@ -41,7 +41,7 @@ export default async function Join({ searchParams }: { searchParams: Promise<{ e
                     <InfoLabel htmlFor="nickname" className={s.authLabel} text="Kallenavn" info={FIELD_INFO.nickname.label}>
                         <p>{FIELD_INFO.nickname.text}</p>
                     </InfoLabel>
-                    <input id="nickname" name="nickname" required maxLength={NICKNAME_MAX_BYTES} autoComplete="nickname" aria-describedby="nickname-hint" className={s.authInput} />
+                    <input id="nickname" name="nickname" required maxLength={NICKNAME_MAX_BYTES} autoComplete="nickname" aria-describedby="nickname-hint nickname-help" className={s.authInput} />
                     <span id="nickname-hint" className={s.authHint}>
                         Vises i spelet og på storskjermen. Maks 15 teikn, og æ, ø og å tel som 2.
                     </span>
@@ -60,7 +60,7 @@ export default async function Join({ searchParams }: { searchParams: Promise<{ e
                         minLength={4}
                         maxLength={4}
                         autoComplete="new-password"
-                        aria-describedby="pin-hint"
+                        aria-describedby="pin-hint pin-help"
                         className={`${s.authInput} ${s.authPin}`}
                     />
                     <span id="pin-hint" className={s.authHint}>

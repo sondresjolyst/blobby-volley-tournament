@@ -1,10 +1,8 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { EdgePizzas, HeaderPizzas } from '@/components/pizza/Decor';
-import { Pizza } from '@/components/pizza/Pizza';
+import { EdgePizzas } from '@/components/pizza/Decor';
+import { HeaderNav, type HeaderLink } from '@/components/player/HeaderNav';
 import p from '@/components/player/player.module.css';
-import { SignOutButton } from '@/components/player/PlayerShell';
-import { foza } from '@/components/player/text';
 import s from './site.module.css';
 
 interface ShellProps {
@@ -12,6 +10,8 @@ interface ShellProps {
     eventName: string | null;
     /** The signed in player of the active event, or null. */
     player: { nickname: string; balance: number } | null;
+    /** The page of the menu that is open, if it has a link there. */
+    current?: '/leaderboard';
     children: ReactNode;
 }
 
@@ -24,55 +24,17 @@ export function AdminLink() {
     );
 }
 
-/** The header and theme of the front page. It looks like the header of the player pages. */
-export function SiteShell({ eventName, player, children }: ShellProps) {
+/** The header and theme of the front page and the leaderboards. The header is the one of the player pages. */
+export function SiteShell({ eventName, player, current, children }: ShellProps) {
+    const links: HeaderLink[] = [
+        ...(eventName ? [{ href: '/bracket', text: 'Kampoppsett' }] : []),
+        { href: '/leaderboard', text: 'Toppliste', current: current === '/leaderboard' },
+        ...(eventName ? [{ href: '/big', text: 'Storskjermen' }] : []),
+    ];
     return (
         <div className={`${p.shell} ${s.site}`}>
             <EdgePizzas />
-            <header className={p.header}>
-                <HeaderPizzas />
-                <div className={p.headerInner}>
-                    <Link href="/" className={p.brand}>
-                        <Pizza size={48} />
-                        <span>{eventName ?? 'Blobby Volley'}</span>
-                    </Link>
-                    <nav aria-label="Hovudmeny" className={p.nav}>
-                        {eventName && (
-                            <Link href="/bracket" className={p.navLink}>
-                                Kampoppsett
-                            </Link>
-                        )}
-                        <Link href="/leaderboard" className={p.navLink}>
-                            Toppliste
-                        </Link>
-                        {eventName && (
-                            <Link href="/big" className={p.navLink}>
-                                Storskjermen
-                            </Link>
-                        )}
-                        {player ? (
-                            <>
-                                <Link href="/me" className={`${p.wallet} ${s.walletLink}`}>
-                                    {player.nickname} · <Pizza size={22} />
-                                    {foza(player.balance)}
-                                </Link>
-                                <SignOutButton />
-                            </>
-                        ) : (
-                            <>
-                                <Link href="/login" className={p.navLink}>
-                                    Logg inn
-                                </Link>
-                                {eventName && (
-                                    <Link href="/join" className={s.navCta}>
-                                        Bli med
-                                    </Link>
-                                )}
-                            </>
-                        )}
-                    </nav>
-                </div>
-            </header>
+            <HeaderNav home="/" eventName={eventName} label="Hovudmeny" links={links} player={player} />
             <main className={p.main}>{children}</main>
             <AdminLink />
         </div>

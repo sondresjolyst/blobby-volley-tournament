@@ -16,14 +16,15 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ id
     const id = parseId((await params).id);
     if (id === null) notFound();
     const pool = getPool();
-    const [page, active, header] = await Promise.all([getPlayerStats(pool, id), getActiveEvent(pool), siteHeader(pool)]);
+    const [page, active] = await Promise.all([getPlayerStats(pool, id), getActiveEvent(pool)]);
+    const header = await siteHeader(active);
     if (!page) notFound();
     const { player, stats, betting, elo, placings } = page;
     const name = nicknameOf(page.nicknames);
     const back = active?.id === player.eventId ? '/leaderboard' : `/leaderboard?event=${player.eventId}`;
 
     return (
-        <SiteShell {...header}>
+        <SiteShell {...header} current="/leaderboard">
             <div lang="nn" className={styles.page}>
                 <p>
                     <Link href={back}>Tebake te topplista</Link>

@@ -91,7 +91,7 @@ export function MatchCard({ match, pool, viewerId, balance, bet }: CardProps) {
                                 <InfoLabel htmlFor={`amount-${match.id}`} text="Kor mykje Foza tør du?" info={FIELD_INFO.stake.label}>
                                     <p>{FIELD_INFO.stake.text}</p>
                                 </InfoLabel>
-                                <input id={`amount-${match.id}`} className={styles.input} name="amount" type="number" min={1} max={Math.max(1, balance)} step={1} required inputMode="numeric" />
+                                <input id={`amount-${match.id}`} aria-describedby={`amount-${match.id}-help`} className={styles.input} name="amount" type="number" min={1} max={Math.max(1, balance)} step={1} required inputMode="numeric" />
                             </div>
                             <button type="submit" className={styles.button}>
                                 {bet ? 'Høgn spelet' : 'Sats'}

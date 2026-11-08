@@ -40,7 +40,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<Se
                             <InfoLabel htmlFor="nickname" className={s.authLabel} text="Kallenavn" info={FIELD_INFO.signInNickname.label}>
                                 <p>{FIELD_INFO.signInNickname.text}</p>
                             </InfoLabel>
-                            <input id="nickname" name="nickname" required autoComplete="username" className={s.authInput} />
+                            <input id="nickname" name="nickname" required autoComplete="username" aria-describedby="nickname-help" className={s.authInput} />
                         </div>
                         <div className={s.authField}>
                             <InfoLabel htmlFor="pin" className={s.authLabel} text="PIN-kode" info={FIELD_INFO.signInPin.label}>
@@ -56,7 +56,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<Se
                                 minLength={4}
                                 maxLength={4}
                                 autoComplete="current-password"
-                                aria-describedby="pin-hint"
+                                aria-describedby="pin-hint pin-help"
                                 className={`${s.authInput} ${s.authPin}`}
                             />
                             <span id="pin-hint" className={s.authHint}>

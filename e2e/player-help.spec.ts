@@ -50,7 +50,8 @@ test('the i buttons on /join and /login explain the fields without hiding the la
     await checkHelp(page, 'Kor finne eg koden?', 'Koden står på storskjermen i lokalet');
     await checkHelp(page, 'Ka slags navn?', 'Velg eit navn dei andre kjenne deg igjen på.');
     await checkHelp(page, 'Ka e PIN-en te?', 'Fire siffer du finne på sjøl.');
-    // The labels still name the fields alone.
+    // The labels still name the fields alone, and each field points at its help.
+    await expect(page.getByLabel('PIN-kode (4 siffer)')).toHaveAccessibleDescription(/Fire siffer du finne på sjøl./);
     await expect(page.getByLabel('LAN-kode')).toHaveAttribute('id', 'code');
     await expect(page.getByLabel('Kallenavn')).toHaveAttribute('id', 'nickname');
     await page.getByRole('button', { name: 'Ka e PIN-en te?' }).click();
@@ -61,10 +62,32 @@ test('the i buttons on /join and /login explain the fields without hiding the la
     await checkHelp(page, 'Glømt PIN-en?', 'kan ein admin nullstilla han.');
 });
 
+test('the admin event form uses the same i button', async ({ page, context, baseURL }) => {
+    await context.addCookies([
+        { name: '__Secure-next-auth.session-token', value: process.env.E2E_ADMIN_TOKEN ?? '', domain: new URL(baseURL!).hostname, path: '/', secure: true, httpOnly: true, sameSite: 'Lax' },
+    ]);
+    await page.goto('/admin/events/new');
+    await checkHelp(page, 'Where to find the host', 'ipconfig on Windows');
+    await expect(page.getByLabel('Game server host')).toHaveAccessibleDescription(/ipconfig on Windows/);
+    const box = await page.getByRole('button', { name: 'Where to find the host' }).boundingBox();
+    expect(box!.width).toBe(32);
+    // The circle is 32px, and the button still takes a tap 6px outside it, so the target is 44px.
+    const hit = await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.getAttribute('aria-label'), [box!.x - 6, box!.y + box!.height / 2]);
+    expect(hit).toBe('Where to find the host');
+    await page.getByRole('button', { name: 'Where to find the host' }).click();
+    await shoot(page, 'admin-event-form');
+});
+
 test('the 1v1 form and the bet form on /me have help, and the leaderboard has the menu', async ({ browser }) => {
     const tag = randomBytes(2).toString('hex');
     const asker = await signUp(browser, `Ia${tag}`);
     const asked = await signUp(browser, `Ib${tag}`);
+
+    // The front page header holds the wallet and Logg ut for a signed in player.
+    await asker.page.goto('/');
+    await expect(asker.page.getByRole('navigation', { name: 'Hovudmeny' }).getByRole('button', { name: 'Logg ut' })).toBeVisible();
+    await shoot(asker.page, 'home');
+    await asker.page.goto('/me');
 
     // The player menu reaches the leaderboard, which has the site menu with the wallet and sign-out.
     await asker.page.getByRole('navigation', { name: 'Spelarsidå' }).getByRole('link', { name: 'Toppliste' }).click();
@@ -85,7 +108,7 @@ test('the 1v1 form and the bet form on /me have help, and the leaderboard has th
     await checkHelp(form, 'Kor mange poeng?', 'Kor mange poeng som trengs for å vinna eit sett.');
     await checkHelp(form, 'Kor fort?', 'Kor fort spelet går, i bilde i sekundet.');
     await expect(form.getByLabel('Best av')).toHaveValue('1');
-    await expect(form.getByLabel('Poeng for å vinna')).toHaveAccessibleDescription(/vanleg e 15/);
+    await expect(form.getByLabel('Poeng for å vinna')).toHaveAccessibleDescription(/vanleg e 15 Kor mange poeng som trengs/);
 
     await form.getByLabel('Motstandar').selectOption({ label: `Ib${tag}` });
     await form.getByRole('button', { name: 'Send utfordring' }).click();

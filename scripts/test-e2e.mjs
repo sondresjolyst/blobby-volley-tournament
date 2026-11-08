@@ -93,9 +93,6 @@ try {
             GITHUB_CLIENT_ID: 'e2e-placeholder',
             GITHUB_CLIENT_SECRET: 'e2e-placeholder',
             ALLOWED_GITHUB_USER_IDS: adminId,
-            // The site takes 50 sign-ups an hour from one network. A test that sends this header gets its
-            // own limit. Every other request has no such header and shares one limit, as before.
-            TRUSTED_PROXY_IP_HEADER: 'x-e2e-client',
         },
     });
     await waitFor(async () => {

@@ -26,6 +26,15 @@ button.button {
     font-weight: 700;
     line-height: 1;
     cursor: pointer;
+    position: relative;
+}
+
+/* The circle is 32px, and an invisible ring around it makes the touch target 44px. */
+button.button::before {
+    content: '';
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
 }
 
 button.button:hover,
