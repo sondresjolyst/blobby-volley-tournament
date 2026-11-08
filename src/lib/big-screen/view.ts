@@ -407,7 +407,7 @@ export function screenBoards(leaderboard: Leaderboard): ScreenBoard[] {
         });
     return [
         { key: 'foza', rows: top([...leaderboard.bettors].sort(compareNet), (b) => ({ id: b.playerId, value: signed(b.net) })) },
-        { key: 'sigra', rows: top(leaderboard.wins, (s) => ({ id: s.playerId, value: `${s.matchesWon} ${s.matchesWon === 1 ? 'siger' : 'sigra'}` })) },
+        { key: 'sigra', rows: top(leaderboard.wins, (s) => ({ id: s.playerId, value: `${s.matchesWon} ${s.matchesWon === 1 ? 'seier' : 'seira'}` })) },
         { key: 'elo', rows: top(leaderboard.elo, (e) => ({ id: e.playerId, value: String(shownRating(e.rating)) })) },
     ];
 }

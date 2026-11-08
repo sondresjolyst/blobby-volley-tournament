@@ -13,7 +13,7 @@ import { BOARD_TEXT } from '@/components/big-screen/text';
 
 type Search = Record<string, string | string[] | undefined>;
 
-const BOARDS = { foza: 'Foza', sigra: 'Sigra', elo: 'Elo' } as const;
+const BOARDS = { foza: 'Foza', sigra: 'Seira', elo: 'Elo' } as const;
 type Board = keyof typeof BOARDS;
 
 const one = (value: string | string[] | undefined) => (typeof value === 'string' ? value : '');
@@ -97,7 +97,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
     const scorer = [...data.wins].sort((a, b) => b.pointsScored - a.pointsScored)[0];
     const facts = [
         biggest && { label: 'Største gevinst', value: signed(biggest.biggestWin!.value), who: `${name(biggest.playerId)} på ${name(biggest.biggestWin!.onPlayerId)}` },
-        streak && streak.longestStreak > 0 && { label: 'Lengste rekke', value: `${streak.longestStreak} ${streak.longestStreak === 1 ? 'siger' : 'sigra'}`, who: name(streak.playerId) },
+        streak && streak.longestStreak > 0 && { label: 'Lengste rekke', value: `${streak.longestStreak} ${streak.longestStreak === 1 ? 'seier' : 'seira'}`, who: name(streak.playerId) },
         bestOdds && { label: 'Beste odds truffe', value: odds(bestOdds.bestOdds!.value), who: name(bestOdds.playerId) },
         scorer && { label: 'Poeng scora', value: number(scorer.pointsScored), who: name(scorer.playerId) },
     ].filter((f) => !!f);

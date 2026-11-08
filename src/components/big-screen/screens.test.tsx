@@ -57,7 +57,7 @@ const full: BigScreenData = {
     upNext: [match(2, 'started', ['Skvett', 'Ostebit'], { game: 2, points: [11, 8] }), match(3, 'upcoming', ['Blobfisk', 'Kantina'])],
     foza: { bettors: [{ nickname: 'Tippekongen', net: 840, correct: 4, bets: 5 }], wins: [{ nickname: 'Tippekongen', on: 'Skvett', profit: 600 }] },
     facts: [
-        { key: 'biggestWin', label: 'Største siger i eit sett', value: '15–0', who: 'Blobfisk mot Kantina' },
+        { key: 'biggestWin', label: 'Største seier i eit sett', value: '15–0', who: 'Blobfisk mot Kantina' },
         { key: 'longest', label: 'Lengste kamp', value: '31 min', who: 'Skvett mot Ostebit' },
     ],
     winner: {
@@ -109,7 +109,7 @@ describe('the up next screen', () => {
 describe('the stats screen', () => {
     it('shows the records it has, and only those', () => {
         const out = html(<StatsScreen data={full} />);
-        for (const text of ['Rekorda', 'Største siger i eit sett', '15–0', 'Lengste kamp', '31 min']) expect(out).toContain(text);
+        for (const text of ['Rekorda', 'Største seier i eit sett', '15–0', 'Lengste kamp', '31 min']) expect(out).toContain(text);
         expect(out).not.toContain('Største snuoperasjon');
     });
 

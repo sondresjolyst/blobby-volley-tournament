@@ -56,7 +56,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ id
                     <dt>Lengste rekke</dt>
                     <dd>
                         <span className={styles.factValue}>{stats?.longestStreak ?? 0}</span>
-                        {stats?.longestStreak === 1 ? 'siger på rad' : 'sigra på rad'}
+                        {stats?.longestStreak === 1 ? 'seier på rad' : 'seira på rad'}
                     </dd>
                 </div>
             </dl>

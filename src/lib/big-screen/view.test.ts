@@ -153,8 +153,8 @@ describe('screenBoards', () => {
         expect(foza.rows[4]).toEqual({ rank: 5, nickname: 'Spelar 15', value: '0' });
         expect(foza.rows.map((r) => r.nickname)).toEqual(screenFoza(board).bettors.slice(0, 5).map((b) => b.nickname));
         expect(sigra.rows).toEqual([
-            { rank: 1, nickname: 'Blobfisk', value: '2 sigra' },
-            { rank: 2, nickname: 'Skvett', value: '1 siger' },
+            { rank: 1, nickname: 'Blobfisk', value: '2 seira' },
+            { rank: 2, nickname: 'Skvett', value: '1 seier' },
         ]);
         expect(elo.rows.map((r) => r.value)).toEqual(['1084', '1032']);
     });

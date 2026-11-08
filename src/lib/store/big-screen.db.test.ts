@@ -129,7 +129,7 @@ describe('getBigScreen', () => {
         const data = await getBigScreen(pool);
         const [foza, sigra, elo] = data.boards;
         expect(foza.rows).toEqual([{ rank: 1, nickname: 'Skvett', value: '0' }]);
-        expect(sigra.rows[0]).toEqual({ rank: 1, nickname: 'Blobfisk', value: '1 siger' });
+        expect(sigra.rows[0]).toEqual({ rank: 1, nickname: 'Blobfisk', value: '1 seier' });
         expect(elo.rows[0]).toEqual({ rank: 1, nickname: 'Blobfisk', value: '1016' });
         // The newest tournament with a match left is shown by default.
         expect(data.bracket?.name).toBe('Bonuscup');
@@ -172,8 +172,8 @@ describe('the other screens', () => {
         let data = await getBigScreen(pool);
         expect(data.winner).toBeNull();
         expect(data.facts).toEqual([
-            { key: 'wins', label: 'Flest sigra', value: '1 siger', who: expect.any(String) },
-            { key: 'biggestWin', label: 'Største siger i eit sett', value: '15–0', who: 'Blobfisk mot Kantina' },
+            { key: 'wins', label: 'Flest seira', value: '1 seier', who: expect.any(String) },
+            { key: 'biggestWin', label: 'Største seier i eit sett', value: '15–0', who: 'Blobfisk mot Kantina' },
             { key: 'comeback', label: 'Største snuoperasjon', value: '0–1 te 2–1', who: 'Ostebit mot Skvett' },
             { key: 'longest', label: 'Lengste kamp', value: '23 min', who: 'Ostebit mot Skvett' },
             { key: 'points', label: 'Flest poeng', value: '42 poeng', who: 'Ostebit' },
