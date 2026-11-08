@@ -211,8 +211,7 @@ describe('the pause between games', () => {
         const { players } = await setup();
         const made = await createChallenge(pool, players[0], players[1]);
         if (!made.ok) throw new Error(made.error);
-        expect(await acceptChallenge(pool, made.matchId, players[1])).toMatchObject({ ok: true });
-        expect(await callMatch(pool, made.matchId)).toMatchObject({ ok: true });
+        expect(await acceptChallenge(pool, made.matchId, players[1])).toMatchObject({ ok: true, called: true });
         expect((await getServerSync(pool, NOW)).matches.find((m) => m.matchId === made.matchId)).toMatchObject({ nextGameDelay: 10 });
     });
 });
@@ -632,12 +631,11 @@ describe('live score', () => {
 });
 
 describe('a 1v1 match in the sync', () => {
-    it('shows up once accepted and called', async () => {
+    it('shows up as soon as it is accepted', async () => {
         const s = await setup();
         const made = await createChallenge(pool, s.players[1], s.players[2], { bestOf: 1, ruleFile: 'fun.lua', scoreToWin: 7, speed: 120 });
         if (!made.ok) throw new Error(made.error);
-        expect(await acceptChallenge(pool, made.matchId, s.players[2])).toMatchObject({ ok: true });
-        expect(await callMatch(pool, made.matchId)).toMatchObject({ ok: true });
+        expect(await acceptChallenge(pool, made.matchId, s.players[2])).toMatchObject({ ok: true, called: true });
         expect((await getServerSync(pool, NOW)).matches).toEqual([
             expect.objectContaining({ matchId: made.matchId, state: 'called', bestOf: 1, ruleFile: 'fun.lua', scoreToWin: 7, speed: 120, players: [expect.objectContaining({ playerId: s.players[1] }), expect.objectContaining({ playerId: s.players[2] })] }),
         ]);

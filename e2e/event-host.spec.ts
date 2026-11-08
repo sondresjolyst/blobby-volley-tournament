@@ -47,14 +47,8 @@ test('an admin moves the game server to another PC and the join link follows at 
         .filter({ hasText: `Ha${tag} utfordre deg!` })
         .getByRole('button', { name: 'Godta' })
         .click();
-    await page.goto('/admin/matches');
-    await page
-        .getByRole('region', { name: 'Upcoming' })
-        .getByRole('row', { name: new RegExp(`Ha${tag} vs Hb${tag}`) })
-        .getByRole('checkbox')
-        .check();
-    await page.getByRole('button', { name: 'Call the picked matches' }).click();
-    await expect(page.getByRole('status')).toHaveText(/^Called match \d+\.$/);
+    // Both players are free, so the match is called as soon as it is accepted.
+    await expect(asked.page.getByRole('heading', { name: 'Kampen din e ropt opp!' })).toBeVisible();
 
     await asker.page.goto('/me');
     const hero = asker.page.getByRole('region', { name: 'Kampen din e ropt opp!' });

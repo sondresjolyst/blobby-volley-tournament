@@ -1,5 +1,6 @@
 import { CopyJoinLink } from '@/components/player/CopyJoinLink';
 import { MatchCard } from '@/components/player/MatchCard';
+import { MatchesRefresh } from '@/components/player/MatchesRefresh';
 import { Pizza } from '@/components/pizza/Pizza';
 import { PlayerShell } from '@/components/player/PlayerShell';
 import styles from '@/components/player/player.module.css';
@@ -14,7 +15,7 @@ import { joinLink } from '@/lib/players/join-code';
 import { listMatchPools, listPlayerBets } from '@/lib/store/bets';
 import { getEvent } from '@/lib/store/events';
 import { getBalance } from '@/lib/store/foza';
-import { listMatches, type MatchSummary } from '@/lib/store/matches';
+import { listMatches, playerMatchesStamp, type MatchSummary } from '@/lib/store/matches';
 import { getJoinCode, listPlayers } from '@/lib/store/players';
 
 type Search = { error?: string | string[]; bet?: string | string[]; challenge?: string | string[]; challengeError?: string | string[] };
@@ -29,6 +30,8 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
     const player = await requireActivePlayer();
     const pool = getPool();
     const balance = (await getBalance(pool, player.id, new Date())) ?? player.fozaBalance;
+    // The stamp is read first, so a change during the reads below loads the page once more.
+    const stamp = await playerMatchesStamp(pool, player.id);
     const [matches, pools, bets, players, event] = await Promise.all([
         listMatches(pool, player.eventId),
         listMatchPools(pool, player.eventId),
@@ -59,6 +62,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
     const challengeNotice = noticeMessage(search.challenge);
     return (
         <PlayerShell page="matches" eventName={player.eventName} nickname={player.nickname} balance={balance}>
+            <MatchesRefresh stamp={stamp} />
             <div className={styles.column}>
                 <h1 className={styles.h1}>Hei, {player.nickname}!</h1>
                 {betError && (
@@ -282,10 +286,10 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                             </label>
                             <div className={styles.fieldRow}>
                                 <label className={styles.field}>
-                                    Poeng for å vinna
+                                    Først te
                                     <input name="scoreToWin" type="number" className={styles.input} min={MIN_SCORE_TO_WIN} max={MAX_SCORE_TO_WIN} step={1} defaultValue={DEFAULT_SCORE_TO_WIN} required />
                                     <span className={styles.hint}>
-                                        {MIN_SCORE_TO_WIN} te {MAX_SCORE_TO_WIN}, vanleg e {DEFAULT_SCORE_TO_WIN}
+                                        poeng i kvart sett, {MIN_SCORE_TO_WIN} te {MAX_SCORE_TO_WIN}, vanleg e {DEFAULT_SCORE_TO_WIN}
                                     </span>
                                 </label>
                                 <label className={styles.field}>
@@ -299,7 +303,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                             <button type="submit" className={styles.button}>
                                 Send utfordring
                             </button>
-                            <p className={styles.closingNote}>Motstandaren må godta før ein admin kan ropa dåkke opp.</p>
+                            <p className={styles.closingNote}>Når motstandaren godtar, kan dåkke spela med det same.</p>
                         </form>
                     )}
                 </section>
