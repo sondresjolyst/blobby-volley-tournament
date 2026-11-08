@@ -1,4 +1,4 @@
-import { copyFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { copyFileSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Pool, type PoolClient } from 'pg';
@@ -1031,6 +1031,20 @@ describe('betting hook', () => {
 });
 
 describe('migration', () => {
+    it('turns the live version back with the down file, and applies again', async () => {
+        const down = readFileSync(join(MIGRATIONS_DIR, 'down', '0018_live_version.sql'), 'utf8');
+        const { eventId } = await activeEvent(2);
+        await pool.query(down);
+        const column = `SELECT 1 FROM information_schema.columns WHERE table_name = 'events' AND column_name = 'live_version'`;
+        expect((await pool.query(column)).rowCount).toBe(0);
+        await addPlayers(eventId, 1, 'Down');
+        expect(await migrate(pool)).toEqual(['0018_live_version.sql']);
+        expect((await pool.query(column)).rowCount).toBe(1);
+        const before = await liveStamp(pool, eventId);
+        await addPlayers(eventId, 1, 'Up');
+        expect(await liveStamp(pool, eventId)).not.toBe(before);
+    });
+
     it('adds a match row for each bracket match saved before it ran', async () => {
         await pool.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public');
         const dir = mkdtempSync(join(tmpdir(), 'bvt-migrations-'));
