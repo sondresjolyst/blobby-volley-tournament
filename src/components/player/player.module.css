@@ -132,6 +132,21 @@
     font-weight: 700;
 }
 
+/* The header is red, so its links keep their colour on hover instead of the red used for links in the page */
+.shell .brand:hover,
+.shell .navLink:hover {
+    color: var(--white);
+}
+
+.shell .navLink:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.shell .navLink[aria-current='page']:hover {
+    background: var(--yellow);
+    color: var(--ink);
+}
+
 .wallet {
     display: flex;
     align-items: center;

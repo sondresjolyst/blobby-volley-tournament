@@ -1,6 +1,7 @@
 import { connection } from 'next/server';
 import { getPool } from '@/lib/db';
 import { listShownSponsors, type SponsorRow } from '@/lib/store/sponsors';
+import { tileStyle } from './SponsorTile';
 
 const LOGO_HEIGHT = 40;
 
@@ -32,7 +33,7 @@ export async function SponsorFooter() {
                         />
                     );
                     return (
-                        <li key={sponsor.id}>
+                        <li key={sponsor.id} style={{ ...tileStyle(sponsor.gameBackground), padding: '10px 14px' }}>
                             {sponsor.link ? (
                                 <a href={sponsor.link} rel="sponsored noopener noreferrer">
                                     {logo}

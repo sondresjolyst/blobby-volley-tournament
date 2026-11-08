@@ -2,6 +2,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { Pizza } from '@/components/pizza/Pizza';
 import type { ScreenRound, ScreenSponsor } from '@/lib/big-screen/view';
+import { tileBackground } from '@/lib/sponsors/tile';
 import { FREE_PLACE, moreMatches, NO_BRACKET, slotScore } from './text';
 import styles from './big.module.css';
 
@@ -122,10 +123,10 @@ export function BracketPanel({
     );
 }
 
-/** One sponsor logo on a cream tile. A copy for the moving strip has no alt text. */
+/** One sponsor logo on its tile. A copy for the moving strip has no alt text. */
 export function SponsorLogo({ sponsor, copy = false, className = styles.sponsor }: { sponsor: ScreenSponsor; copy?: boolean; className?: string }) {
     return (
-        <li className={className}>
+        <li className={className} style={{ background: tileBackground(sponsor.background) }}>
             {/* The logo is served as it was stored. The image optimizer of Next is not used. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={sponsor.src} alt={copy ? '' : sponsor.name} width={sponsor.width} height={sponsor.height} />

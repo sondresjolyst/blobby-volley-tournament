@@ -24,7 +24,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const result = await createSponsor(getPool(), eventId, form.input, form.logo, gameLogo);
     if (!result.ok) {
         if (result.error === 'not-found') return Response.json({ error: 'not found' }, { status: 404 });
-        return back('error=sponsor-limit');
+        return back(result.error === 'library-limit' ? 'error=library-limit' : 'error=sponsor-limit');
     }
     return back(`sponsor=${result.id}`);
 }
