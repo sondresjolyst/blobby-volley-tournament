@@ -47,9 +47,9 @@ test('a finished match shows on the leaderboards and the player stats', async ({
     await page.getByRole('navigation', { name: 'Kor mykje av LANet' }).getByRole('link', { name }).click();
     // Wait for the tournament page, so the board links below belong to it.
     await expect(page).toHaveURL(/[?&]tournament=\d+/);
-    await page.getByRole('navigation', { name: 'Toppliste for' }).getByRole('link', { name: 'Sigra' }).click();
+    await page.getByRole('navigation', { name: 'Toppliste for' }).getByRole('link', { name: 'Seira' }).click();
     await expect(page).toHaveURL(/[?&]board=sigra/);
-    const board = page.getByRole('region', { name: 'Toppliste Sigra' }).getByRole('listitem');
+    const board = page.getByRole('region', { name: 'Toppliste Seira' }).getByRole('listitem');
     await expect(board.first()).toContainText(nicknames[1]);
     await expect(board.first()).toContainText('1 vunne · 0 tapt · 100%');
     await expect(page.getByRole('region', { name: 'Pallen' }).getByRole('listitem')).toHaveText([`1. plass: ${nicknames[1]}`, `2. plass: ${nicknames[0]}`]);
@@ -57,14 +57,14 @@ test('a finished match shows on the leaderboards and the player stats', async ({
     await page.getByRole('navigation', { name: 'Toppliste for' }).getByRole('link', { name: 'Elo' }).click();
     const elo = page.getByRole('region', { name: 'Toppliste Elo' }).getByRole('listitem');
     await expect(elo.first()).toContainText(nicknames[1]);
-    await expect(elo.first()).toContainText('+16 i denne turneringa');
+    await expect(elo.first()).toContainText('+16 i denne turneringå');
     await expect(elo.first()).toContainText('1016');
 
     await elo.first().getByRole('link', { name: nicknames[1] }).click();
     await expect(page.getByRole('heading', { level: 1, name: nicknames[1] })).toBeVisible();
-    await expect(page.getByText('+16 dette LANet')).toBeVisible();
+    await expect(page.getByText('+16 på dette LANet')).toBeVisible();
     const h2h = page.getByRole('region', { name: 'Mot kvar motstandar' }).getByRole('row', { name: new RegExp(nicknames[0]) });
     await expect(h2h.getByRole('cell')).toHaveText([nicknames[0], '1', '0']);
-    await expect(page.getByRole('region', { name: 'Plasseringar' })).toContainText(`1. plass i ${name}`);
+    await expect(page.getByRole('region', { name: 'Plasseringa' })).toContainText(`1. plass i ${name}`);
     await visitor.close();
 });

@@ -16,7 +16,7 @@ interface ShellProps {
 /** The header, the theme and the main area that every player page shares. */
 export function PlayerShell({ page, eventName, nickname, balance, children }: ShellProps) {
     const links = [
-        { href: '/me', text: 'Kampar', current: page === 'matches' },
+        { href: '/me', text: 'Kampa', current: page === 'matches' },
         { href: '/bracket', text: 'Kampoppsett', current: page === 'bracket' },
         { href: '/leaderboard', text: 'Toppliste' },
     ];

@@ -68,7 +68,7 @@ export function screenFacts(leaderboard: Leaderboard, series: readonly PlayedSer
     const facts: ScreenFact[] = [];
 
     const wins = leaderboard.wins[0];
-    if (wins && wins.matchesWon > 0) facts.push({ key: 'wins', label: 'Flest sigra', value: `${wins.matchesWon} ${wins.matchesWon === 1 ? 'siger' : 'sigra'}`, who: name(wins.playerId) });
+    if (wins && wins.matchesWon > 0) facts.push({ key: 'wins', label: 'Flest seira', value: `${wins.matchesWon} ${wins.matchesWon === 1 ? 'seier' : 'seira'}`, who: name(wins.playerId) });
 
     const games = series.flatMap((s) => countedGames(s).filter((g) => g.points[0] !== g.points[1]).map((g) => ({ s, g })));
     const blowout = best(games, ({ g }) => Math.abs(g.points[0] - g.points[1]) * 1000 + Math.max(...g.points));
@@ -76,7 +76,7 @@ export function screenFacts(leaderboard: Leaderboard, series: readonly PlayedSer
         const { s, g } = blowout;
         const winner = g.winnerSlot === 1 ? s.players[0] : s.players[1];
         const [high, low] = g.winnerSlot === 1 ? g.points : [g.points[1], g.points[0]];
-        facts.push({ key: 'biggestWin', label: 'Største siger i eit sett', value: `${high}–${low}`, who: versus(s, winner) });
+        facts.push({ key: 'biggestWin', label: 'Største seier i eit sett', value: `${high}–${low}`, who: versus(s, winner) });
     }
 
     const turned = series.map((s) => ({ s, c: comeback(s) })).filter((x) => x.c !== null);

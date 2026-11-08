@@ -64,7 +64,7 @@ export default async function Join({ searchParams }: { searchParams: Promise<{ e
                         className={`${s.authInput} ${s.authPin}`}
                     />
                     <span id="pin-hint" className={s.authHint}>
-                        Glømme du han, spør ein admin.
+                        Glømme du PIN-koden, spør ein admin.
                     </span>
                 </div>
                 <button type="submit" className={s.authSubmit}>

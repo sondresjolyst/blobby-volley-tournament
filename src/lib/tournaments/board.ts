@@ -89,9 +89,22 @@ export interface BoardSection {
     rounds: BoardRound[];
 }
 
+/**
+ * The words for a called match. An admin calls a tournament match up. The players run a 1v1 match
+ * themselves, so nobody calls it up, it is only ready.
+ */
+export const CALLED_TEXT = {
+    tournament: { tag: 'Ropt opp', heading: 'Kampen din e ropt opp!' },
+    oneVsOne: { tag: 'Klar', heading: 'Kampen din e klar!' },
+} as const;
+
+/** The called words for a tournament match or a 1v1 match. */
+export const calledText = (inTournament: boolean) => CALLED_TEXT[inTournament ? 'tournament' : 'oneVsOne'];
+
+/** The state tags of the bracket, which only holds tournament matches. */
 export const STATE_TAGS: Record<MatchState, string> = {
-    upcoming: 'Kjem',
-    called: 'Ropt opp',
+    upcoming: 'Snart',
+    called: CALLED_TEXT.tournament.tag,
     started: 'LIVE',
     finished: 'Ferdig',
     cancelled: 'Avlyst',

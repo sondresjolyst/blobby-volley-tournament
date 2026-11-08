@@ -15,7 +15,7 @@ export function NoEvent() {
 export function NoEventText() {
     return (
         <p className={s.authText}>
-            Ingen LAN e opent akkurat no. Ein admin må opna eit LAN før nogen kan bli med eller logga inn. E du admin? <Link href="/admin">Gå te admin</Link> og opne eit LAN.
+            Ingen LAN e opent akkurat nå. Ein admin må opna eit LAN før någen kan bli med eller logga inn. E du admin? <Link href="/admin">Gå te admin</Link> og opne eit LAN.
         </p>
     );
 }

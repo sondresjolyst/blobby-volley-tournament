@@ -59,7 +59,7 @@ The bracket logic is in `src/lib/bracket`. It has no database access. A new form
 
 ## Matches
 
-Each tournament match and each 1v1 match is a row in the `matches` table. A match is upcoming, called, started, finished or cancelled. People can bet on an upcoming or called match once both players are known. An admin calls one or several matches under `/admin/matches` when the players should join. A match starts when the game server reports both players connected, and bets close then.
+Each tournament match and each 1v1 match is a row in the `matches` table. A match is upcoming, called, started, finished or cancelled. People can bet on an upcoming or called match once both players are known. An admin calls one or several tournament matches under `/admin/matches` when the players should join. A 1v1 match is called by itself. A match starts when the game server reports both players connected, and bets close then.
 
 A match is best of 1, 3, 5 or 7. Each game is stored with its own result, and the series score is stored with the match. A game that ends without a winner, such as on a disconnect, is abandoned and does not count. The admin then restarts it from 0-0 or awards it. The admin home page lists every match that waits for this decision at the top, with the event, the tournament and round, the players, the score when the game stopped and who left, and a link to the match. The match page shows the same score and who left.
 
@@ -67,7 +67,7 @@ On the match page an admin can restart the current game, enter or correct a game
 
 The game server sends each game result with a report id that is unique across all matches, a UUID. It reads the next game number again before each game. A report that comes again changes nothing. A report for a game that already has a result, such as one an admin entered, is kept but ignored. See [Game server API](#game-server-api).
 
-A player can ask another player of the active event for a 1v1 match. It can be called once the other player accepts. The asker can withdraw it until then.
+A player can ask another player of the active event for a 1v1 match. It is called as soon as the other player accepts and both players are free, with no admin needed. If one of them is in another match, it is called when that match ends. The asker can withdraw it until it is accepted.
 
 Every match change is in `src/lib/store/matches.ts`. Each change runs in one transaction and passes what happened to `handleMatchEvents` in `src/lib/store/match-events.ts` before it commits. A bet must lock the match first with `withMatchForBet` in the same transaction.
 
@@ -103,6 +103,7 @@ Signed in players bet on `/me`. Odds are parimutuel. All bets on a match form a 
 
 The two GET routes answer 401 when nobody is signed in. A signed out bet post is sent to `/login`.
 - `GET /api/matches/<id>/pool` is public and returns the pool of a match and the payout multiplier for each player.
+- `GET /api/live?event=<id>` is public and returns `{ "stamp": "<active event id>:<live version>" }`. The front page, `/me`, `/bracket` and the leaderboards of the active event read it every 5 seconds while the tab shows, and load again without a page load when it changes. Every change to the matches, games, players, tournaments, Foza ledger or the row of the event moves the live version when it commits. The open tabs share one read for 2 seconds. It answers 400 for a bad id and 404 for an event that does not exist. Reads the shared cache cannot answer count against the limit of the client, 120 a minute, and answer 429 past it.
 
 An admin can add or take Foza from a player with a reason on the event page.
 

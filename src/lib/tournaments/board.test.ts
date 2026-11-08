@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { generateBracket, type FormatId } from '@/lib/bracket';
-import { boardRoundName, buildBoard, feedName, type BoardRuntimeMatch } from './board';
+import { boardRoundName, buildBoard, calledText, feedName, STATE_TAGS, type BoardRuntimeMatch } from './board';
 
 const players = [11, 12, 13, 14];
 const nickname = (id: number) => ({ id, nickname: `P${id}` });
@@ -20,6 +20,15 @@ function setup(format: FormatId, thirdPlaceMatch = false) {
     }));
     return { bracket: bracket.matches, runtime };
 }
+
+describe('calledText', () => {
+    it('says an admin called a tournament match up, and only that a 1v1 match is ready', () => {
+        expect(calledText(true)).toEqual({ tag: 'Ropt opp', heading: 'Kampen din e ropt opp!' });
+        expect(calledText(false)).toEqual({ tag: 'Klar', heading: 'Kampen din e klar!' });
+        expect(STATE_TAGS.called).toBe('Ropt opp');
+        expect(JSON.stringify(calledText(false))).not.toMatch(/ropt/i);
+    });
+});
 
 describe('feedName', () => {
     it('writes a feed long, or short for a dense bracket', () => {
@@ -50,7 +59,7 @@ describe('buildBoard', () => {
         expect(board.map((s) => s.key)).toEqual(['main']);
         expect(board[0].rounds.map((r) => r.name)).toEqual(['Semifinala', 'Finale', 'Bronsefinale']);
         const [semi1] = board[0].rounds[0].matches;
-        expect(semi1).toMatchObject({ matchId: 101, number: 1, status: 'Kjem', mine: true, openForBets: true });
+        expect(semi1).toMatchObject({ matchId: 101, number: 1, status: 'Snart', mine: true, openForBets: true });
         expect(semi1.slots.map((s) => [s.name, s.mine, s.score])).toEqual([
             ['P11', true, null],
             ['P14', false, null],

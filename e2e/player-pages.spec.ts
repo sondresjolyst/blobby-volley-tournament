@@ -21,7 +21,7 @@ async function adminContext(browser: Browser, baseURL: string): Promise<BrowserC
     return admin;
 }
 
-test('a player challenges another to a 1v1, the other accepts, and the called player gets the join link', async ({ browser, baseURL }) => {
+test('a player challenges another to a 1v1, the other sees it and accepts without a reload, and both get the join link', async ({ browser }) => {
     const tag = randomBytes(2).toString('hex');
     const asker = await signUp(browser, `Ua${tag}`);
     const asked = await signUp(browser, `Ub${tag}`);
@@ -36,42 +36,33 @@ test('a player challenges another to a 1v1, the other accepts, and the called pl
     });
     expect(refused.headers()['location']).toBe('/me?challengeError=form#utfordringa');
 
-    const form = asker.page.getByRole('region', { name: 'Utfordra nogen te 1v1' });
-    await expect(form.getByLabel('Poeng for å vinna')).toHaveValue('15');
+    const form = asker.page.getByRole('region', { name: 'Utfordra någen te 1v1' });
+    await expect(form.getByLabel('Først te')).toHaveValue('15');
     await expect(form.getByLabel('Fart i fps')).toHaveValue('75');
     await form.getByLabel('Motstandar').selectOption({ label: `Ub${tag}` });
     await form.getByLabel('Best av').selectOption('3');
-    await form.getByLabel('Poeng for å vinna').fill('21');
+    await form.getByLabel('Først te').fill('21');
     await form.getByLabel('Fart i fps').fill('90');
     await form.getByRole('button', { name: 'Send utfordring' }).click();
-    await expect(asker.page.getByRole('status')).toHaveText('Utfordringå e sendt. No e det opp te motstandaren.');
-    await expect(asker.page.getByRole('list', { name: 'Utfordringa frå deg' })).toContainText(`Du venta på svar frå Ub${tag}`);
+    await expect(asker.page.getByRole('status')).toHaveText('Utfordringå e sendt. Nå e det opp te motstandaren.');
+    await expect(asker.page.getByRole('list', { name: 'Utfordringa frå deg' })).toContainText(`Du vente på svar frå Ub${tag}`);
 
     // The same pair cannot have two open 1v1 matches.
     await form.getByLabel('Motstandar').selectOption({ label: `Ub${tag}` });
     await form.getByRole('button', { name: 'Send utfordring' }).click();
-    await expect(asker.page.getByRole('alert').filter({ hasText: 'Dåkke har allerede ein open 1v1. Spel han ferdig først.' })).toBeVisible();
+    await expect(asker.page.getByRole('alert').filter({ hasText: 'Dåkke har allerede ein open 1v1. Spel ferdig den kampen først.' })).toBeVisible();
 
-    await asked.page.goto('/me');
+    // The asked player still has /me open from the sign-up, and the challenge shows up without a reload.
     const incoming = asked.page.getByRole('list', { name: 'Utfordringa te deg' }).getByRole('listitem').filter({ hasText: `Ua${tag} utfordre deg!` });
-    await expect(incoming).toContainText('Best av 3 · først te 21 · 90 fps');
-    await incoming.getByRole('button', { name: 'Godta' }).click();
-    await expect(asked.page.getByRole('status')).toHaveText('Du sa ja. Ein admin rope dåkke opp når det e dykkar tur.');
-    const card = asked.page.getByRole('article').filter({ hasText: `Ua${tag} vs Ub${tag}` });
-    await expect(card).toContainText('Spel opent');
-    await expect(card).toContainText('Din kamp');
-
-    // An admin calls the match, and only now does the join link show.
+    await expect(incoming).toContainText('Best av 3 · først te 21 · 90 fps', { timeout: 15_000 });
     await expect(asker.page.getByRole('button', { name: 'Kopier lenkjå' })).toHaveCount(0);
-    await expect(asker.page.getByRole('link', { name: 'opne lenkjå direkte' })).toHaveCount(0);
-    const admin = await adminContext(browser, baseURL!);
-    const adminPage = await admin.newPage();
-    await adminPage.goto('/admin/matches');
-    const row = adminPage.getByRole('region', { name: 'Upcoming' }).getByRole('row', { name: new RegExp(`Ua${tag} vs Ub${tag}`) });
-    await row.getByRole('checkbox').check();
-    await adminPage.getByRole('button', { name: 'Call the picked matches' }).click();
-    await expect(adminPage.getByRole('status')).toHaveText(/^Called match \d+\.$/);
-    await admin.close();
+    await incoming.getByRole('button', { name: 'Godta' }).click();
+    // Both players are free, so the match is called at once without an admin.
+    await expect(asked.page.getByRole('status')).toHaveText('Du godtok kampen. Dåkke kan spela med ein gang.');
+    await expect(asked.page.getByRole('heading', { name: 'Kampen din e klar!' })).toBeVisible();
+    // The asker sees the called match without a reload.
+    await expect(asker.page.getByRole('heading', { name: 'Kampen din e klar!' })).toBeVisible({ timeout: 15_000 });
+    await expect(asker.page.getByText(`Du vente på svar frå Ub${tag}`)).toHaveCount(0);
 
     const sync = await (await asker.page.request.get('/api/server/sync', { headers: { authorization: `Bearer ${process.env.E2E_GAME_SERVER_TOKEN ?? ''}` } })).json();
     const codeOf = (nickname: string) => sync.players.find((p: { nickname: string }) => p.nickname === nickname).code as string;
@@ -82,8 +73,8 @@ test('a player challenges another to a 1v1, the other accepts, and the called pl
         const link = `blobby://join?server=e2e-server.lan:1234&code=${codeOf(own)}`;
         await player.context.grantPermissions(['clipboard-read', 'clipboard-write']);
         await player.page.goto('/me');
-        const hero = player.page.getByRole('region', { name: 'Kampen din e ropt opp!' });
-        await expect(hero.getByRole('heading', { name: 'Kampen din e ropt opp!' })).toBeVisible();
+        const hero = player.page.getByRole('region', { name: 'Kampen din e klar!' });
+        await expect(hero.getByRole('heading', { name: 'Kampen din e klar!' })).toBeVisible();
         // The main button puts the exact link on the clipboard.
         await player.page.evaluate(() => navigator.clipboard.writeText(''));
         await expect(hero.getByText('Kopiert!')).toHaveCount(0);
@@ -114,10 +105,10 @@ test('the asked player declines a 1v1, the asker withdraws the next one, and the
     const asker = await signUp(browser, `Da${tag}`);
     const asked = await signUp(browser, `Db${tag}`);
     await asker.page.goto('/me');
-    const form = asker.page.getByRole('region', { name: 'Utfordra nogen te 1v1' });
+    const form = asker.page.getByRole('region', { name: 'Utfordra någen te 1v1' });
     await form.getByLabel('Motstandar').selectOption({ label: `Db${tag}` });
     await form.getByRole('button', { name: 'Send utfordring' }).click();
-    await expect(asker.page.getByRole('status')).toHaveText('Utfordringå e sendt. No e det opp te motstandaren.');
+    await expect(asker.page.getByRole('status')).toHaveText('Utfordringå e sendt. Nå e det opp te motstandaren.');
 
     await asked.page.goto('/me');
     const incoming = asked.page.getByRole('listitem').filter({ hasText: `Da${tag} utfordre deg!` });
@@ -127,22 +118,22 @@ test('the asked player declines a 1v1, the asker withdraws the next one, and the
     await expect(asked.page.getByRole('listitem').filter({ hasText: `Da${tag} utfordre deg!` })).toHaveCount(0);
 
     await asker.page.goto('/me');
-    await expect(asker.page.getByText(`Du venta på svar frå Db${tag}`)).toHaveCount(0);
+    await expect(asker.page.getByText(`Du vente på svar frå Db${tag}`)).toHaveCount(0);
     await form.getByLabel('Motstandar').selectOption({ label: `Db${tag}` });
     await form.getByRole('button', { name: 'Send utfordring' }).click();
-    await expect(asker.page.getByRole('status')).toHaveText('Utfordringå e sendt. No e det opp te motstandaren.');
+    await expect(asker.page.getByRole('status')).toHaveText('Utfordringå e sendt. Nå e det opp te motstandaren.');
 
     // The asker takes the new request back before it is answered.
-    const outgoing = asker.page.getByRole('list', { name: 'Utfordringa frå deg' }).getByRole('listitem').filter({ hasText: `Du venta på svar frå Db${tag}` });
-    await outgoing.getByRole('button', { name: 'Trekk tilbake' }).click();
-    await expect(asker.page.getByRole('status')).toHaveText('Du trakk utfordringå tilbake.');
-    await expect(asker.page.getByText(`Du venta på svar frå Db${tag}`)).toHaveCount(0);
+    const outgoing = asker.page.getByRole('list', { name: 'Utfordringa frå deg' }).getByRole('listitem').filter({ hasText: `Du vente på svar frå Db${tag}` });
+    await outgoing.getByRole('button', { name: 'Trekk tebake' }).click();
+    await expect(asker.page.getByRole('status')).toHaveText('Du trakk utfordringå tebake.');
+    await expect(asker.page.getByText(`Du vente på svar frå Db${tag}`)).toHaveCount(0);
     await asked.page.goto('/me');
     await expect(asked.page.getByRole('listitem').filter({ hasText: `Da${tag} utfordre deg!` })).toHaveCount(0);
 
     await form.getByLabel('Motstandar').selectOption({ label: `Db${tag}` });
     await form.getByRole('button', { name: 'Send utfordring' }).click();
-    await expect(asker.page.getByRole('status')).toHaveText('Utfordringå e sendt. No e det opp te motstandaren.');
+    await expect(asker.page.getByRole('status')).toHaveText('Utfordringå e sendt. Nå e det opp te motstandaren.');
     await asker.context.close();
     await asked.context.close();
 });

@@ -59,7 +59,7 @@ test('the i buttons on /join and /login explain the fields without hiding the la
 
     await page.goto('/login');
     await checkHelp(page, 'Ka slags navn?', 'Kallenavnet du valgte då du blei med.');
-    await checkHelp(page, 'Glømt PIN-en?', 'kan ein admin nullstilla han.');
+    await checkHelp(page, 'Glømt PIN-en?', 'kan ein admin nullstilla PIN-koden.');
 });
 
 test('the admin event form uses the same i button', async ({ page, context, baseURL }) => {
@@ -103,12 +103,12 @@ test('the 1v1 form and the bet form on /me have help, and the leaderboard has th
     await expect(asker.page.getByRole('navigation', { name: 'Hovudmeny' })).toBeVisible();
 
     await asker.page.goto('/me');
-    const form = asker.page.getByRole('region', { name: 'Utfordra nogen te 1v1' });
+    const form = asker.page.getByRole('region', { name: 'Utfordra någen te 1v1' });
     await checkHelp(form, 'Kor mange sett?', 'Best av 3 betyr at den som vinne 2 sett, vinne kampen.');
     await checkHelp(form, 'Kor mange poeng?', 'Kor mange poeng som trengs for å vinna eit sett.');
     await checkHelp(form, 'Kor fort?', 'Kor fort spelet går, i bilde i sekundet.');
     await expect(form.getByLabel('Best av')).toHaveValue('1');
-    await expect(form.getByLabel('Poeng for å vinna')).toHaveAccessibleDescription(/vanleg e 15 Kor mange poeng som trengs/);
+    await expect(form.getByLabel('Først te')).toHaveAccessibleDescription(/vanleg e 15 Kor mange poeng som trengs/);
 
     await form.getByLabel('Motstandar').selectOption({ label: `Ib${tag}` });
     await form.getByRole('button', { name: 'Send utfordring' }).click();
@@ -116,9 +116,9 @@ test('the 1v1 form and the bet form on /me have help, and the leaderboard has th
     await asked.page.getByRole('list', { name: 'Utfordringa te deg' }).getByRole('listitem').filter({ hasText: `Ia${tag} utfordre deg!` }).getByRole('button', { name: 'Godta' }).click();
 
     await asker.page.goto('/me');
-    const form2 = asker.page.getByRole('region', { name: 'Utfordra nogen te 1v1' });
+    const form2 = asker.page.getByRole('region', { name: 'Utfordra någen te 1v1' });
     const card = asker.page.locator('article').filter({ hasText: `Ia${tag} vs Ib${tag}` });
-    await checkHelp(card, 'Koss funke potten?', 'Vinne han, får du din del av potten.');
+    await checkHelp(card, 'Koss funke potten?', 'Vinne spelaren du satsa på, får du din del av potten.');
     await expect(card.getByLabel('Kor mykje Foza tør du?')).toBeVisible();
     await form2.getByRole('button', { name: 'Kor mange sett?' }).click();
     await shoot(asker.page, 'me');

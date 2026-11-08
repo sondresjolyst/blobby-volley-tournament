@@ -116,7 +116,7 @@ async function playMatch(page: Page, matchId: number, games: [1 | 2, number, num
 }
 
 /** The page fits the window: nothing scrolls and every part is inside it. */
-async function expectFits(page: Page, regions = ['Kampen no', 'Kampoppsett', 'Toppliste', 'Bli med']) {
+async function expectFits(page: Page, regions = ['Kampen nå', 'Kampoppsett', 'Toppliste', 'Bli med']) {
     const size = await page.evaluate(() => ({
         scrollWidth: document.documentElement.scrollWidth,
         scrollHeight: document.documentElement.scrollHeight,
@@ -218,7 +218,7 @@ test('the big screen shows the live score, the odds, the bracket and the sign-up
     await expect(bracket).toContainText('Semifinala');
 
     // The live match is in the big box, or among the matches under it when another test has one live too.
-    const floor = page.getByRole('region', { name: /^(Kampen no|Snart i ringen)$/ });
+    const floor = page.getByRole('region', { name: /^(Kampen nå|Snart i ringen)$/ });
     const liveBox = floor.filter({ hasText: nick(ids[0]) }).filter({ hasText: nick(ids[1]) }).first();
     await expect(liveBox).toContainText(/11\s*(:|–)\s*8/);
 
@@ -266,8 +266,8 @@ test('a double elimination bracket of 16 players fits the screen', async ({ brow
     const screen = await browser.newContext({ baseURL: process.env.E2E_BASE_URL, viewport: { width: 1920, height: 1080 } });
     const page = await screen.newPage();
     await page.goto(`/big?t=${tournamentId}&key=${key}`);
-    await expect(page.getByRole('region', { name: 'Kampoppsett' })).toContainText('Vinnarsida');
-    await expect(page.getByRole('region', { name: 'Kampoppsett' })).toContainText('+ 4 kampar te');
+    await expect(page.getByRole('region', { name: 'Kampoppsett' })).toContainText('Vinnarsidå');
+    await expect(page.getByRole('region', { name: 'Kampoppsett' })).toContainText('+ 4 kampa te');
     await expectFits(page);
     await page.screenshot({ path: join(shots!, 'big-de16-1920x1080.png') });
     await page.setViewportSize({ width: 1280, height: 720 });
@@ -278,8 +278,8 @@ test('a double elimination bracket of 16 players fits the screen', async ({ brow
     await page.setViewportSize({ width: 1920, height: 1080 });
     await page.goto(`/big?t=${tournamentId}&key=${key}&screen=bracket`);
     const full = page.getByRole('region', { name: 'Heile kampoppsettet' });
-    await expect(full).toContainText('Tapersida');
-    await expect(full).not.toContainText('kampar te');
+    await expect(full).toContainText('Tapersidå');
+    await expect(full).not.toContainText('kampa te');
     await expectFits(page, ['Heile kampoppsettet']);
     await page.screenshot({ path: join(shots!, 'screen-bracket-de16-1920x1080.png') });
     await screen.close();
@@ -481,14 +481,14 @@ test('the other screens show the records and the champion, and never the code wi
     await expect(winner).toContainText(champion);
     await expect(winner).toContainText('0–2');
     await page.goto(`/big?t=${tournamentId}&screen=stats`);
-    await expect(page.getByRole('region', { name: 'Rekordar' })).toContainText('Største snuoperasjon');
+    await expect(page.getByRole('region', { name: 'Rekorda' })).toContainText('Største snuoperasjon');
 
     const regions: Record<Screen, string[]> = {
-        overview: ['Kampen no', 'Kampoppsett', 'Toppliste', 'Bli med'],
+        overview: ['Kampen nå', 'Kampoppsett', 'Toppliste', 'Bli med'],
         bracket: ['Heile kampoppsettet'],
         foza: ['Foza-toppen'],
-        next: ['Neste kampar'],
-        stats: ['Rekordar'],
+        next: ['Neste kampa'],
+        stats: ['Rekorda'],
         sponsors: ['Sponsorane'],
         winner: ['Vinnaren'],
     };

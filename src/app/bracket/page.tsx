@@ -1,6 +1,7 @@
 import Link from 'next/link';
+import { LiveRefresh } from '@/components/LiveRefresh';
 import { BracketBoard } from '@/components/player/BracketBoard';
-import { NO_BRACKET } from '@/components/big-screen/text';
+import { NO_BRACKET, SIDE_NAMES } from '@/components/big-screen/text';
 import { Pizza } from '@/components/pizza/Pizza';
 import { PlayerShell } from '@/components/player/PlayerShell';
 import styles from '@/components/player/player.module.css';
@@ -11,6 +12,7 @@ import { nicknameOf } from '@/lib/stats/players';
 import { requireActivePlayer } from '@/lib/players/current';
 import { listMatchPools } from '@/lib/store/bets';
 import { getBalance } from '@/lib/store/foza';
+import { liveStamp } from '@/lib/store/live';
 import { getPlacings, listMatches } from '@/lib/store/matches';
 import { getTournament, listTournaments } from '@/lib/store/tournaments';
 import { buildBoard } from '@/lib/tournaments/board';
@@ -21,6 +23,8 @@ const SEEDING_NAMES: Record<SeedingMethod, string> = { random: 'tilfeldig oppset
 export default async function BracketPage({ searchParams }: { searchParams: Promise<{ t?: string | string[] }> }) {
     const player = await requireActivePlayer();
     const pool = getPool();
+    // The stamp is read before the data, so a change that commits during the reads loads the page once more.
+    const stamp = await liveStamp(pool, player.eventId);
     const balance = (await getBalance(pool, player.id, new Date())) ?? player.fozaBalance;
     const tournaments = await listTournaments(pool, player.eventId);
     const { t } = await searchParams;
@@ -31,6 +35,7 @@ export default async function BracketPage({ searchParams }: { searchParams: Prom
     if (!chosen) {
         return (
             <PlayerShell {...shell}>
+                {stamp !== null && <LiveRefresh eventId={player.eventId} stamp={stamp} />}
                 <div className={styles.wide}>
                     <h1 className={styles.h1}>Kampoppsett</h1>
                     <p className={styles.empty}>{NO_BRACKET}</p>
@@ -47,6 +52,7 @@ export default async function BracketPage({ searchParams }: { searchParams: Prom
     const champion = placings.find((p) => p.place === 1);
     return (
         <PlayerShell {...shell}>
+            {stamp !== null && <LiveRefresh eventId={player.eventId} stamp={stamp} />}
             <div className={styles.wide}>
                 <div className={styles.banner}>
                     <Pizza size={140} variant="taco" className={styles.bannerPizza} />
@@ -72,7 +78,7 @@ export default async function BracketPage({ searchParams }: { searchParams: Prom
                 {sections.map((section) => (
                     <section key={section.key} className={styles.section} aria-labelledby={`side-${section.key}`}>
                         <h2 id={`side-${section.key}`} className={sections.length > 1 ? styles.h2 : styles.srOnly}>
-                            {section.key === 'losers' ? 'Tapersida' : sections.length > 1 ? 'Vinnarsida' : 'Kampane'}
+                            {section.key === 'losers' ? SIDE_NAMES.losers : sections.length > 1 ? SIDE_NAMES.main : 'Kampane'}
                         </h2>
                         <BracketBoard rounds={section.rounds} champion={section.key === 'main' ? { name: champion ? nickname(champion.playerId) : null } : undefined} />
                     </section>

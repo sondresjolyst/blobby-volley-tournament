@@ -4,6 +4,7 @@ import { nicknameOf } from '@/lib/stats/players';
 import { InfoLabel } from '../InfoButton';
 import { FIELD_INFO } from './info';
 import styles from './player.module.css';
+import { calledText, STATE_TAGS } from '@/lib/tournaments/board';
 import { matchTitle } from '../matches/describe';
 import { foza, matchSettings, payout } from './text';
 
@@ -19,8 +20,11 @@ interface CardProps {
 
 function tagOf(match: MatchSummary, open: boolean): { text: string; live: boolean } {
     if (match.state === 'started') return { text: 'LIVE · spelå e stengt', live: true };
-    if (match.state === 'called') return { text: open ? 'Ropt opp · spel opent' : 'Ropt opp', live: true };
-    return { text: open ? 'Spel opent' : 'Seinare', live: false };
+    if (match.state === 'called') {
+        const called = calledText(match.tournamentId !== null).tag;
+        return { text: open ? `${called} · spel opent` : called, live: true };
+    }
+    return { text: open ? 'Spel opent' : STATE_TAGS.upcoming, live: false };
 }
 
 const percent = (part: number, total: number) => (total === 0 ? 50 : Math.round((part / total) * 100));

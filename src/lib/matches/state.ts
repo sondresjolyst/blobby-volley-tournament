@@ -9,7 +9,8 @@ export function isMatchState(value: unknown): value is MatchState {
 
 /**
  * What can happen to a match.
- * - call: an admin tells the players to join.
+ * - call: an admin tells the players of a tournament match to join. A 1v1 match is called when
+ *   player 2 accepts it, or later when both players are free.
  * - start: the game server reports both players connected. Bets close here.
  * - finish: the series is decided.
  * - reopen: a correction leaves a finished series undecided again.

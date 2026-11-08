@@ -60,7 +60,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<Se
                                 className={`${s.authInput} ${s.authPin}`}
                             />
                             <span id="pin-hint" className={s.authHint}>
-                                Glømt han? Spør ein admin.
+                                Glømt PIN-koden? Spør ein admin.
                             </span>
                         </div>
                         <button type="submit" className={s.authSubmit}>

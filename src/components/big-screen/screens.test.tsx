@@ -25,7 +25,7 @@ const empty: BigScreenData = { ...EMPTY_SCREEN, eventId: 1, eventName: 'JulaLAN'
 
 const full: BigScreenData = {
     ...empty,
-    boards: [{ key: 'rette', rows: [{ rank: 1, nickname: 'Tippekongen', value: '4 av 5' }] }],
+    boards: [{ key: 'foza', rows: [{ rank: 1, nickname: 'Tippekongen', value: '4 av 5' }] }],
     sponsors: [
         { id: 1, name: 'Pizzabakeren', src: '/api/sponsors/1/logo?v=a', width: 300, height: 100, background: null },
         { id: 2, name: 'Ostehuset', src: '/api/sponsors/2/logo?v=b', width: 300, height: 100, background: '#1e5aa8' },
@@ -57,7 +57,7 @@ const full: BigScreenData = {
     upNext: [match(2, 'started', ['Skvett', 'Ostebit'], { game: 2, points: [11, 8] }), match(3, 'upcoming', ['Blobfisk', 'Kantina'])],
     foza: { bettors: [{ nickname: 'Tippekongen', net: 840, correct: 4, bets: 5 }], wins: [{ nickname: 'Tippekongen', on: 'Skvett', profit: 600 }] },
     facts: [
-        { key: 'biggestWin', label: 'Største siger i eit sett', value: '15–0', who: 'Blobfisk mot Kantina' },
+        { key: 'biggestWin', label: 'Største seier i eit sett', value: '15–0', who: 'Blobfisk mot Kantina' },
         { key: 'longest', label: 'Lengste kamp', value: '31 min', who: 'Skvett mot Ostebit' },
     ],
     winner: {
@@ -74,7 +74,7 @@ const html = (node: React.ReactElement) => renderToStaticMarkup(node);
 describe('the bracket screen', () => {
     it('shows every round of both sides', () => {
         const out = html(<BracketScreen data={full} />);
-        for (const text of ['Heile kampoppsettet', 'Kampoppsett · Hovedcupen', 'Vinnarsida', 'Tapersida', 'Semifinala', 'Finale', 'Taperrunde 1', 'Taper av kamp 2']) expect(out).toContain(text);
+        for (const text of ['Heile kampoppsettet', 'Kampoppsett · Hovedcupen', 'Vinnarsidå', 'Tapersidå', 'Semifinala', 'Finale', 'Taperrunde 1', 'Taper av kamp 2']) expect(out).toContain(text);
         expect(out).toContain('--card-max:34');
     });
 
@@ -86,18 +86,18 @@ describe('the bracket screen', () => {
 describe('the Foza screen', () => {
     it('ranks the bettors and lists the biggest wins', () => {
         const out = html(<FozaScreen data={full} />);
-        for (const text of ['Mest Foza vunne', 'Tippekongen', '4 av 5 rette', '+840', 'Største gevinstar', 'på Skvett', '+600', 'Ledig plass']) expect(out).toContain(text);
+        for (const text of ['Mest Foza vunne', 'Tippekongen', '4 av 5 rette', '+840', 'Største gevinsta', 'på Skvett', '+600', 'Ledig plass']) expect(out).toContain(text);
     });
 
     it('says nobody has bet yet', () => {
-        expect(html(<FozaScreen data={empty} />)).toContain(BOARD_TEXT.rette.empty.replace('!', ''));
+        expect(html(<FozaScreen data={empty} />)).toContain(BOARD_TEXT.foza.empty.replace('!', ''));
     });
 });
 
 describe('the up next screen', () => {
     it('lists the matches with the live score of the running one', () => {
         const out = html(<UpNextScreen data={full} />);
-        for (const text of ['Neste kampar', 'LIVE', '11–8', 'Sett 2 · 1–0 i sett · best av 3', 'SNART', 'Blobfisk', 'Ingen spel enno']) expect(out).toContain(text);
+        for (const text of ['Neste kampa', 'LIVE', '11–8', 'Sett 2 · 1–0 i sett · best av 3', 'SNART', 'Blobfisk', 'Ingen spel enno']) expect(out).toContain(text);
         expect(out.indexOf('Skvett')).toBeLessThan(out.indexOf('Blobfisk'));
     });
 
@@ -109,7 +109,7 @@ describe('the up next screen', () => {
 describe('the stats screen', () => {
     it('shows the records it has, and only those', () => {
         const out = html(<StatsScreen data={full} />);
-        for (const text of ['Rekordar', 'Største siger i eit sett', '15–0', 'Lengste kamp', '31 min']) expect(out).toContain(text);
+        for (const text of ['Rekorda', 'Største seier i eit sett', '15–0', 'Lengste kamp', '31 min']) expect(out).toContain(text);
         expect(out).not.toContain('Største snuoperasjon');
     });
 

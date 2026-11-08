@@ -1,6 +1,8 @@
 // The errors of /join and /login, in the jokey Rogaland dialect of the LAN.
+import { GITHUB_SIGN_IN_FAILED, SOMETHING_WENT_WRONG } from '@/lib/texts';
+
 const MESSAGES: Record<string, string> = {
-    'no-event': 'Ingen LAN e opent akkurat no. Ein admin må opna eit LAN først.',
+    'no-event': 'Ingen LAN e opent akkurat nå. Ein admin må opna eit LAN først.',
     code: 'Den LAN-koden stemme ikkje.',
     taken: 'Det kallenavnet e allerede tatt på dette LANet.',
     'nickname-empty': 'Velg deg eit kallenavn.',
@@ -11,8 +13,8 @@ const MESSAGES: Record<string, string> = {
     locked: 'For mange feil PIN-koda. Kontoen din e låst ei stund. Prøv igjen seinare, eller be ein admin om å nullstilla PIN-koden.',
     busy: 'For mange feilforsøk frå dette nettverket. Prøv igjen seinare.',
     pins: 'For mange feil PIN-koda frå dette nettverket. Vent ein time og prøv igjen.',
-    'sign-ups': 'For mange nye spelarar frå dette nettverket. Vent ein time og prøv igjen.',
-    form: 'Nokke gjekk gale. Prøv igjen.',
+    'sign-ups': 'For mange nye spelara frå dette nettverket. Vent ein time og prøv igjen.',
+    form: SOMETHING_WENT_WRONG,
 };
 
 // next-auth sends these to the sign-in page when the GitHub sign-in of an admin fails.
@@ -21,6 +23,6 @@ const ADMIN_CODES = new Set(['OAuthSignin', 'OAuthCallback', 'OAuthCreateAccount
 /** The text for an error code in the address. Unknown codes show nothing. */
 export function errorMessage(code: string | string[] | undefined): string | null {
     if (typeof code !== 'string') return null;
-    if (ADMIN_CODES.has(code)) return 'Innlogginga med GitHub gjekk ikkje. Prøv igjen.';
+    if (ADMIN_CODES.has(code)) return `${GITHUB_SIGN_IN_FAILED} Prøv igjen.`;
     return Object.hasOwn(MESSAGES, code) ? MESSAGES[code] : null;
 }
