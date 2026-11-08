@@ -1,7 +1,18 @@
--- Turns 0017_sponsor_library.sql back. The migration runner does not read this folder. Run it by
--- hand in one transaction, then delete the row of 0017_sponsor_library.sql from schema_migrations.
--- Each sponsor of an event gets the name, link, logo and colour of its library sponsor again.
--- Library sponsors that no event uses are lost.
+-- Turns 0017_sponsor_library.sql back. The migration runner does not read this folder. Run the
+-- whole file by hand with psql. It is one transaction. Each sponsor of an event gets the name,
+-- link, logo and colour of its library sponsor again. A library sponsor that no event uses has no
+-- row to go back to, so the file stops before it changes anything when there is one. Delete those
+-- in the library first, or keep the library. If it stops, run ROLLBACK.
+BEGIN;
+
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM sponsor_library l WHERE NOT EXISTS (SELECT 1 FROM sponsors s WHERE s.library_id = l.id)) THEN
+        RAISE EXCEPTION 'The sponsor library has sponsors that no event uses. They would be lost. Delete them in the library first.';
+    END IF;
+END
+$$;
+
 ALTER TABLE sponsors
     ADD COLUMN name text,
     ADD COLUMN link text,
@@ -37,3 +48,6 @@ ALTER TABLE sponsors
 
 ALTER TABLE sponsors DROP COLUMN library_id;
 DROP TABLE sponsor_library;
+DELETE FROM schema_migrations WHERE name = '0017_sponsor_library.sql';
+
+COMMIT;

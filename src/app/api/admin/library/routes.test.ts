@@ -80,18 +80,21 @@ describe('the library routes', () => {
         expect(input).toMatchObject({ name: 'Acme', gameBackground: null });
         expect(readBmpInfo(gameLogo)?.bitsPerPixel).toBe(32);
         expect((await create(await upload('/api/admin/library', fields))).headers.get('location')).toBe('/admin/sponsors?error=logo-missing');
-        createLibrarySponsor.mockResolvedValue({ ok: false, error: 'limit' });
+        createLibrarySponsor.mockResolvedValue({ ok: false, error: 'library-limit' });
         expect((await create(await upload('/api/admin/library', fields, logo))).headers.get('location')).toBe('/admin/sponsors?error=library-limit');
     });
 
-    it('save a sponsor from its stored logo when no file is sent, and answer 404 for no sponsor', async () => {
-        getLibraryLogo.mockResolvedValue({ bytes: logo, type: 'image/png', hash: 'f'.repeat(64), width: 300, height: 100 });
-        updateLibrarySponsor.mockResolvedValue(true);
+    it('save a sponsor and let the store make the game logo from the locked row, and answer 404 for no sponsor', async () => {
+        updateLibrarySponsor.mockImplementation(async (_pool, _id, input: { gameBackground: string | null }, _logo, make: (l: unknown, b: string | null) => Promise<Uint8Array>) => {
+            const made = await make({ bytes: logo, type: 'image/png', width: 300, height: 100 }, input.gameBackground);
+            return readBmpInfo(made)?.bitsPerPixel === 32 ? 'saved' : 'logo-image';
+        });
         const res = await update(await upload('/api/admin/library/4', { ...fields, ownBackground: 'on', gameBackground: '#00ff00' }), params('4'));
         expect(res.headers.get('location')).toBe('/admin/sponsors?saved=4');
         const [, id, input, newLogo] = updateLibrarySponsor.mock.calls[0];
         expect([id, input.gameBackground, newLogo]).toEqual([4, '#00ff00', null]);
-        getLibraryLogo.mockResolvedValue(null);
+        updateLibrarySponsor.mockResolvedValueOnce('logo-image').mockResolvedValueOnce('not-found');
+        expect((await update(await upload('/api/admin/library/4', fields), params('4'))).headers.get('location')).toBe('/admin/sponsors?error=logo-image');
         expect((await update(await upload('/api/admin/library/5', fields), params('5'))).status).toBe(404);
     });
 

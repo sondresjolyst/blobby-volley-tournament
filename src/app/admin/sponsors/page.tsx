@@ -5,7 +5,7 @@ import { sponsorErrorMessage } from '@/components/sponsors/SponsorSection';
 import { requireAdmin } from '@/lib/auth/options';
 import { getPool } from '@/lib/db';
 import { parseId } from '@/lib/http';
-import { listLibrary } from '@/lib/store/sponsors';
+import { listLibrary, MAX_LIBRARY_SPONSORS } from '@/lib/store/sponsors';
 
 type Search = { error?: string | string[]; saved?: string | string[]; deleted?: string | string[] };
 
@@ -24,6 +24,11 @@ export default async function SponsorLibrary({ searchParams }: { searchParams: P
             {error && <p role="alert">{error}</p>}
             {saved && <p role="status">Saved the sponsor {saved.name}.</p>}
             {search.deleted === '1' && <p role="status">The sponsor is deleted from the library.</p>}
+            {sponsors.length >= MAX_LIBRARY_SPONSORS && (
+                <p role="note">
+                    The library holds {sponsors.length} sponsors. A new sponsor can be added while it holds fewer than {MAX_LIBRARY_SPONSORS}. Delete sponsors that no event uses first.
+                </p>
+            )}
             {sponsors.length === 0 ? <p>No sponsors yet.</p> : <LibraryCards sponsors={sponsors} />}
             <AddSponsor action="/api/admin/library" withShown={false} />
         </AdminShell>

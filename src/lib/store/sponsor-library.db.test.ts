@@ -13,6 +13,7 @@ import { createEvent, setActiveEvent, setGameBoard } from './events';
 import {
     addFromLibrary,
     createLibrarySponsor,
+    countLibrary,
     createSponsor,
     deleteLibrarySponsor,
     deleteSponsor,
@@ -22,8 +23,10 @@ import {
     listServerSponsors,
     listShownSponsors,
     listSponsors,
+    MAX_LIBRARY_SPONSORS,
     MAX_SPONSORS,
     moveSponsor,
+    setSponsorShown,
     updateLibrarySponsor,
     updateSponsor,
 } from './sponsors';
@@ -38,6 +41,8 @@ const lan: EventInput = { name: 'LAN 2026', startsOn: '2026-11-20', endsOn: '202
 const lan27: EventInput = { ...lan, name: 'LAN 2027', startsOn: '2027-11-20', endsOn: '2027-11-22', code: 'LAN-2027' };
 const input = (name: string, change: Partial<SponsorInput> = {}): SponsorInput => ({ name, link: null, enabled: true, gameBackground: null, ...change });
 const gameLogo = (fill: number) => encodeBmp32(new Uint8Array(32 * 32 * 4).fill(fill), 32, 32);
+/** A game logo maker that always gives the same game logo. */
+const made = (fill: number) => async () => gameLogo(fill);
 
 let logo: CheckedLogo;
 let otherLogo: CheckedLogo;
@@ -61,6 +66,8 @@ beforeEach(async () => {
 afterAll(async () => {
     await pool.end();
 });
+
+const down = () => readFileSync(join(MIGRATIONS_DIR, 'down', '0017_sponsor_library.sql'), 'utf8');
 
 /** Applies the migrations numbered before `next`, from a copy of the folder. */
 async function migrateBefore(next: string) {
@@ -150,12 +157,27 @@ describe('the move to the sponsor library', () => {
         await oldData();
         const before = (await pool.query(`SELECT ${OLD_COLUMNS} FROM sponsors ORDER BY id`)).rows;
         await migrate(pool);
-        const down = readFileSync(join(MIGRATIONS_DIR, 'down', '0017_sponsor_library.sql'), 'utf8');
-        await pool.query(`BEGIN; ${down}; DELETE FROM schema_migrations WHERE name = '0017_sponsor_library.sql'; COMMIT`);
+        await pool.query(down());
         expect((await pool.query(`SELECT ${OLD_COLUMNS} FROM sponsors ORDER BY id`)).rows).toEqual(before);
         expect((await pool.query(`SELECT to_regclass('sponsor_library') AS t`)).rows[0].t).toBeNull();
         // And it applies again.
         expect(await migrate(pool)).toEqual(['0017_sponsor_library.sql']);
+    });
+
+    it('will not turn back while a library sponsor has no event, and changes nothing then', async () => {
+        await oldData();
+        await migrate(pool);
+        const created = await createLibrarySponsor(pool, input('Only in the library'), logo, gameLogo(1));
+        expect(created.ok).toBe(true);
+        const client = await pool.connect();
+        try {
+            await expect(client.query(down())).rejects.toThrow(/sponsors that no event uses/);
+            await client.query('ROLLBACK');
+        } finally {
+            client.release();
+        }
+        expect((await listLibrary(pool)).map((s) => s.name)).toContain('Only in the library');
+        expect((await pool.query(`SELECT count(*)::int AS n FROM schema_migrations WHERE name = '0017_sponsor_library.sql'`)).rows[0].n).toBe(1);
     });
 
     it('is not run from the down folder', () => {
@@ -190,6 +212,67 @@ describe('the sponsor library', () => {
         ]);
     });
 
+    it('adds no new library sponsor past the limit, on every add path, but rows from the migration may be more', async () => {
+        const eventId = await createEvent(pool, lan);
+        const fill = (n: number) =>
+            pool.query(
+                `INSERT INTO sponsor_library (name, logo, logo_type, logo_width, logo_height, game_logo) SELECT 'S' || g, $2, 'image/png', 60, 20, $3 FROM generate_series(1, $1) g`,
+                [n, Buffer.from(logo.bytes), Buffer.from(gameLogo(1))],
+            );
+        await fill(MAX_LIBRARY_SPONSORS - 1);
+        expect((await createLibrarySponsor(pool, input('Last'), logo, gameLogo(1))).ok).toBe(true);
+        expect(await createLibrarySponsor(pool, input('One more'), logo, gameLogo(1))).toEqual({ ok: false, error: 'library-limit' });
+        expect(await createSponsor(pool, eventId, input('Upload'), logo, gameLogo(1))).toEqual({ ok: false, error: 'library-limit' });
+        expect(await listSponsors(pool, eventId)).toEqual([]);
+        // More rows than the limit, as the migration may leave. Adds stay refused, and the library still works.
+        await fill(20);
+        expect(await countLibrary(pool)).toBe(MAX_LIBRARY_SPONSORS + 20);
+        expect(await createSponsor(pool, eventId, input('Upload'), logo, gameLogo(1))).toEqual({ ok: false, error: 'library-limit' });
+        const last = (await listLibrary(pool)).find((s) => s.name === 'Last')!;
+        expect((await addFromLibrary(pool, eventId, last.id)).ok).toBe(true);
+    });
+
+    it('adds one at a time, so two adds at once cannot pass the limit together', async () => {
+        await pool.query(
+            `INSERT INTO sponsor_library (name, logo, logo_type, logo_width, logo_height, game_logo) SELECT 'S' || g, $2, 'image/png', 60, 20, $3 FROM generate_series(1, $1) g`,
+            [MAX_LIBRARY_SPONSORS - 1, Buffer.from(logo.bytes), Buffer.from(gameLogo(1))],
+        );
+        const results = await Promise.all([createLibrarySponsor(pool, input('A'), logo, gameLogo(1)), createLibrarySponsor(pool, input('B'), logo, gameLogo(1))]);
+        expect(results.filter((r) => r.ok)).toHaveLength(1);
+        expect(await countLibrary(pool)).toBe(MAX_LIBRARY_SPONSORS);
+    });
+
+    it('turns Shown on one event without touching the library or other events', async () => {
+        const first = await createEvent(pool, lan);
+        const second = await createEvent(pool, lan27);
+        await createSponsor(pool, first, input('Acme', { link: 'https://acme.example.test/', gameBackground: '#123456' }), logo, gameLogo(1));
+        const id = await libraryId(first, 'Acme');
+        await addFromLibrary(pool, second, id);
+        const libraryRow = async () => (await pool.query('SELECT * FROM sponsor_library WHERE id = $1', [id])).rows[0];
+        const [rowBefore, secondBefore] = [await libraryRow(), await listSponsors(pool, second)];
+        const atFirst = (await listSponsors(pool, first))[0];
+        expect(await setSponsorShown(pool, atFirst.id, false)).toBe(first);
+        expect((await listSponsors(pool, first))[0]).toEqual({ ...atFirst, enabled: false });
+        expect(await libraryRow()).toEqual(rowBefore);
+        expect(await listSponsors(pool, second)).toEqual(secondBefore);
+    });
+
+    it('makes the game logo from the logo that is stored, when two saves come at once', async () => {
+        const eventId = await createEvent(pool, lan);
+        await createSponsor(pool, eventId, input('Acme'), logo, gameLogo(1));
+        const id = await libraryId(eventId, 'Acme');
+        // A slow maker that marks the game logo with the logo it was made from.
+        const slow = async (from: CheckedLogo) => {
+            await new Promise((resolve) => setTimeout(resolve, 50));
+            return gameLogo(Buffer.from(from.bytes).equals(Buffer.from(otherLogo.bytes)) ? 2 : 1);
+        };
+        await Promise.all([updateLibrarySponsor(pool, id, input('Acme'), otherLogo, slow), updateLibrarySponsor(pool, id, input('Acme'), null, slow)]);
+        const row = (await pool.query<{ logo: Buffer; game_logo: Buffer }>('SELECT logo, game_logo FROM sponsor_library WHERE id = $1', [id])).rows[0];
+        const fromOther = row.logo.equals(Buffer.from(otherLogo.bytes));
+        expect(row.game_logo.equals(Buffer.from(gameLogo(fromOther ? 2 : 1)))).toBe(true);
+        expect(fromOther).toBe(true);
+    });
+
     it('refuses a full event', async () => {
         const first = await createEvent(pool, lan);
         const second = await createEvent(pool, lan27);
@@ -209,15 +292,15 @@ describe('the sponsor library', () => {
         await createSponsor(pool, first, input('Acme'), logo, gameLogo(1));
         await addFromLibrary(pool, second, await libraryId(first, 'Acme'));
         const atFirst = (await listSponsors(pool, first))[0];
-        await updateSponsor(pool, atFirst.id, input('Acme Pizza', { enabled: false, gameBackground: '#123456' }), otherLogo, gameLogo(7));
+        await updateSponsor(pool, atFirst.id, input('Acme Pizza', { enabled: false, gameBackground: '#123456' }), otherLogo, made(7));
         const [a, b] = [(await listSponsors(pool, first))[0], (await listSponsors(pool, second))[0]];
         expect([a.name, a.enabled, a.gameBackground]).toEqual(['Acme Pizza', false, '#123456']);
         expect([b.name, b.enabled, b.gameBackground, b.logoHash]).toEqual(['Acme Pizza', true, '#123456', a.logoHash]);
-        expect(await updateSponsor(pool, 9999, input('X'), null, gameLogo(1))).toBeNull();
+        expect(await updateSponsor(pool, 9999, input('X'), null, made(1))).toBe('not-found');
 
-        expect(await updateLibrarySponsor(pool, a.libraryId, input('Acme AS', { link: 'https://acme.example.test/' }), null, gameLogo(8))).toBe(true);
+        expect(await updateLibrarySponsor(pool, a.libraryId, input('Acme AS', { link: 'https://acme.example.test/' }), null, made(8))).toBe('saved');
         expect((await listSponsors(pool, second))[0]).toMatchObject({ name: 'Acme AS', link: 'https://acme.example.test/', enabled: true, logoHash: a.logoHash });
-        expect(await updateLibrarySponsor(pool, 9999, input('X'), null, gameLogo(1))).toBe(false);
+        expect(await updateLibrarySponsor(pool, 9999, input('X'), null, made(1))).toBe('not-found');
         expect(Buffer.from((await getLibraryLogo(pool, a.libraryId))!.bytes)).toEqual(Buffer.from(otherLogo.bytes));
     });
 

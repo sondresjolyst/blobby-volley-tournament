@@ -20,6 +20,6 @@ export async function POST(req: Request) {
         return back('error=logo-image');
     }
     const result = await createLibrarySponsor(getPool(), form.input, form.logo, gameLogo);
-    if (!result.ok) return back('error=library-limit');
+    if (!result.ok) return back(`error=${result.error}`);
     return back(`saved=${result.id}`);
 }

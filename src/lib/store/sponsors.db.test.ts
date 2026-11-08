@@ -117,15 +117,30 @@ describe('sponsors', () => {
         const eventId = await createEvent(pool, lan);
         const id = await add(eventId, 'Acme');
         const newGameLogo = encodeBmp32(new Uint8Array(40 * 32 * 4).fill(9), 40, 32);
-        expect(await updateSponsor(pool, id, input('Acme AS', { link: 'https://acme.example.test/', enabled: false, gameBackground: '#000000' }), null, newGameLogo)).toBe(eventId);
+        let madeFrom: CheckedLogo | null = null;
+        const make = async (from: CheckedLogo) => {
+            madeFrom = from;
+            return newGameLogo;
+        };
+        expect(await updateSponsor(pool, id, input('Acme AS', { link: 'https://acme.example.test/', enabled: false, gameBackground: '#000000' }), null, make)).toBe('saved');
+        // Without a new file the game logo is made from the stored logo.
+        expect(new Uint8Array(madeFrom!.bytes)).toEqual(logo.bytes);
         const [kept] = await listSponsors(pool, eventId);
         expect(kept).toMatchObject({ name: 'Acme AS', enabled: false, gameBackground: '#000000', logoHash: sha256(logo.bytes), gameLogoHash: sha256(newGameLogo) });
 
-        await updateSponsor(pool, id, input('Acme AS'), otherLogo, gameLogo);
+        await updateSponsor(pool, id, input('Acme AS'), otherLogo, async () => gameLogo);
         const stored = await getSponsorLogo(pool, id);
         expect(new Uint8Array(stored!.bytes)).toEqual(otherLogo.bytes);
         expect(stored).toMatchObject({ type: 'image/png', hash: sha256(otherLogo.bytes), width: 60, height: 20, eventId, enabled: true, eventActive: false });
-        expect(await updateSponsor(pool, 999, input('X'), null, gameLogo)).toBeNull();
+        expect(await updateSponsor(pool, 999, input('X'), null, async () => gameLogo)).toBe('not-found');
+
+        // A logo that cannot be made into a game logo changes nothing, Shown included.
+        const before = await listSponsors(pool, eventId);
+        const broken = async () => {
+            throw new Error('broken');
+        };
+        expect(await updateSponsor(pool, id, input('Other', { enabled: false }), otherLogo, broken)).toBe('logo-image');
+        expect(await listSponsors(pool, eventId)).toEqual(before);
     });
 
     it('shows only the enabled sponsors of the active event', async () => {
