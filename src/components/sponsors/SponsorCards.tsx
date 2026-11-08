@@ -5,18 +5,11 @@ import type { SponsorRow } from '@/lib/store/sponsors';
 import { adminLogoSrc, SponsorForm, TILE_LOGO_HEIGHT, tileWidth } from './SponsorForm';
 import { SponsorTile } from './SponsorTile';
 
-/**
- * Turns a sponsor on or off. It posts the edit form with the current values, so only Shown changes
- * and the logo stays.
- */
+/** Turns a sponsor on or off. It posts only the new state, so an edit made meanwhile is kept. */
 function ShownSwitch({ sponsor }: { sponsor: SponsorRow }) {
     return (
-        <form method="post" action={`/api/admin/sponsors/${sponsor.id}`} encType="multipart/form-data" className="admin-inline">
-            <input type="hidden" name="name" value={sponsor.name} />
-            <input type="hidden" name="link" value={sponsor.link ?? ''} />
-            <input type="hidden" name="ownBackground" value={sponsor.gameBackground === null ? 'off' : 'on'} />
-            <input type="hidden" name="gameBackground" value={sponsor.gameBackground ?? '#ffffff'} />
-            {!sponsor.enabled && <input type="hidden" name="enabled" value="on" />}
+        <form method="post" action={`/api/admin/sponsors/${sponsor.id}/shown`} className="admin-inline">
+            <input type="hidden" name="enabled" value={sponsor.enabled ? 'off' : 'on'} />
             <button type="submit" role="switch" aria-checked={sponsor.enabled} aria-label={`Shown: ${sponsor.name}`} className="admin-switch">
                 <span className="admin-switch-track" aria-hidden="true" />
                 Shown

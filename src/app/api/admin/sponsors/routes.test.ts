@@ -7,6 +7,7 @@ const createSponsor = vi.fn();
 const updateSponsor = vi.fn();
 const moveSponsor = vi.fn();
 const deleteSponsor = vi.fn();
+const setSponsorShown = vi.fn();
 const getSponsorLogo = vi.fn();
 const setGameBoard = vi.fn();
 
@@ -20,6 +21,7 @@ vi.mock('@/lib/store/sponsors', () => ({
     updateSponsor: (...args: unknown[]) => updateSponsor(...args),
     moveSponsor: (...args: unknown[]) => moveSponsor(...args),
     deleteSponsor: (...args: unknown[]) => deleteSponsor(...args),
+    setSponsorShown: (...args: unknown[]) => setSponsorShown(...args),
     getSponsorLogo: (...args: unknown[]) => getSponsorLogo(...args),
 }));
 vi.mock('@/lib/store/events', () => ({ setGameBoard: (...args: unknown[]) => setGameBoard(...args) }));
@@ -29,6 +31,7 @@ import { POST as create } from '../events/[id]/sponsors/route';
 import { POST as remove } from './[id]/delete/route';
 import { GET as adminLogo } from './[id]/logo/route';
 import { POST as move } from './[id]/move/route';
+import { POST as shown } from './[id]/shown/route';
 import { POST as update } from './[id]/route';
 import { GET as publicLogo } from '../../sponsors/[id]/logo/route';
 
@@ -40,7 +43,7 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
-    for (const mock of [requireAdminPost, createSponsor, updateSponsor, moveSponsor, deleteSponsor, getSponsorLogo, setGameBoard]) mock.mockReset();
+    for (const mock of [requireAdminPost, createSponsor, updateSponsor, moveSponsor, deleteSponsor, getSponsorLogo, setGameBoard, setSponsorShown]) mock.mockReset();
     requireAdminPost.mockResolvedValue({ githubId: '1' });
 });
 
@@ -105,6 +108,27 @@ describe('POST /api/admin/events/{id}/sponsors', () => {
         createSponsor.mockResolvedValueOnce({ ok: false, error: 'limit' }).mockResolvedValueOnce({ ok: false, error: 'not-found' });
         expect((await add(form(fields, { bytes: logo, type: 'image/png', name: 'a.png' }))).headers.get('location')).toBe('/admin/events/3?error=sponsor-limit#sponsors');
         expect((await add(form(fields, { bytes: logo, type: 'image/png', name: 'a.png' }))).status).toBe(404);
+    });
+});
+
+describe('POST /api/admin/sponsors/{id}/shown', () => {
+    const send = (enabled: string, id = '9') => shown(post(`/api/admin/sponsors/${id}/shown`, new URLSearchParams({ enabled, name: 'Ignored' })), params(id));
+
+    it('changes only Shown and goes back to the event', async () => {
+        setSponsorShown.mockResolvedValue(3);
+        const res = await send('off');
+        expect(res.headers.get('location')).toBe('/admin/events/3?sponsor=9#sponsors');
+        expect(setSponsorShown.mock.calls[0].slice(1)).toEqual([9, false]);
+        await send('on');
+        expect(setSponsorShown.mock.calls[1].slice(1)).toEqual([9, true]);
+        expect(updateSponsor).not.toHaveBeenCalled();
+    });
+
+    it('refuses another value and answers 404 for no sponsor', async () => {
+        expect((await send('yes')).status).toBe(400);
+        expect(setSponsorShown).not.toHaveBeenCalled();
+        setSponsorShown.mockResolvedValue(null);
+        expect((await send('on')).status).toBe(404);
     });
 });
 
