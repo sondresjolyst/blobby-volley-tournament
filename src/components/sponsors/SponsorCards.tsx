@@ -1,7 +1,7 @@
 'use client';
 
 import type { SponsorRow } from '@/lib/store/sponsors';
-import { adminLogoSrc, SponsorForm, TILE_LOGO_HEIGHT, tileWidth } from './SponsorForm';
+import { adminLogoSrc, SponsorForm } from './SponsorForm';
 import { ConfirmBox, useOpenClose } from './InPlace';
 import { SponsorTile } from './SponsorTile';
 
@@ -25,7 +25,7 @@ function SponsorCard({ sponsor, first, last, usedElsewhere }: { sponsor: Sponsor
     return (
         <li className="admin-sponsor" data-hidden={!sponsor.enabled || undefined}>
             <div className="admin-sponsor-row">
-                <SponsorTile src={adminLogoSrc(sponsor)} alt={`Logo of ${sponsor.name}`} height={TILE_LOGO_HEIGHT} width={tileWidth(sponsor)} background={sponsor.gameBackground} />
+                <SponsorTile sponsor={{ name: sponsor.name, src: adminLogoSrc(sponsor), background: sponsor.gameBackground }} alt={`Logo of ${sponsor.name}`} />
                 <div className="admin-sponsor-text">
                     <strong>
                         {sponsor.name}

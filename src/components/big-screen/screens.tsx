@@ -5,7 +5,8 @@ import { Pizza } from '@/components/pizza/Pizza';
 import { signed } from '@/components/stats/format';
 import type { ScreenType } from '@/lib/big-screen/screens';
 import { FOZA_ROWS, FOZA_WINS, type BigScreenData } from '@/lib/big-screen/view';
-import { BoardPanel, BracketPanel, RankRows, ScreenTop, SponsorLogo } from './parts';
+import { SponsorTile } from '@/components/sponsors/SponsorTile';
+import { BoardPanel, BracketPanel, RankRows, ScreenTop } from './parts';
 import { useSite } from './site';
 import {
     correctLine,
@@ -177,7 +178,9 @@ export function SponsorScreen({ data }: { data: BigScreenData }) {
             ) : (
                 <ul className={own.showcase} style={{ '--cols': cols, '--rows': Math.ceil(data.sponsors.length / cols) } as CSSProperties}>
                     {data.sponsors.map((s) => (
-                        <SponsorLogo key={s.id} sponsor={s} className={own.showTile} />
+                        <li key={s.id} className={own.showTile}>
+                            <SponsorTile sponsor={s} />
+                        </li>
                     ))}
                 </ul>
             )}

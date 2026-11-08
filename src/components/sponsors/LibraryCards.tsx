@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import type { LibrarySponsor } from '@/lib/store/sponsors';
 import { ConfirmBox, useOpenClose } from './InPlace';
-import { libraryLogoSrc, SponsorForm, TILE_LOGO_HEIGHT, tileWidth } from './SponsorForm';
+import { libraryLogoSrc, SponsorForm } from './SponsorForm';
 import { SponsorTile } from './SponsorTile';
 
 /** One sponsor in the library: its tile, name and link, the events that use it, and Edit and Delete. */
@@ -14,7 +14,7 @@ function LibraryCard({ sponsor }: { sponsor: LibrarySponsor }) {
     return (
         <li className="admin-sponsor">
             <div className="admin-sponsor-row">
-                <SponsorTile src={libraryLogoSrc(sponsor)} alt={`Logo of ${sponsor.name}`} height={TILE_LOGO_HEIGHT} width={tileWidth(sponsor)} background={sponsor.gameBackground} />
+                <SponsorTile sponsor={{ name: sponsor.name, src: libraryLogoSrc(sponsor), background: sponsor.gameBackground }} alt={`Logo of ${sponsor.name}`} />
                 <div className="admin-sponsor-text">
                     <strong>{sponsor.name}</strong>
                     {sponsor.link ? <span className="admin-sponsor-link">{sponsor.link}</span> : <span className="admin-hint">No link</span>}

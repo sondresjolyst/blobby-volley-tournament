@@ -2,9 +2,7 @@ import { connection } from 'next/server';
 import { SPONSORS_LABEL } from '@/components/site/text';
 import { getPool } from '@/lib/db';
 import { listShownSponsors, type SponsorRow } from '@/lib/store/sponsors';
-import { tileStyle } from './SponsorTile';
-
-const LOGO_HEIGHT = 40;
+import { SponsorMarquee } from './SponsorMarquee';
 
 /** The enabled sponsors of the active event under every page. Nothing shows when there are none. */
 export async function SponsorFooter() {
@@ -21,31 +19,15 @@ export async function SponsorFooter() {
     if (sponsors.length === 0) return null;
     return (
         <footer aria-label={SPONSORS_LABEL} data-label={SPONSORS_LABEL}>
-            <ul style={{ listStyle: 'none', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '1.5rem', padding: 0 }}>
-                {sponsors.map((sponsor) => {
-                    const logo = (
-                        // The logo is served as it was stored. The image optimizer of Next is not used.
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                            src={`/api/sponsors/${sponsor.id}/logo?v=${sponsor.logoHash}`}
-                            alt={sponsor.name}
-                            height={LOGO_HEIGHT}
-                            width={Math.round((LOGO_HEIGHT * sponsor.logoWidth) / sponsor.logoHeight)}
-                        />
-                    );
-                    return (
-                        <li key={sponsor.id} style={{ ...tileStyle(sponsor.gameBackground), padding: '10px 14px' }}>
-                            {sponsor.link ? (
-                                <a href={sponsor.link} rel="sponsored noopener noreferrer">
-                                    {logo}
-                                </a>
-                            ) : (
-                                logo
-                            )}
-                        </li>
-                    );
-                })}
-            </ul>
+            <SponsorMarquee
+                sponsors={sponsors.map((sponsor) => ({
+                    id: sponsor.id,
+                    name: sponsor.name,
+                    src: `/api/sponsors/${sponsor.id}/logo?v=${sponsor.logoHash}`,
+                    link: sponsor.link,
+                    background: sponsor.gameBackground,
+                }))}
+            />
         </footer>
     );
 }

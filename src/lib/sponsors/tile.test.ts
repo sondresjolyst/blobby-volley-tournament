@@ -6,7 +6,7 @@ describe('tileBackground', () => {
         expect(tileBackground('#123abc')).toBe('#123abc');
     });
 
-    it('falls back to cream for a sponsor without one', () => {
+    it('falls back to the dark brown for a sponsor without one', () => {
         expect(tileBackground(null)).toBe(DEFAULT_TILE_BACKGROUND);
     });
 });

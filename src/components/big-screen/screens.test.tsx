@@ -126,9 +126,9 @@ describe('the sponsor screen', () => {
         expect(out).toContain('alt="Ostehuset"');
     });
 
-    it('puts each logo on the background colour of its sponsor, or on the cream tile', () => {
+    it('puts each logo on the background colour of its sponsor, or on the dark brown tile', () => {
         const out = html(<SponsorScreen data={full} />);
-        expect(out).toContain('style="background:#fff8ec"');
+        expect(out).toContain('style="background:#3a2820"');
         expect(out).toContain('style="background:#1e5aa8"');
     });
 

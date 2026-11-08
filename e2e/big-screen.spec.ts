@@ -428,7 +428,7 @@ test('an admin picks the screens of the big screen, and an open big screen follo
         await openScreensForm(adminPage);
         for (const type of Object.keys(SCREEN_NAMES) as Screen[]) await adminPage.getByLabel(`Use the ${SCREEN_NAMES[type]} screen`).setChecked(false);
         await adminPage.getByRole('button', { name: 'Save screens' }).click();
-        await expect(adminPage.getByRole('alert')).toHaveText('Turn on at least one screen for the big screen.');
+        await expect(adminPage.getByRole('main').getByRole('alert')).toHaveText('Turn on at least one screen for the big screen.');
 
         if (shots) {
             await openScreensForm(adminPage);

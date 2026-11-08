@@ -8,11 +8,6 @@ import { LOGO_ACCEPT, LOGO_HINT } from '@/lib/sponsors/limits';
 import type { LibrarySponsor, SponsorRow } from '@/lib/store/sponsors';
 import { SponsorTile } from './SponsorTile';
 
-/** The height of a logo in the admin tiles, in pixels. */
-export const TILE_LOGO_HEIGHT = 40;
-
-export const tileWidth = (sponsor: { logoWidth: number; logoHeight: number }) => Math.round((TILE_LOGO_HEIGHT * sponsor.logoWidth) / sponsor.logoHeight);
-
 export const adminLogoSrc = (sponsor: SponsorRow) => `/api/admin/sponsors/${sponsor.id}/logo?v=${sponsor.logoHash}`;
 
 export const libraryLogoSrc = (sponsor: LibrarySponsor) => `/api/admin/library/${sponsor.id}/logo?v=${sponsor.logoHash}`;
@@ -72,8 +67,7 @@ export function SponsorForm({
     };
 
     const background = ownBackground ? colour : null;
-    // A new file has no known size yet, so its width follows the image.
-    const tile = preview ? { src: preview, width: undefined } : sponsor ? { src: sponsor.logoSrc, width: tileWidth(sponsor) } : null;
+    const src = preview ?? sponsor?.logoSrc ?? null;
     return (
         <form method="post" action={action} encType="multipart/form-data" aria-labelledby={sponsor ? undefined : `${id}-title`} aria-label={sponsor ? title : undefined} className="admin-sponsor-form">
             {!sponsor && <h3 id={`${id}-title`}>{title}</h3>}
@@ -102,7 +96,7 @@ export function SponsorForm({
                     </span>
                     <InfoButton label="About the background colour" textId={`${id}-background-help`}>
                         <p>The colour of the tile behind the logo, on the site, on the big screen and on the sponsor board in the game. A logo with transparent parts sits on this colour.</p>
-                        <p>With Standard, the site and the big screen use a cream tile, and the game shows its board through the transparent parts.</p>
+                        <p>With Standard, the site and the big screen use a dark brown tile, and the game shows its board through the transparent parts.</p>
                     </InfoButton>
                 </div>
                 <div role="radiogroup" aria-labelledby={`${id}-background`} aria-describedby={`${id}-background-help`} className="admin-choice">
@@ -126,8 +120,8 @@ export function SponsorForm({
             </div>
             <div className="admin-field">
                 <span className="admin-field-title">Preview</span>
-                {tile ? (
-                    <SponsorTile src={tile.src} alt={`Preview of the logo of ${sponsor?.name ?? 'the new sponsor'}`} height={TILE_LOGO_HEIGHT} width={tile.width} background={background} />
+                {src ? (
+                    <SponsorTile sponsor={{ name: sponsor?.name ?? 'the new sponsor', src, background }} alt={`Preview of the logo of ${sponsor?.name ?? 'the new sponsor'}`} />
                 ) : (
                     <span className="admin-hint">Select a logo to see it here.</span>
                 )}

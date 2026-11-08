@@ -1,0 +1,93 @@
+/* The sponsor tile and the sponsor strip, the same on the site, the big screen and the admin pages.
+   A place can set the size with --tile-w, --tile-h and --tile-radius. */
+
+.tile {
+    /* Fixed in both directions, also inside a column, so the tile keeps the size of the design. */
+    flex: none;
+    width: var(--tile-w, 230px);
+    height: var(--tile-h, 76px);
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    padding: 0 var(--tile-pad, 6px);
+    border: 1px solid #5a4033;
+    border-radius: var(--tile-radius, 12px);
+    line-height: 0;
+}
+
+/* The logo fills the tile up to 6 pixels from the top and the bottom, centred both ways. A place can set --logo-inset. */
+.logo {
+    display: block;
+    width: auto;
+    height: calc(100% - var(--logo-inset, 12px));
+    max-width: 100%;
+    margin: 0;
+    object-fit: contain;
+}
+
+a.tile:focus-visible {
+    outline: 3px solid #f6c445;
+    outline-offset: 2px;
+}
+
+/* The strip: one row that moves sideways forever. The track holds the tiles twice, so moving it by
+   half its width and the half gap lands on the same picture. */
+.marquee {
+    overflow: hidden;
+}
+
+.track {
+    display: flex;
+    gap: var(--strip-gap, 12px);
+    width: max-content;
+    animation: sponsor-scroll calc(var(--tiles, 6) * 4.5s) linear infinite;
+}
+
+.marquee:hover .track,
+.marquee:focus-within .track {
+    animation-play-state: paused;
+}
+
+.set {
+    display: flex;
+    gap: var(--strip-gap, 12px);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.set > li {
+    display: flex;
+    margin: 0;
+    padding: 0;
+}
+
+@keyframes sponsor-scroll {
+    from {
+        transform: translateX(0);
+    }
+    to {
+        transform: translateX(calc(-50% - var(--strip-gap, 12px) / 2));
+    }
+}
+
+/* Without motion the strip stands still: one set of tiles, wrapped and centred. */
+@media (prefers-reduced-motion: reduce) {
+    .track {
+        animation: none;
+        width: auto;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .set {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .copy {
+        display: none;
+    }
+}
