@@ -25,7 +25,7 @@ from manifold3d import CrossSection, FillRule, Manifold, OpType
 # ---------------------------------------------------------------------------
 
 YEAR = 2026                      # year on the plaque
-TEXT = "Svettaste Blåbby"        # plaque text, set per place from PLACES by set_place()
+TEXT = "Svettaste Blåbbyen"       # plaque text, set per place from PLACES by set_place()
 OVERALL_HEIGHT = 170.0           # mm, height of the 1st place trophy (150 to 200)
 TOLERANCE = 0.3                  # mm total clearance per fit. PLA 0.3, PETG 0.4
 PART = "all"                     # all, blob, hat, base, plaque, pin
@@ -37,7 +37,7 @@ MIN_CAP = 3.0                    # mm, smallest cap height allowed on the plaque
 # The three trophies. Scale applies to the blob, the base and the plaque. Walls,
 # fits, the pin and the layer based heights keep their full size values.
 PLACES = {
-    1: dict(name="Pizzakongen", text="Svettaste Blåbby", scale=1.00, blob="dark blue", hat="crown", hat_colour="black",
+    1: dict(name="Pizzakongen", text="Svettaste Blåbbyen", scale=1.00, blob="dark blue", hat="crown", hat_colour="black",
             tiers=3, points=7, crown_h=30.0, ball_r=3.2),
     2: dict(name="Prinsen", text="Beste tabaren", scale=0.85, blob="white", hat="crown", hat_colour="black",
             tiers=2, points=5, crown_h=20.0, ball_r=2.8),
@@ -743,7 +743,7 @@ def cap_height(size):
 def plaque_texts():
     """The text pieces on the plaque, centred on the plaque, and their font sizes.
 
-    lines: "1. plass" over "Svettaste Blåbby 2026".
+    lines: "1. plass" over "Svettaste Blåbbyen 2026".
     number: a big "1." on the left, the name over the year on the right.
     """
     check_glyphs(TEXT + str(YEAR) + f"{PLACE}. plass")
