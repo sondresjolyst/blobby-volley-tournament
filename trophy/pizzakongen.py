@@ -1,12 +1,14 @@
-"""Pizzakongen trophy: a Blobby blob wearing a crown, on a pizza box.
+"""Pizzakongen trophies: a set of three Blobby blobs with three hats.
 
-Parametric model built with manifold3d. Run it to export STL files and
-print the printability checks:
+1st place Pizzakongen wears a crown, 2nd place Prinsen a small prince's
+crown and 3rd place Fanten a slouchy knit beanie. Parametric model built
+with manifold3d. Run it to export STL files and print the printability checks:
 
-    python pizzakongen.py                    # all parts
-    python pizzakongen.py --part plaque      # one part
+    python pizzakongen.py                    # all three places, all parts
+    python pizzakongen.py --place 2          # one place
+    python pizzakongen.py --place 1 --part plaque
     python pizzakongen.py --year 2027 --tolerance 0.4
-    python pizzakongen.py --stencil          # one colour stencil plaque
+    python pizzakongen.py --plaque number    # big place number on the plaque
 
 Every value below can be changed here or from the command line.
 """
@@ -23,11 +25,29 @@ from manifold3d import CrossSection, FillRule, Manifold, OpType
 # ---------------------------------------------------------------------------
 
 YEAR = 2026                      # year on the plaque
-TEXT = "Svettaste Blåbby"        # first line on the plaque
-OVERALL_HEIGHT = 170.0           # mm, bottom of base to the top of the crown balls (150 to 200)
+TEXT = "Svettaste Blåbby"        # tournament name on the plaque
+OVERALL_HEIGHT = 170.0           # mm, height of the 1st place trophy (150 to 200)
 TOLERANCE = 0.3                  # mm total clearance per fit. PLA 0.3, PETG 0.4
-PART = "all"                     # all, blob, crown, base, plaque, pin
+PART = "all"                     # all, blob, hat, base, plaque, pin
 BASE_STYLE = "tiers"             # pizza, plain, tiers, drum or court. See BASE_STYLES
+PLACE = 1                        # 1, 2 or 3. Set with set_place()
+PLAQUE_LAYOUT = "number"         # number: a big place number. lines: "1. plass" over the name
+MIN_CAP = 3.0                    # mm, smallest cap height allowed on the plaque
+
+# The three trophies. Scale applies to the blob, the base and the plaque. Walls,
+# fits, the pin and the layer based heights keep their full size values.
+PLACES = {
+    1: dict(name="Pizzakongen", scale=1.00, blob="dark blue", hat="crown", hat_colour="black",
+            tiers=3, points=7, crown_h=30.0, ball_r=3.2),
+    2: dict(name="Prinsen", scale=0.85, blob="white", hat="crown", hat_colour="black",
+            tiers=2, points=5, crown_h=20.0, ball_r=2.8),
+    3: dict(name="Fanten", scale=0.70, blob="dark green", hat="beanie", hat_colour="white",
+            tiers=1),
+}
+SCALE = 1.0
+HAT = "crown"
+TIERS = 3
+HEAD_ROOM = 30.0                 # mm above the band at full size, used to scale the blob
 
 # Base: a closed pizza box with a round pizza on top
 BOX_W = 140.0                    # mm, square box
@@ -46,7 +66,7 @@ NUM_CUTS = 6                     # engraved slice cut lines in the cheese
 BASE_STYLES = {
     "pizza": "Pizza box with a pizza on top",
     "plain": "Plain box with a chamfered top",
-    "tiers": "Three tiers, like a classic trophy plinth",
+    "tiers": "Stepped tiers, like a classic trophy plinth. 3, 2 or 1 by place",
     "drum": "Rounded pedestal with a flat front and a flared foot",
     "court": "Box with a raised white volleyball court on top",
 }
@@ -70,6 +90,7 @@ FONT_FILE = None                 # None uses matplotlib's bundled DejaVu Sans Bo
 BLOB_CUT_ROW = 78                # sprite row where the blob is cut flat
 BAND_TOP_ROW = 9                 # sprite row at the top of the crown band
 BAND_BOTTOM_ROW = 20             # sprite row at the bottom of the crown band
+BEANIE_BOTTOM_ROW = 25           # sprite row at the bottom edge of the beanie
 
 # Crown: a band that seats on the head, with points standing on top of it
 BAND_WALL = 3.0                  # mm, wall at the bottom of the band
@@ -80,6 +101,17 @@ POINT_WALL = 2.4                 # mm, wall of the points, flush with the top be
 POINT_FLARE = 10.0               # degrees, the points lean outward this much
 POINT_RIM = 3.0                  # mm of plain wall above the band before the points start
 BALL_R = 3.2                     # mm, ball on the tip of each point
+
+# Beanie for 3rd place, sizes at full scale except the wall
+BEANIE_WALL = 2.4                # mm, knit wall over the head
+BEANIE_CUFF = 11.0               # mm, height of the turned up cuff
+BEANIE_CUFF_T = 2.4              # mm, the cuff stands out this much from the knit
+BEANIE_TIP = 1.0                 # mm of extra knit above the inside of the beanie
+BEANIE_LEAN = 10.0               # degrees, the knit leans to one side
+BEANIE_SLOUCH = 14.0             # mm, the top sits this far to the side
+BEANIE_TILT = 8.0                # degrees, the cuff is pulled down on one side
+BEANIE_RIB = 0.6                 # mm, height of the knitted ribs
+POMPOM_R = 8.0                   # mm
 
 # Pin between blob and base
 PIN_D = 10.0                     # D-shaped pin diameter
@@ -100,14 +132,48 @@ SPRITE_ROW_WIDTHS = [
     51, 51, 49, 47, 45, 41, 39, 37, 33, 29, 25, 21, 13,
 ]
 
-PARTS = ["blob", "crown", "base", "plaque", "pin"]
+PARTS = ["blob", "hat", "base", "plaque", "pin"]
 
-# Filament per part. The plaque is printed flat, so its raised letters take a
-# second colour after one filament change at the height from relief_z().
-COLOURS = {"blob": "dark blue", "base": "black", "crown": "black",
+# Filament per part, set by set_place(). The plaque is printed flat, so its
+# raised letters take a second colour after one filament change at the height
+# from relief_z().
+COLOURS = {"blob": "dark blue", "base": "black", "hat": "black",
            "plaque": "black", "plaque_top": "white", "pin": "black"}
 HERE = os.path.dirname(os.path.abspath(__file__))
 ADD = OpType.Add
+
+
+# ---------------------------------------------------------------------------
+# Places
+# ---------------------------------------------------------------------------
+
+_FULL = {}
+
+
+def set_place(place):
+    """Set the size, colours, hat and tiers for 1st, 2nd or 3rd place."""
+    global PLACE, SCALE, HAT, TIERS, NUM_POINTS, CROWN_H, BALL_R, COLOURS
+    global BOX_W, BOX_H, BOX_CORNER_R, PIZZA_CHEESE_Z, PLAQUE_W, PLAQUE_H
+    names = ("BOX_W", "BOX_H", "BOX_CORNER_R", "PIZZA_CHEESE_Z", "PLAQUE_W", "PLAQUE_H",
+             "NUM_POINTS", "CROWN_H", "BALL_R")
+    g = globals()
+    if not _FULL:
+        _FULL.update({k: g[k] for k in names})
+    cfg = PLACES[place]
+    PLACE, SCALE, HAT, TIERS = place, cfg["scale"], cfg["hat"], cfg["tiers"]
+    if place != 1 and BASE_STYLE != "tiers":
+        raise SystemExit("2nd and 3rd place use the tiers base only")
+    for k in ("BOX_W", "BOX_H", "BOX_CORNER_R", "PIZZA_CHEESE_Z", "PLAQUE_W", "PLAQUE_H"):
+        g[k] = _FULL[k] * SCALE
+    NUM_POINTS = cfg.get("points", _FULL["NUM_POINTS"])
+    CROWN_H = cfg.get("crown_h", _FULL["CROWN_H"])
+    BALL_R = cfg.get("ball_r", _FULL["BALL_R"])
+    COLOURS = {"blob": cfg["blob"], "base": "black", "hat": cfg["hat_colour"],
+               "plaque": "black", "plaque_top": "white", "pin": "black"}
+
+
+def hat_name():
+    return "crown" if HAT == "crown" else "beanie"
 
 
 # ---------------------------------------------------------------------------
@@ -225,7 +291,7 @@ def blob_geometry():
     z_band_top_px = n - BAND_TOP_ROW
     z_band_bot_px = n - BAND_BOTTOM_ROW
     base_top = BOX_H + PIZZA_CHEESE_Z
-    scale = (OVERALL_HEIGHT - base_top - CROWN_H) / (z_band_top_px - z_cut_px)
+    scale = SCALE * (OVERALL_HEIGHT - base_top / SCALE - HEAD_ROOM) / (z_band_top_px - z_cut_px)
     imax = int(np.argmax(prof_px[:, 0]))
     low = prof_px[:imax + 1]
     r_cut = float(np.interp(z_cut_px, low[:, 1], low[:, 0]))
@@ -242,6 +308,7 @@ def blob_geometry():
     return dict(scale=scale, profile=p,
                 band_top=(z_band_top_px - z_cut_px) * scale,
                 band_bot=(z_band_bot_px - z_cut_px) * scale,
+                hat_bot=(n - BEANIE_BOTTOM_ROW - z_cut_px) * scale,
                 height=float(p[:, 1].max()))
 
 
@@ -349,7 +416,109 @@ def make_crown(g):
         rc = r0 + zc * t
         pieces.append(ball.translate([rc * math.cos(th), rc * math.sin(th), zc]))
     crown = band + union(pieces).translate([0, 0, zt])
-    return crown.translate([0, 0, -zb])
+    return crown.translate([0, 0, -zb]), zb
+
+
+def beanie_seat(g):
+    """Where the head gets steeper than 45 degrees above the beanie edge.
+
+    The inside of the beanie follows the head up to there. Above it the inside
+    is a 45 degree cone. The dome of the head is flatter than that, so it fits
+    under the cone, and the beanie prints upright without support.
+    """
+    prof = g["profile"]
+    imax = int(np.argmax(prof[:, 0]))
+    up = prof[imax:]
+    zb = g["hat_bot"]
+    for p, q in zip(up[:-1], up[1:]):
+        if p[1] < zb:
+            continue
+        ang = math.degrees(math.atan2(p[0] - q[0], q[1] - p[1]))
+        if ang > 45.0:
+            return float(p[0]), float(p[1])
+    raise SystemExit("no beanie seat found")
+
+
+def make_beanie(g):
+    """A slouchy knit beanie with a turned up cuff and a pompom on the floppy tip."""
+    prof = g["profile"]
+    zb = g["hat_bot"]
+    r45, z45 = beanie_seat(g)
+    c = TOLERANCE / 2
+    rc = r45 + c * math.sqrt(2) + 0.02
+    cone = CrossSection([np.array([(0.0, z45), (rc, z45), (0.0, z45 + rc)])])
+    cavity2d = profile_section(prof).offset(c, circular_segments=16) + cone
+    z_apex = z45 + rc
+
+    big = CrossSection.square([400, 400]).translate([0, zb])
+    knit_min = Manifold.revolve(cavity2d.offset(BEANIE_WALL, circular_segments=24) ^ big, SEGMENTS)
+    # the knit body: a full, round dome from the cuff up over the head
+    r_bot = radius_at(prof, zb) + c + BEANIE_WALL
+    z1 = zb + BEANIE_CUFF * SCALE - 1.0
+    z_tip = z_apex + BEANIE_WALL + BEANIE_TIP * SCALE
+    us = np.linspace(0, 1, 64)
+    pts = [(r_bot * max(0.0, 1 - u ** 3) ** (1 / 3), z1 + u * (z_tip - z1)) for u in us]
+    pts = [q for i, q in enumerate(pts) if i == 0 or math.dist(q, pts[i - 1]) > 0.3]
+    pts[-1] = (0.0, z_tip)
+    knit2d = CrossSection([np.array([(0.0, zb), (r_bot, zb)] + pts)])
+    knit = Manifold.revolve(knit2d, SEGMENTS)
+    # knitted ribs: thin raised strips from the cuff up the dome, stopping short of the top
+    n_ribs = int(round(2 * math.pi * r_bot / 4.0))
+    shell = Manifold.revolve(knit2d.offset(BEANIE_RIB, circular_segments=16) ^ big, SEGMENTS)
+    # the ribs start above the highest point of the cuff, so they never meet its slanted top
+    zr = zb + BEANIE_CUFF * SCALE + math.tan(math.radians(BEANIE_TILT)) * (r_bot + BEANIE_CUFF_T) + 1.0
+    # the lower ends of the ribs taper at 56 degrees from the horizontal, so they need no support
+    r0, ztop = r_bot - 1.0, z_tip - 8.0 * SCALE
+    zone = Manifold.revolve(CrossSection([np.array(
+        [(0.0, zr), (r0, zr), (r0 + 10.0, zr + 15.0), (r0 + 10.0, ztop), (0.0, ztop)])]), SEGMENTS)
+    shell = shell ^ zone
+    strips = [Manifold.cube([200, BEANIE_RIB * 1.6, 400]).translate([0, -BEANIE_RIB * 0.8, -200])
+              .rotate([0, 0, 360.0 * i / n_ribs]) for i in range(n_ribs)]
+    knit = (knit + (shell ^ union(strips))).refine_to_length(1.5)
+
+    # the knit leans and the top slouches to one side. The lean adds at most
+    # BEANIE_LEAN plus the slouch curve to any wall, well under 45 degrees. The
+    # unbent minimum wall round the inside is added back, so no wall gets thin.
+    h = z_tip - z1
+    lean = math.tan(math.radians(BEANIE_LEAN))
+    k = max(0.0, BEANIE_SLOUCH * SCALE - lean * h) / h ** 2
+    assert lean + 2 * k * h <= 0.8, "beanie slouch too strong"
+
+    def shift(z):
+        d = np.clip(z - z1, 0, None)
+        return lean * d + k * d * d
+
+    knit = knit.warp_batch(lambda v: np.column_stack(
+        [np.asarray(v)[:, 0] + shift(np.asarray(v)[:, 2]), np.asarray(v)[:, 1], np.asarray(v)[:, 2]]))
+    knit = knit + knit_min
+
+    # turned up cuff with vertical ribs. Its top is cut at BEANIE_TILT, so the
+    # beanie looks pulled down on one side while the bottom stays flat
+    rcuf = r_bot + BEANIE_CUFF_T
+    zt = zb + BEANIE_CUFF * SCALE
+    a = math.tan(math.radians(BEANIE_TILT))
+    zt_max = zt + a * rcuf + 1.0
+    cuff = Manifold.revolve(CrossSection([np.array(
+        [(0.0, zb), (rcuf - 0.4, zb), (rcuf, zb + 0.4), (rcuf, zt_max), (0.0, zt_max)])]), SEGMENTS)
+    L = math.hypot(a, 1.0)
+    cuff = cuff.trim_by_plane([-a / L, 0.0, -1.0 / L], -zt / L)
+    n_rib = int(round(2 * math.pi * rcuf / 3.2))
+    groove = CrossSection([np.array([(0.0, -0.7), (0.9, 0.0), (0.0, 0.7)])])
+    grooves = []
+    for i in range(n_rib):
+        ang = 360.0 * i / n_rib
+        grooves.append(groove.translate([rcuf - 0.8, 0]).extrude(zt_max - zb + 2)
+                       .translate([0, 0, zb - 1]).rotate([0, 0, ang]))
+    cuff = cuff - union(grooves)
+
+    # pompom with a cone under it, on the tip
+    pr = POMPOM_R * SCALE
+    pom = (Manifold.sphere(pr, 48) + Manifold.sphere(0.05, 8).translate([0, 0, -1.5 * pr])).hull()
+    pom = pom.translate([float(shift(np.array([z_tip]))[0]), 0, z_tip + 0.25 * pr])
+
+    cavity = Manifold.revolve(cavity2d, SEGMENTS)
+    beanie = (knit + cuff + pom) - cavity
+    return beanie.translate([0, 0, -zb]), zb
 
 
 def pizza_profile():
@@ -464,12 +633,29 @@ def base_plain(g, top):
     return prism(sq, 0, top, top=2.0), -BOX_W / 2, (top - PLAQUE_H) / 2, None
 
 
+def tier_tops(top):
+    """Top height of each tier, bottom tier first. TIERS is 3, 2 or 1."""
+    s = SCALE
+    if TIERS == 3:
+        return [34.0 * s, top - 4.5 * s, top]
+    if TIERS == 2:
+        return [top - 8.5 * s, top]
+    return [top]
+
+
 def base_tiers(g, top):
-    z1, z2 = 34.0, top - 4.5
-    t1 = prism(rounded_rect(BOX_W, BOX_W, BOX_CORNER_R), 0, z1, top=0.8)
-    t2 = prism(rounded_rect(BOX_W - 22, BOX_W - 22, 5.0), z1 - 0.01, z2, top=0.8, foot=0)
-    t3 = prism(rounded_rect(BOX_W - 44, BOX_W - 44, 4.0), z2 - 0.01, top, top=0.8, foot=0)
-    return t1 + t2 + t3, -BOX_W / 2, PLAQUE_Z, None
+    s, z0, pieces = SCALE, 0.0, []
+    tops = tier_tops(top)
+    for k, z1 in enumerate(tops):
+        w = BOX_W - 22.0 * s * k
+        cs = rounded_rect(w, w, BOX_CORNER_R - 1.0 * s * k)
+        pieces.append(prism(cs, z0 - (0.01 if k else 0.0), z1, top=0.8, foot=0.0 if k else 0.4))
+        z0 = z1
+    plaque_z = PLAQUE_Z if len(tops) > 1 else (top - PLAQUE_H) / 2
+    # the plaque and its pocket roof must stay below the chamfer of the bottom tier
+    assert plaque_z + PLAQUE_H + TOLERANCE / 2 + PLAQUE_POCKET <= tops[0] - 1.2, \
+        "plaque does not fit the bottom tier"
+    return union(pieces), -BOX_W / 2, plaque_z, None
 
 
 def base_drum(g, top):
@@ -526,19 +712,64 @@ def slab_x(w, y0, y1, z):
     return Manifold.cube([w, y1 - y0, 0.01]).translate([-w / 2, y0, z])
 
 
-def plaque_layout():
-    """Font sizes of the two text lines, fitted to the plaque."""
-    check_glyphs(TEXT + str(YEAR))
+def fit_lines(lines, w, h, gap):
+    """One font size for a block of centred lines that fits w x h."""
+    bs = [text_section(t, 10.0).bounds() for t in lines]
+    ws = [b[2] - b[0] for b in bs]
+    hs = [b[3] - b[1] for b in bs]
+    size = min(min(w / x for x in ws), (h - gap * (len(lines) - 1)) / sum(hs)) * 10.0
+    return size
+
+
+def stack(lines, size, gap):
+    """Lines of text at one size, centred on x = 0 and y = 0 as a block."""
+    secs = [text_section(t, size) for t in lines]
+    bs = [c.bounds() for c in secs]
+    hs = [b[3] - b[1] for b in bs]
+    y = (sum(hs) + gap * (len(lines) - 1)) / 2
+    out = []
+    for c, b, hh in zip(secs, bs, hs):
+        out.append(c.translate([-(b[0] + b[2]) / 2, y - b[3]]))
+        y -= hh + gap
+    return out
+
+
+def cap_height(size):
+    b = text_section("H", size).bounds()
+    return b[3] - b[1]
+
+
+def plaque_texts():
+    """The text pieces on the plaque, centred on the plaque, and their font sizes.
+
+    lines: "1. plass" over "Svettaste Blåbby 2026".
+    number: a big "1." on the left, the name over the year on the right.
+    """
+    check_glyphs(TEXT + str(YEAR) + f"{PLACE}. plass")
     inner_w = PLAQUE_W - 2 * 5.0
     inner_h = PLAQUE_H - 2 * 4.0
-    gap = 1.8
-    b1 = text_section(TEXT, 10.0).bounds()
-    b2 = text_section(str(YEAR), 10.0).bounds()
-    w1, h1 = b1[2] - b1[0], b1[3] - b1[1]
-    w2, h2 = b2[2] - b2[0], b2[3] - b2[1]
-    s1 = min(inner_w / w1, (inner_h - gap) / (h1 + h2)) * 10.0
-    s2 = min(s1 * 1.15, (inner_h - gap - h1 * s1 / 10.0) / h2 * 10.0, inner_w / w2 * 10.0)
-    return s1, s2, gap
+    gap = 1.8 * SCALE
+    if PLAQUE_LAYOUT == "lines":
+        lines = [f"{PLACE}. plass", f"{TEXT} {YEAR}"]
+        size = fit_lines(lines, inner_w, inner_h, gap)
+        return stack(lines, size, gap), [size]
+    num = f"{PLACE}."
+    nb = text_section(num, 10.0).bounds()
+    n_size = inner_h / (nb[3] - nb[1]) * 10.0
+    big = text_section(num, n_size)
+    bb = big.bounds()
+    space = 3.0
+    # keep the big number clear of the frame
+    rest_w = inner_w - 4.0 - (bb[2] - bb[0]) - space
+    lines = [TEXT, str(YEAR)]
+    size = fit_lines(lines, rest_w, inner_h, gap)
+    block = stack(lines, size, gap)
+    bw = max(c.bounds()[2] - c.bounds()[0] for c in block)
+    total = (bb[2] - bb[0]) + space + bw
+    x0 = -total / 2
+    big = big.translate([x0 - bb[0], -(bb[1] + bb[3]) / 2])
+    block = [c.translate([x0 + (bb[2] - bb[0]) + space + bw / 2, 0]) for c in block]
+    return [big] + block, [n_size, size]
 
 
 def stencil_bridges(material, text, bw):
@@ -590,23 +821,18 @@ def stencil_bridges(material, text, bw):
 
 
 def make_plaque():
-    s1, s2, gap = plaque_layout()
+    texts, sizes = plaque_texts()
     outline = rounded_rect(PLAQUE_W, PLAQUE_H, 3.0)
     plate = (slab(outline.offset(-0.4), 0) + slab(outline, 0.4) +
              slab(outline, PLAQUE_T - 0.6) + slab(outline.offset(-0.6), PLAQUE_T - 0.01)).hull()
     frame = outline.offset(-1.6) - outline.offset(-3.4)
-    t1 = text_section(TEXT, s1)
-    t2 = text_section(str(YEAR), s2)
-    b1, b2 = t1.bounds(), t2.bounds()
-    h1, h2 = b1[3] - b1[1], b2[3] - b2[1]
-    y_top = (h1 + gap + h2) / 2
-    t1 = t1.translate([-(b1[0] + b1[2]) / 2, y_top - b1[3]])
-    t2 = t2.translate([-(b2[0] + b2[2]) / 2, y_top - h1 - gap - b2[3]])
-    info = dict(size1=s1, size2=s2, text=(t1, t2), stencil=STENCIL)
+    text = texts[0]
+    for t in texts[1:]:
+        text = text + t
+    info = dict(sizes=sizes, caps=[cap_height(x) for x in sizes], text=texts, stencil=STENCIL)
     if not STENCIL:
-        rel = (frame + t1 + t2).extrude(TEXT_RELIEF).translate([0, 0, PLAQUE_T - 0.01])
+        rel = (frame + text).extrude(TEXT_RELIEF).translate([0, 0, PLAQUE_T - 0.01])
         return plate + rel, info
-    text = t1 + t2
     material, bridges = stencil_bridges(outline - text, text, BRIDGE_W)
     holes = outline.offset(-0.5) - material
     cut = holes.extrude(PLAQUE_T + 2).translate([0, 0, -1])
@@ -640,17 +866,17 @@ def build():
     """Return the print-oriented parts, the assembled scene and some numbers."""
     g = blob_geometry()
     blob = make_blob(g)
-    crown = make_crown(g)
+    hat, hat_z = make_crown(g) if HAT == "crown" else make_beanie(g)
     base, base_info = make_base(g)
     plaque, pinfo = make_plaque()
 
     zc = base_info["cheese_z"]
     asm = {"base": base, "blob": blob.translate([0, 0, zc]),
-           "crown": crown.translate([0, 0, zc + g["band_bot"]])}
+           "hat": hat.translate([0, 0, zc + hat_z])}
     asm["plaque"] = place_plaque(plaque, base_info)
     asm["pin"] = make_pin_vertical().translate([0, 0, zc - PIN_DEPTH])
 
-    parts = {"blob": to_bed(blob), "crown": to_bed(crown),
+    parts = {"blob": to_bed(blob), "hat": to_bed(hat),
              "base": to_bed(base), "plaque": to_bed(plaque), "pin": to_bed(make_pin())}
     return parts, asm, dict(g=g, band=band_radii(g), base=base_info, plaque=pinfo)
 
@@ -725,6 +951,25 @@ def filament_grams(volume_cm3, area_cm2, density=1.24, wall_mm=1.6, infill=0.15)
     return (shell + infill * (volume_cm3 - shell)) * density
 
 
+def filament_by_colour(parts):
+    """Filament per colour in grams for one trophy, split at the filament switches."""
+    out = {}
+
+    def add(m, col):
+        r = check_part("x", m)
+        out[col] = out.get(col, 0.0) + filament_grams(r["volume_cm3"], r["area_cm2"])
+
+    for name, m in parts.items():
+        z = relief_z(name)
+        if z is None:
+            add(m, COLOURS[name])
+        else:
+            low, top = split_relief(m, z)
+            add(low, COLOURS[name])
+            add(top, "white")
+    return out
+
+
 def run_checks(parts, asm, info):
     g = info["g"]
     prof = g["profile"]
@@ -739,17 +984,35 @@ def run_checks(parts, asm, info):
         if g["band_bot"] - 1 <= p[1] <= g["band_top"] + 1 and q[1] > p[1] and q[0] < p[0]:
             worst_band = max(worst_band, math.degrees(math.atan2(p[0] - q[0], q[1] - p[1])))
     assert worst_band <= 45.0, f"band seat overhang {worst_band:.1f} deg"
+    cfg = PLACES[PLACE]
+    print(f"== place {PLACE}: {cfg['name']}, scale {SCALE:.2f}, {cfg['blob']} blob, "
+          f"{cfg['hat_colour']} {hat_name()}, {TIERS} tier base")
     br = info["band"]
-    # the point wall must stand on the band top, clear of the head inside it
-    ledge = br["r_point"] - POINT_WALL / 2 - br["r_ht"] - TOLERANCE / 2
-    assert POINT_WALL >= 0.8 and ledge >= 0.8, "crown point wall too thin or off the band"
+    if HAT == "crown":
+        # the point wall must stand on the band top, clear of the head inside it
+        ledge = br["r_point"] - POINT_WALL / 2 - br["r_ht"] - TOLERANCE / 2
+        assert POINT_WALL >= 0.8 and ledge >= 0.8, "crown point wall too thin or off the band"
+    else:
+        r45, z45 = beanie_seat(g)
+        worst_beanie = 0.0
+        for p, q in zip(prof[:-1], prof[1:]):
+            if g["hat_bot"] - 1 <= p[1] < z45 and q[1] > p[1] and q[0] < p[0]:
+                worst_beanie = max(worst_beanie, math.degrees(math.atan2(p[0] - q[0], q[1] - p[1])))
+        assert worst_beanie <= 45.0, f"beanie seat overhang {worst_beanie:.1f} deg"
     print(f"blob: scale {g['scale']:.3f} mm/px, height {g['height']:.1f} mm, max width "
           f"{2 * prof[:, 0].max():.1f} mm, flat foot {2 * prof[0, 0]:.1f} mm")
     print(f"blob belly steepest {worst:.1f} deg, band seat steepest {worst_band:.1f} deg from vertical")
-    print(f"crown: {NUM_POINTS} points, wall {POINT_WALL:.1f} mm, flare {POINT_FLARE:.0f} deg, "
-          f"balls {2 * BALL_R:.1f} mm, band top under the point wall {ledge:.2f} mm wide")
-    print(f"plaque font size: line 1 {info['plaque']['size1']:.2f} mm, line 2 {info['plaque']['size2']:.2f} mm")
+    if HAT == "crown":
+        print(f"crown: {NUM_POINTS} points, {CROWN_H:.0f} mm tall, wall {POINT_WALL:.1f} mm, flare "
+              f"{POINT_FLARE:.0f} deg, balls {2 * BALL_R:.1f} mm, band top under the point wall "
+              f"{ledge:.2f} mm wide")
+    else:
+        print(f"beanie: seat follows the head up to {z45:.1f} mm, then a 45 deg cone. Steepest seat "
+              f"{worst_beanie:.1f} deg, wall {BEANIE_WALL:.1f} mm")
     pq = info["plaque"]
+    print(f"plaque {PLAQUE_LAYOUT}: font sizes " + ", ".join(f"{x:.2f}" for x in pq["sizes"]) +
+          " mm, cap heights " + ", ".join(f"{x:.2f}" for x in pq["caps"]) + " mm")
+    assert min(pq["caps"]) >= MIN_CAP, f"plaque text below {MIN_CAP} mm cap height"
     if pq["stencil"]:
         mat, holes = pq["material"], pq["holes"]
         thin = 1 - mat.offset(-0.4).offset(0.4).area() / mat.area()
@@ -761,7 +1024,7 @@ def run_checks(parts, asm, info):
     print(f"plaque {pb[3] - pb[0]:.2f} x {pb[4] - pb[1]:.2f} mm in a pocket of "
           f"{PLAQUE_W + TOLERANCE:.2f} x {PLAQUE_H + TOLERANCE:.2f} mm, clearance {TOLERANCE / 2:.2f} mm per side")
     assert pb[3] - pb[0] <= PLAQUE_W + 1e-6 and pb[4] - pb[1] <= PLAQUE_H + 1e-6
-    for label, t in zip(("line 1", "line 2"), info["plaque"]["text"]):
+    for label, t in zip(("text 1", "text 2", "text 3"), info["plaque"]["text"]):
         bb = t.bounds()
         thin = 1 - t.offset(-0.4).offset(0.4).area() / t.area()
         gaps = t.offset(0.4).offset(-0.4).area() / t.area() - 1
@@ -778,6 +1041,10 @@ def run_checks(parts, asm, info):
     bb = total.bounding_box()
     info["overall"] = (bb[3] - bb[0], bb[4] - bb[1], bb[5] - bb[2])
     print(f"assembled: {bb[3] - bb[0]:.1f} x {bb[4] - bb[1]:.1f} mm, overall height {bb[5] - bb[2]:.1f} mm")
+    grams = filament_by_colour(parts)
+    info["grams"] = grams
+    print("filament: " + ", ".join(f"{c} {x:.0f} g" for c, x in grams.items()) +
+          f", total {sum(grams.values()):.0f} g")
     results = []
     for name, m in parts.items():
         r = check_part(name, m)
@@ -792,18 +1059,23 @@ def run_checks(parts, asm, info):
 
 
 def main(argv=None):
-    global YEAR, TEXT, OVERALL_HEIGHT, TOLERANCE, PART, BASE_STYLE
+    global YEAR, TEXT, OVERALL_HEIGHT, TOLERANCE, PART, BASE_STYLE, PLAQUE_LAYOUT
     ap = argparse.ArgumentParser(description="Pizzakongen trophy generator")
     ap.add_argument("--year", type=int, default=YEAR)
     ap.add_argument("--text", default=TEXT)
     ap.add_argument("--height", type=float, default=OVERALL_HEIGHT)
     ap.add_argument("--tolerance", type=float, default=TOLERANCE)
     ap.add_argument("--part", default=PART, choices=["all"] + PARTS)
+    ap.add_argument("--place", default="all", choices=["1", "2", "3", "all"],
+                    help="which trophy of the set")
+    ap.add_argument("--plaque", default=PLAQUE_LAYOUT, choices=["lines", "number"],
+                    help="plaque text layout")
     ap.add_argument("--base", default=BASE_STYLE, choices=list(BASE_STYLES),
-                    help="style of the base")
+                    help="style of the 1st place base")
     ap.add_argument("--stencil", action="store_true",
                     help="stencil text cut through the plaque instead of raised text")
-    ap.add_argument("--out", default=os.path.join(HERE, "stl"))
+    ap.add_argument("--out", default=os.path.join(HERE, "stl", "pizzakongen"),
+                    help="STL folder. Each place goes in its own placeN folder")
     ap.add_argument("--from-sprite", help="print the row widths of a blobbym*.bmp and exit")
     a = ap.parse_args(argv)
     if a.from_sprite:
@@ -813,21 +1085,28 @@ def main(argv=None):
     global STENCIL
     STENCIL = a.stencil
     BASE_STYLE = a.base
+    PLAQUE_LAYOUT = a.plaque
     if not 150 <= OVERALL_HEIGHT <= 200:
         raise SystemExit("OVERALL_HEIGHT must be between 150 and 200 mm")
 
-    parts, asm, info = build()
-    run_checks(parts, asm, info)
-    os.makedirs(a.out, exist_ok=True)
     import trimesh
-    for name, m in parts.items():
-        if PART not in ("all", name):
-            continue
-        v, f = mesh_arrays(m)
-        path = os.path.join(a.out, f"pizzakongen_{name}.stl")
-        trimesh.Trimesh(v, f).export(path)
-        print("wrote", path)
-    return parts, asm, info
+    places = [1, 2, 3] if a.place == "all" else [int(a.place)]
+    result = None
+    for place in places:
+        set_place(place)
+        parts, asm, info = build()
+        run_checks(parts, asm, info)
+        out = os.path.join(a.out, f"place{place}")
+        os.makedirs(out, exist_ok=True)
+        for name, m in parts.items():
+            if PART not in ("all", name):
+                continue
+            v, f = mesh_arrays(m)
+            path = os.path.join(out, f"{hat_name() if name == 'hat' else name}.stl")
+            trimesh.Trimesh(v, f).export(path)
+            print("wrote", path)
+        result = parts, asm, info
+    return result
 
 
 if __name__ == "__main__":

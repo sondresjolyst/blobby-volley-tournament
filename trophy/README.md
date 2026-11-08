@@ -1,60 +1,106 @@
-# Pizzakongen trophy
+# Pizzakongen trophies
 
-A first concept model of the tournament trophy. An upright Blobby blob wears a classic crown with seven points and a ball on each tip. It stands on a black plinth of three stepped tiers. The front of the bottom tier holds a plaque with "Svettaste Blåbby" and the year.
+A set of three trophies for 1st, 2nd and 3rd place, each with its own hat. Every trophy is an upright Blobby blob on a black stepped plinth with a plaque on the front. The blob is spun from the real outline of `data/gfx/blobbym1.bmp` in the game. Like the game art, it has no face.
 
-The blob is spun from the real outline of `data/gfx/blobbym1.bmp` in the game. Like the game art, it has no face.
+![The set at true scale](renders/lineup.png)
 
-![Assembled, front left](renders/assembled_angle.png)
+| Place | Name | Blob | Hat | Base | Scale | Height | Footprint |
+|---|---|---|---|---|---|---|---|
+| 1 | Pizzakongen | Dark blue | Black crown, 7 points | 3 tiers | 100 % | 170 mm | 140 x 143 mm |
+| 2 | Prinsen | White | Black prince's crown, 5 lower points | 2 tiers | 85 % | 139 mm | 119 x 122 mm |
+| 3 | Fanten | Dark green | White knit beanie with a pompom | 1 tier | 70 % | 126 mm | 98 x 101 mm |
 
-Overall height: 170.0 mm. Footprint: 140 x 143 mm.
+The scale applies to the blob, the base and the plaque. The walls, the fits, the pin and every height that a filament switch depends on keep their full size values, so the small trophies print as well as the big one.
 
 ## Colours
 
-The filaments on hand are black, white, dark blue and dark green. Pizzakongen uses three of them:
+The filaments on hand are black, white, dark blue and dark green. The base, the pin and the plaque plate are black on every trophy. The plaque letters are white.
 
-- The blob is dark blue. The game draws the left blob in pure blue (RGB 0, 0, 255 in `data/config.xml`). Dark blue is the only blue filament on hand, so it is the closest match.
-- The base, the crown and the pin are black.
-- The plaque is black with raised white letters and frame. White is the only light colour on hand, so it is the one that reads on black.
+- Pizzakongen has a dark blue blob. The game draws the left blob in pure blue (RGB 0, 0, 255 in `data/config.xml`). Dark blue is the only blue filament on hand, so it is the closest match. The crown is black.
+- Prinsen has a white blob and a black crown.
+- Fanten has a dark green blob and a white beanie.
 
-Every part is one colour, except the plaque. The plaque gets its second colour from one filament switch. No part has more than one switch.
+Every part is one colour, except the plaque. The plaque gets its white letters from one filament switch. No part has more than one switch.
 
-## Parts
+## Parts and filament
 
-Print one of each part. The weights assume PLA with 4 walls and 15 percent infill. They are rough figures from the model volume.
+Run `python pizzakongen.py` to write the STL files of all three trophies, each place in its own folder: `stl/pizzakongen/place1/`, `stl/pizzakongen/place2/` and `stl/pizzakongen/place3/`. The files are already in print orientation. The weights assume PLA with 4 walls and 15 percent infill. They are rough figures from the model volume.
 
-| Part | File | Colour | Print orientation | Approx. filament |
-|---|---|---|---|---|
-| Base (three tiers) | `stl/pizzakongen_base.stl` | Black | Upright, flat bottom on the bed | 257 g |
-| Blob | `stl/pizzakongen_blob.stl` | Dark blue | Upright, flat foot on the bed | 131 g |
-| Crown | `stl/pizzakongen_crown.stl` | Black | Upright, band on the bed | 34 g |
-| Plaque | `stl/pizzakongen_plaque.stl` | Black, letters white (one switch) | Flat, front facing up | 13 g black, 1 g white |
-| Pin | `stl/pizzakongen_pin.stl` | Black | Lying on its flat side | 1 g |
+| Part | File | Print orientation | 1. Pizzakongen | 2. Prinsen | 3. Fanten |
+|---|---|---|---|---|---|
+| Blob | `blob.stl` | Upright, flat foot on the bed | 131 g dark blue | 86 g white | 52 g dark green |
+| Hat | `crown.stl` or `beanie.stl` | Upright, open side on the bed | 34 g black | 22 g black | 32 g white |
+| Base | `base.stl` | Upright | 257 g black | 176 g black | 111 g black |
+| Plaque | `plaque.stl` | Flat, front facing up | 13 g black, 1 g white | 9 g black, 1 g white | 6 g black, 1 g white |
+| Pin | `pin.stl` | Lying on its flat side | 1 g black | 1 g black | 1 g black |
 
-The STL files are already in print orientation.
+Filament per trophy:
 
-Filament per colour, about 437 g in total:
+| Trophy | Black | White | Dark blue | Dark green | Total |
+|---|---|---|---|---|---|
+| 1. Pizzakongen | 306 g | 1 g | 131 g | | 438 g |
+| 2. Prinsen | 208 g | 87 g | | | 295 g |
+| 3. Fanten | 119 g | 33 g | | 52 g | 204 g |
+| The set | 633 g | 121 g | 131 g | 52 g | 937 g |
 
-| Colour | Parts | Approx. filament |
-|---|---|---|
-| Black | Base, crown, plaque plate, pin | 305 g |
-| Dark blue | Blob | 131 g |
-| White | Plaque letters and frame | 1 g |
+Each place has its renders in `renders/place1/`, `renders/place2/` and `renders/place3/`: the assembled trophy from the front and from the front left, a close up of the hat and the plaque, and every print part on the bed.
 
-![Front](renders/assembled_front.png)
+![Pizzakongen](renders/place1/assembled_angle.png)
 
-### Crown
+![Prinsen](renders/place2/assembled_angle.png)
 
-The crown is one part. Its band is the same as before. The inside follows the shape of the head with the fit tolerance, so it seats by itself. On top of the band stands a 2.4 mm wall that rises into seven points. One point faces the front. Each tip carries a 6.4 mm ball. The points lean 10 degrees outward and reach 30 mm above the band, balls included.
+![Fanten](renders/place3/assembled_angle.png)
 
-![Crown](renders/crown_closeup.png)
+### Crowns
 
-![Crown on the bed](renders/print_crown.png)
+Pizzakongen and Prinsen have the same kind of crown. The band seats on the head, because its inside is the head surface plus the fit tolerance. On top of the band stands a 2.4 mm wall that rises into points with a ball on each tip. The points lean 10 degrees outward. Pizzakongen has 7 points, 30 mm above the band. Prinsen has 5 points, only 20 mm above the band, with smaller balls. One point faces the front on both. Each ball has a cone under it at 42 degrees, so its underside prints without support.
 
-`NUM_POINTS`, `POINT_WALL`, `POINT_FLARE`, `BALL_R` and `CROWN_H` at the top of the script set the shape. Keep the number of points odd, so the front view shows a single ball at the front instead of two balls in a line.
+![Pizzakongen crown](renders/place1/crown_closeup.png)
 
-### Base styles
+![Prinsen crown](renders/place2/crown_closeup.png)
 
-The base comes in five styles. The default is `tiers`. Pick another with `--base` or with `BASE_STYLE` at the top of `pizzakongen.py`. Every style keeps the same blob seat, pin socket and plaque pocket, so the blob, the crown, the plaque and the pin stay the same. Every style is black, has a flat bottom, fits within 142 x 142 mm and has no faces steeper than 45 degrees.
+`PLACES` at the top of `pizzakongen.py` sets the points, height and ball size per place. Keep the number of points odd, so the front view shows a single ball at the front instead of two balls in a line.
+
+### Beanie
+
+Fanten wears a slouchy knit beanie, pulled down over the head. The turned up cuff has vertical ribs and its top is cut at 8 degrees, so the beanie looks pulled down on one side. The knit leans to the side and carries knitted ribs and a pompom. The bottom of the cuff stays flat for the bed.
+
+The inside follows the head down at the edge, like the crown band, so the beanie seats by itself. Where the head gets steeper than 45 degrees, the inside turns into a 45 degree cone over the top of the head. So the beanie prints upright with no support. The rib ends taper and the pompom has a cone under it for the same reason.
+
+![Fanten beanie](renders/place3/beanie_closeup.png)
+
+![Beanie on the bed](renders/place3/print_beanie.png)
+
+A bindle stick was left out. It would need its own mount on the base, and the cloth bundle has no flat side to print on without support.
+
+### Plaque
+
+The plaque is 122 x 28 mm on Pizzakongen and scales with the trophy, to 104 x 24 mm on Prinsen and 85 x 20 mm on Fanten. Its thickness, the 1.2 mm relief and the pocket depth stay the same. Two layouts are built in, and `--plaque` picks one:
+
+- `number` (default): a big place number on the left, the name and the year on the right.
+- `lines`: "1. plass" over "Svettaste Blåbby 2026".
+
+The big number reads better, mostly on the small plaques. On Fanten the name is 4.1 mm cap height with `number` and 3.6 mm with `lines`. The script stops if any text is below 3 mm cap height (`MIN_CAP`).
+
+![Plaque layouts, true relative size](renders/plaque_layouts.png)
+
+The letters and frame are raised 1.2 mm on a black plate and print in white after one filament switch. The letters sit on the plate, so they need no bridges, and the ring of the å is held by the plate as well.
+
+Run with `--stencil`, or set `STENCIL = True`, to get the one colour stencil plaque instead. The text is cut all the way through the plaque and the floor of the pocket shows through the letters. Closed letters then need 1.2 mm bridges, which the script adds by itself. With the black base behind it, a stencil plaque does not read, so use the raised text.
+
+### Print notes
+
+The printer has no AMS, so the plaque gets its second colour from one filament switch. Layers are 0.2 mm, the first layer included. Layer N is printed from Z = (N - 1) x 0.2 mm to N x 0.2 mm, so pause before layer N starts. Bambu Studio shows each layer by its top height, so layer 16 shows as 3.20 mm in the layer slider.
+
+- Plaque, all three places: start in black. Pause at layer 16 (Z 3.0 mm), change to white. The plate is 3.0 mm, the letters and frame stand 1.2 mm above it.
+
+In Bambu Studio, open the layer slider in the preview, go to the layer at 3.20 mm, right click the plus sign and pick "Add pause". The printer stops there. Change the filament by hand and resume. The script prints the pause layer for every run, so check it after you change `PLAQUE_T` or `TEXT_RELIEF`.
+
+No part needs supports. The steepest surfaces are 45 degrees, on purpose. These are the bottom chamfers against elephant's foot, the roof of the plaque pocket, the undersides of the crown band rings, the inside cone of the beanie and the pointed roof of the pin socket in the blob. The blob belly is at most 37 degrees from vertical. The inside of the crown band and of the beanie follows the head at up to 45 degrees.
+
+### Base styles for Pizzakongen
+
+Pizzakongen can also take one of four other bases. The default is `tiers`. Pick another with `--base` or with `BASE_STYLE` at the top of `pizzakongen.py`. Prinsen and Fanten use the tiers base only. Every style keeps the same blob seat, pin socket and plaque pocket, so the blob, the crown, the plaque and the pin stay the same. Every style is black, has a flat bottom, fits within 142 x 142 mm and has no faces steeper than 45 degrees.
 
 ![Base styles](renders/bases/compare.png)
 
@@ -66,44 +112,22 @@ The base comes in five styles. The default is `tiers`. Pick another with `--base
 | `drum` | Rounded pedestal with a flat front for the plaque and a flared foot | 237 g black |
 | `court` | Plain box with a raised white volleyball court on top: the court lines, the net line and a ball | 276 g black, 2 g white |
 
-The `court` style is the only base with a filament switch. Start in black. Pause at layer 233 (Z 46.4 mm, slider 46.60) and change to white. The lines stand 1.2 mm above the top. The top of this base is 46.4 mm instead of 46.5 mm, so the switch falls on a layer boundary. The trophy is then 169.9 mm tall.
+The `court` style has a second filament switch, on the base. Start in black. Pause at layer 233 (Z 46.4 mm, slider 46.60) and change to white. The lines stand 1.2 mm above the top. The top of this base is 46.4 mm instead of 46.5 mm, so the switch falls on a layer boundary. The trophy is then 169.9 mm tall.
 
 A regular hexagon or octagon base does not work. The plaque needs a flat front about 124 mm wide, and an octagon 140 mm across has 58 mm sides.
 
-Each style has an assembled render and a print render in `renders/bases/`, for example `renders/bases/tiers_angle.png` and `renders/bases/tiers_print_base.png`. Run `python render_previews.py --bases` to render them again. `python pizzakongen.py --base tiers --part base` writes the base STL for one style. It overwrites `stl/pizzakongen_base.stl`, which holds the default style.
-
-### Print notes
-
-The printer has no AMS, so the plaque gets its second colour from one filament switch. Layers are 0.2 mm, the first layer included. Layer N is printed from Z = (N - 1) x 0.2 mm to N x 0.2 mm, so pause before layer N starts. Bambu Studio shows each layer by its top height, so layer 16 shows as 3.20 mm in the layer slider.
-
-- Plaque: start in black. Pause at layer 16 (Z 3.0 mm), change to white. The plate is 3.0 mm, the letters and frame stand 1.2 mm above it.
-
-In Bambu Studio, open the layer slider in the preview, go to the layer at 3.20 mm, right click the plus sign and pick "Add pause". The printer stops there. Change the filament by hand and resume. The script prints the pause layer for every run, so check it after you change `PLAQUE_T` or `TEXT_RELIEF`.
-
-![Plaque on the bed](renders/print_plaque.png)
-
-### Plaque text
-
-The plaque has the text and the frame raised 1.2 mm on a black plate. After the pause they print in white, so the text reads as white on black. The letters sit on the plate, so they need no bridges, and the ring of the å is held by the plate as well.
-
-![Plaque, raised two colour text](renders/plaque_closeup.png)
-
-Run with `--stencil`, or set `STENCIL = True`, to get the one colour stencil plaque instead. The text is cut all the way through the plaque and the floor of the pocket shows through the letters. Closed letters such as e, a, å, B, b, 0 and 6 then need 1.2 mm bridges, which the script adds by itself. It stops if the plaque is not one piece. With the black base behind it, a stencil plaque does not read, so use the raised text.
-
-With the `pizza` base, the pizza on the box has 1.2 mm pepperoni and olives. The cheese cuts and crust notches are 1 mm deep. They are all black, like the rest of the base. The plaque text is DejaVu Sans Bold, about 7 mm cap height. The plaque is 122 x 28 mm and its pocket is 0.3 mm larger each way with the default tolerance.
-
-No part needs supports. The steepest surfaces are 45 degrees, on purpose. These are the bottom chamfers against elephant's foot, the underside of the pizza box lid, the roof of the plaque pocket, the undersides of the crown band rings and the pointed roof of the pin socket in the blob. The blob belly is at most 37 degrees from vertical. The inside of the crown band follows the head at up to 44 degrees. The crown points lean out 10 degrees. The ball on each tip has a cone under it at 42 degrees, so its underside prints without support.
+Each style has an assembled render and a print render in `renders/bases/`, for example `renders/bases/tiers_angle.png` and `renders/bases/tiers_print_base.png`. Run `python render_previews.py --bases` to render them again. `python pizzakongen.py --place 1 --base drum --part base` writes the base of one style to `stl/pizzakongen/place1/base.stl`, in place of the default.
 
 ## Assembly
 
 1. Test fit the pin in the socket on the top of the base and in the socket under the blob. The flat side of the pin matches the flat side of each socket. If it is too tight, sand the pin or reprint with a larger tolerance.
 2. Glue the pin into the base, then glue the blob onto the pin. Use CA glue for PLA and two-part epoxy for PETG.
-3. Lower the crown over the head with a point at the front. The inside of the band follows the shape of the head, so it seats by itself. Glue it.
+3. Lower the hat over the head. Turn a crown so a point faces the front. Turn the beanie so the low side of the cuff is on the right, seen from the front. The inside follows the shape of the head, so it seats by itself. Glue it.
 4. Glue the plaque into the pocket on the front of the base, with the year at the bottom.
 
-## Change the year or the text
+## Commands
 
-Install the packages once, then run the script:
+Install the packages once, then run the scripts:
 
 ```
 pip install -r requirements.txt
@@ -111,20 +135,24 @@ python pizzakongen.py --year 2027
 python render_previews.py
 ```
 
-The first command writes all STL files to `stl/` and prints the checks. Only the plaque changes with the year, so you can export just that part with `--part plaque`. You can also edit `YEAR` and `TEXT` at the top of `pizzakongen.py`. The text size adjusts to fit the plaque. The script stops with an error if the font has no glyph for a letter.
+The first command writes the STL files of all three places to `stl/pizzakongen/placeN/` and prints the checks and the filament per trophy. The second writes every render, the lineup and the plaque sheet to `renders/`. Only the plaque changes with the year, so you can export just that part with `--part plaque`. You can also edit `YEAR` and `TEXT` at the top of `pizzakongen.py`. The text size adjusts to fit the plaque. The script stops with an error if the font has no glyph for a letter.
 
-Other options:
+Options for `pizzakongen.py`:
 
-- `--text "..."` changes the first line.
-- `--height 150` to `--height 200` sets the overall height. The blob scales to match.
+- `--place 2` builds one trophy. The choices are `1`, `2`, `3` and `all` (default).
+- `--plaque lines` picks the plaque layout: `number` (default) or `lines`.
+- `--text "..."` changes the name on the plaque.
+- `--height 150` to `--height 200` sets the height of Pizzakongen. The other two scale with it.
 - `--tolerance 0.3` is the total clearance for every fit. Use 0.3 for PLA and 0.4 for PETG.
 - `--stencil` makes the one colour stencil plaque instead of raised text.
-- `--base plain` picks the base style: `pizza`, `plain`, `tiers`, `drum` or `court`.
-- `--part blob` exports a single part. The choices are `all`, `blob`, `crown`, `base`, `plaque` and `pin`.
+- `--base plain` picks the base style of Pizzakongen: `pizza`, `plain`, `tiers`, `drum` or `court`.
+- `--part blob` exports a single part. The choices are `all`, `blob`, `hat`, `base`, `plaque` and `pin`.
+
+`render_previews.py` takes `--place` too, and `--bases` for the base styles.
 
 ## Checks
 
-Each run checks every part. It must be one closed, valid mesh with a flat bottom at z = 0, and it must fit the 256 x 256 x 256 mm bed of the Bambu Lab P1S. Faces steeper than 45 degrees are also checked. The script stops if the blob belly or the band seat break those limits, or if the crown wall does not stand on the band top.
+Each run checks every part of every trophy. It must be one closed, valid mesh with a flat bottom at z = 0, and it must fit the 256 x 256 x 256 mm bed of the Bambu Lab P1S. Faces steeper than 45 degrees are also checked. The script stops if the blob belly, the band seat or the beanie seat break those limits, if a crown wall does not stand on its band, if the plaque does not fit the bottom tier or if the plaque text gets too small.
 
 ## Files
 

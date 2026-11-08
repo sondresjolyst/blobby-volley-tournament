@@ -1,10 +1,11 @@
-"""Render PNG previews of the Pizzakongen trophy.
+"""Render PNG previews of the Pizzakongen trophies.
 
 Uses a small z-buffer rasteriser written with numpy, so the previews show
 correct hidden surfaces. Run after changing parameters in pizzakongen.py:
 
-    python render_previews.py
-    python render_previews.py --bases     # every base style, to renders/bases/
+    python render_previews.py             # all three places, the lineup and the plaques
+    python render_previews.py --place 3   # one place
+    python render_previews.py --bases     # every 1st place base style, to renders/bases/
 """
 
 import argparse
@@ -24,18 +25,26 @@ OUT = os.path.join(P.HERE, "renders")
 # The filament colours on hand
 BLACK = (0.13, 0.13, 0.14)
 BLUE = (0.07, 0.13, 0.42)
+GREEN = (0.06, 0.30, 0.15)
 WHITE = (0.90, 0.90, 0.88)
 BED = (0.75, 0.76, 0.78)
 
-GLOSS = {BLACK: 0.5, BLUE: 0.55, WHITE: 0.15}
-NAMES = {BLACK: "black", BLUE: "dark blue", WHITE: "white"}
+GLOSS = {BLACK: 0.5, BLUE: 0.55, GREEN: 0.5, WHITE: 0.15}
+RGB = {"black": BLACK, "dark blue": BLUE, "dark green": GREEN, "white": WHITE}
 
-# Colour per assembled piece. "plaque_top" is the raised text and frame on the
-# plaque and "base_top" the court lines on the court base. Both are printed
-# after one filament change.
-SCHEME = dict(base=BLACK, blob=BLUE, crown=BLACK, plaque=BLACK, plaque_top=WHITE, pin=BLACK,
-              base_top=WHITE)
-TITLE = "Dark blue blob, black crown and base, white letters"
+
+def scheme():
+    """Colour per assembled piece for the current place. "plaque_top" is the
+    raised text and frame on the plaque and "base_top" the court lines on the
+    court base. Both are printed after one filament change."""
+    sc = {k: RGB[v] for k, v in P.COLOURS.items()}
+    sc["base_top"] = WHITE
+    return sc
+
+
+def title():
+    cfg = P.PLACES[P.PLACE]
+    return f"{P.PLACE}. plass, {cfg['name']}"
 
 
 def prep(m, color, gloss=0.6):
@@ -206,20 +215,21 @@ def render_plaque(asm, scheme, path):
            title=None)
 
 
-def render_crown(asm, path):
-    """Close up of the crown on the head, from the front left and a little above."""
-    v = P.mesh_arrays(asm["crown"])[0]
-    render(scene(asm, SCHEME), path, az=25, el=18, size=(900, 700), crop=(v, 6.0),
-           title=f"Crown, {P.NUM_POINTS} points with a ball on each tip")
+def render_hat(asm, path):
+    """Close up of the hat on the head, from the front left and a little above."""
+    v = P.mesh_arrays(asm["hat"])[0]
+    render(scene(asm, scheme()), path, az=25, el=18, size=(900, 700), crop=(v, 6.0),
+           title=f"{title()}, {P.hat_name()}")
 
 
 def print_pieces(name, m):
     """A print part in its colours, split at the filament switch if it has one."""
-    col = SCHEME[name]
+    sc = scheme()
+    col = sc[name]
     z = P.relief_z(name)
     if z is None:
         return [prep(m, col, GLOSS[col])]
-    top_col = SCHEME[name + "_top"]
+    top_col = sc[name + "_top"]
     low, top = P.split_relief(m, z + SPLIT_GAP)
     return [prep(low, col, GLOSS[col]), prep(top, top_col, GLOSS[top_col])]
 
@@ -249,13 +259,14 @@ def render_bases():
     out = os.path.join(OUT, "bases")
     os.makedirs(out, exist_ok=True)
     keep = P.BASE_STYLE
+    P.set_place(1)
     tiles = []
     for style, label in P.BASE_STYLES.items():
         P.BASE_STYLE = style
         parts, asm, info = P.build()
         asm = split_scene(asm, info)
         angle = os.path.join(out, f"{style}_angle.png")
-        render(scene(asm, SCHEME), angle, az=35, el=24, size=(1000, 1000),
+        render(scene(asm, scheme()), angle, az=35, el=24, size=(1000, 1000),
                title=f"Base: {style}. {label}")
         render_print("base", parts["base"], os.path.join(out, f"{style}_print_base.png"),
                      f"Base {style}, upright")
@@ -296,33 +307,113 @@ def render_bases():
     print("wrote", path)
 
 
+def render_place(place):
+    """Assembled views, hat and plaque close ups and every print part of one place."""
+    P.set_place(place)
+    out = os.path.join(OUT, f"place{place}")
+    os.makedirs(out, exist_ok=True)
+    parts, asm, info = P.build()
+    asm = split_scene(asm, info)
+    sc = scheme()
+    cfg = P.PLACES[place]
+    items = scene(asm, sc)
+    render(items, os.path.join(out, "assembled_front.png"), az=0, el=6,
+           title=f"{title()}, front. {cfg['blob'].capitalize()} blob, "
+                 f"{cfg['hat_colour']} {P.hat_name()}")
+    render(items, os.path.join(out, "assembled_angle.png"), az=35, el=24,
+           title=f"{title()}, front left")
+    render_hat(asm, os.path.join(out, f"{P.hat_name()}_closeup.png"))
+    render_plaque(asm, sc, os.path.join(out, "plaque_closeup.png"))
+    labels = {"blob": "Blob, upright, flat foot on the bed",
+              "hat": f"{P.hat_name().capitalize()}, upright, open side on the bed",
+              "base": "Base, upright",
+              "plaque": "Plaque, flat, front facing up. Letters after the switch",
+              "pin": "Pin, lying on its flat side"}
+    for name, m in parts.items():
+        file = P.hat_name() if name == "hat" else name
+        render_print(name, m, os.path.join(out, f"print_{file}.png"),
+                     f"{title()}. {labels[name]}")
+
+
+LINEUP_ORDER = (2, 1, 3)    # podium order, 1st in the middle
+LINEUP_GAP = 30.0           # mm between the bases
+
+
+def render_lineup(path):
+    """All three trophies side by side at true scale, one camera."""
+    scenes, widths = [], []
+    for place in LINEUP_ORDER:
+        P.set_place(place)
+        parts, asm, info = P.build()
+        scenes.append((asm, info, scheme()))
+        widths.append(P.BOX_W)
+    items, x = [], -(sum(widths) + LINEUP_GAP * (len(widths) - 1)) / 2
+    for (asm, info, sc), w in zip(scenes, widths):
+        x += w / 2
+        moved = {k: m.translate([x, 0, 0]) for k, m in split_scene(asm, info).items()}
+        items += scene(moved, sc)
+        x += w / 2 + LINEUP_GAP
+    render(items, path, az=15, el=12, size=(1800, 1000),
+           title="The set at true scale: 2. Prinsen, 1. Pizzakongen, 3. Fanten")
+    P.set_place(1)
+
+
+def render_plaque_layouts(path):
+    """Both plaque layouts for all three places, in one sheet."""
+    from PIL import Image, ImageDraw, ImageFont
+    font = os.path.join(os.path.dirname(matplotlib.__file__), "mpl-data", "fonts", "ttf")
+    big = ImageFont.truetype(os.path.join(font, "DejaVuSans-Bold.ttf"), 26)
+    keep = P.PLAQUE_LAYOUT
+    rows = []
+    for place in (1, 2, 3):
+        P.set_place(place)
+        row = []
+        for layout in ("lines", "number"):
+            P.PLAQUE_LAYOUT = layout
+            parts, asm, info = P.build()
+            asm = split_scene(asm, info)
+            tmp = path.replace(".png", f"_{place}_{layout}.png")
+            render_plaque(asm, scheme(), tmp)
+            caps = ", ".join(f"{c:.1f}" for c in info["plaque"]["caps"])
+            label = (f"{place}. plass, {layout}. Plaque {P.PLAQUE_W:.0f} x {P.PLAQUE_H:.0f} mm, "
+                     f"cap height {caps} mm")
+            row.append((Image.open(tmp).convert("RGB"), label, P.PLAQUE_W))
+            os.remove(tmp)
+        rows.append(row)
+    P.PLAQUE_LAYOUT = keep
+    P.set_place(1)
+    # each plaque is drawn at its true size relative to the 1st place plaque
+    tw, th, lab = 1400, 380, 46
+    sheet = Image.new("RGB", (2 * tw + 30, 3 * (th + lab) + 20), (246, 247, 249))
+    draw = ImageDraw.Draw(sheet)
+    full = rows[0][0][2]
+    for r, row in enumerate(rows):
+        for c, (im, label, w) in enumerate(row):
+            f = w / full
+            im = im.resize((int(tw * f), int(th * f)), Image.LANCZOS)
+            x, y = c * (tw + 30), r * (th + lab) + 10
+            draw.text((x + 10, y), label, font=big, fill=(25, 25, 30))
+            sheet.paste(im, (x + (tw - im.width) // 2, y + lab))
+    sheet.save(path)
+    print("wrote", path)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Render Pizzakongen previews")
+    ap.add_argument("--place", default="all", choices=["1", "2", "3", "all"])
     ap.add_argument("--bases", action="store_true",
-                    help="render every base style to renders/bases/ and stop")
+                    help="render every 1st place base style to renders/bases/ and stop")
     a = ap.parse_args(argv)
     os.makedirs(OUT, exist_ok=True)
     if a.bases:
         render_bases()
         return
-    parts, asm, info = P.build()
-    asm = split_scene(asm, info)
-
-    items = scene(asm, SCHEME)
-    render(items, os.path.join(OUT, "assembled_front.png"), az=0, el=6,
-           title="Pizzakongen, front. " + TITLE)
-    render(items, os.path.join(OUT, "assembled_angle.png"), az=35, el=24,
-           title="Pizzakongen, front left")
-    render_crown(asm, os.path.join(OUT, "crown_closeup.png"))
-    render_plaque(asm, SCHEME, os.path.join(OUT, "plaque_closeup.png"))
-
-    labels = {"blob": "Blob, upright, flat foot on the bed",
-              "crown": "Crown, upright, band on the bed",
-              "base": "Base, upright",
-              "plaque": "Plaque, flat, front facing up. Letters after the switch",
-              "pin": "Pin, lying on its flat side"}
-    for name, m in parts.items():
-        render_print(name, m, os.path.join(OUT, f"print_{name}.png"), labels[name])
+    places = [1, 2, 3] if a.place == "all" else [int(a.place)]
+    for place in places:
+        render_place(place)
+    if a.place == "all":
+        render_lineup(os.path.join(OUT, "lineup.png"))
+        render_plaque_layouts(os.path.join(OUT, "plaque_layouts.png"))
 
 
 if __name__ == "__main__":
