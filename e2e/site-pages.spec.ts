@@ -101,7 +101,7 @@ test('the admin pages share the menu', async ({ page, context, baseURL }) => {
     await page.goto('/admin');
     const menu = page.getByRole('navigation', { name: 'Admin' });
     await expect(menu.getByRole('link', { name: 'Overview' })).toHaveAttribute('aria-current', 'page');
-    for (const name of ['Events', 'Tournaments', 'Matches', 'Game server', 'Big screen']) await expect(menu.getByRole('link', { name, exact: true })).toBeVisible();
+    for (const name of ['Events', 'Sponsor library', 'Tournaments', 'Matches', 'Game server', 'Big screen']) await expect(menu.getByRole('link', { name, exact: true })).toBeVisible();
     await expect(menu.getByRole('button', { name: 'Sign out' })).toBeVisible();
     await menu.getByRole('link', { name: 'Events', exact: true }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Events' })).toBeVisible();

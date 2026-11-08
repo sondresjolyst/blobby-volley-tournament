@@ -3,7 +3,7 @@ import { getPool } from '@/lib/db';
 import { parseId, seeOther } from '@/lib/http';
 import { readSponsorForm } from '@/lib/sponsors/form';
 import { makeGameLogo } from '@/lib/sponsors/logo';
-import { getSponsorLogo, updateSponsor } from '@/lib/store/sponsors';
+import { getSponsorEventId, updateSponsor } from '@/lib/store/sponsors';
 
 /** Saves the edit form of a sponsor on /admin/events/[id]. Without a new file the logo stays. */
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -12,18 +12,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const id = parseId((await ctx.params).id);
     if (id === null) return Response.json({ error: 'not found' }, { status: 404 });
     const pool = getPool();
-    const current = await getSponsorLogo(pool, id);
-    if (!current) return Response.json({ error: 'not found' }, { status: 404 });
-    const back = (query: string) => seeOther(`/admin/events/${current.eventId}?${query}#sponsors`);
+    const eventId = await getSponsorEventId(pool, id);
+    if (eventId === null) return Response.json({ error: 'not found' }, { status: 404 });
+    const back = (query: string) => seeOther(`/admin/events/${eventId}?${query}#sponsors`);
     const form = await readSponsorForm(req);
     if (!form.ok) return back(`error=${form.error}`);
-    // The game logo is made again from the stored logo too, since the background colour may have changed.
-    let gameLogo: Uint8Array;
-    try {
-        gameLogo = await makeGameLogo(form.logo ?? current, form.input.gameBackground);
-    } catch {
-        return back('error=logo-image');
-    }
-    if ((await updateSponsor(pool, id, form.input, form.logo, gameLogo)) === null) return Response.json({ error: 'not found' }, { status: 404 });
+    // The store makes the game logo from the row it has locked, so two saves at once never mix logos.
+    const saved = await updateSponsor(pool, id, form.input, form.logo, makeGameLogo);
+    if (saved === 'not-found') return Response.json({ error: 'not found' }, { status: 404 });
+    if (saved === 'logo-image') return back('error=logo-image');
     return back(`sponsor=${id}`);
 }

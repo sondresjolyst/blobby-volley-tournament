@@ -9,11 +9,12 @@ import { getPool } from '@/lib/db';
 import { getActiveBigScreenKey, getActiveEvent } from '@/lib/store/events';
 import styles from './admin.module.css';
 
-export type AdminSection = 'home' | 'events' | 'tournaments' | 'matches' | 'game-server';
+export type AdminSection = 'home' | 'events' | 'sponsors' | 'tournaments' | 'matches' | 'game-server';
 
 const LINKS: { section: AdminSection; href: string; label: string }[] = [
     { section: 'home', href: '/admin', label: 'Overview' },
     { section: 'events', href: '/admin/events', label: 'Events' },
+    { section: 'sponsors', href: '/admin/sponsors', label: 'Sponsor library' },
     { section: 'tournaments', href: '/admin/tournaments', label: 'Tournaments' },
     { section: 'matches', href: '/admin/matches', label: 'Matches' },
     { section: 'game-server', href: '/admin/game-server', label: 'Game server' },
