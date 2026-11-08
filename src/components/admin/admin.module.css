@@ -510,6 +510,328 @@
     cursor: pointer;
 }
 
+/* A field whose label has an i button. The help text opens between the label and the input. */
+.main :global(.admin-field) {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    max-width: 100%;
+}
+
+.main :global(.admin-field-label) {
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    justify-items: start;
+    align-items: center;
+    gap: 6px 8px;
+}
+
+.main button:global(.admin-info) {
+    display: inline-grid;
+    place-items: center;
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    min-height: 32px;
+    padding: 0;
+    border: 2px solid var(--red);
+    border-radius: 50%;
+    background: var(--white);
+    color: var(--red);
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 16px;
+    font-style: italic;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.main button:global(.admin-info):hover,
+.main button:global(.admin-info)[aria-expanded='true'] {
+    background: var(--red);
+    color: var(--white);
+}
+
+.main :global(.admin-info-text) {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 60ch;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--chip);
+    font-size: 14px;
+}
+
+.main :global(.admin-info-text)[hidden] {
+    display: none;
+}
+
+.main :global(.admin-field-title) {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.main :global(.admin-hint) {
+    max-width: 60ch;
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.main input[type='color'] {
+    width: 72px;
+    padding: 4px;
+    cursor: pointer;
+}
+
+/* A file field: a Browse button and the chosen file name. The real input is hidden but keeps the focus. */
+.main :global(.admin-file) {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    max-width: 100%;
+}
+
+.main :global(.admin-file) input[type='file'] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    opacity: 0;
+}
+
+.main label:global(.admin-file-button) {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    min-height: 44px;
+    box-sizing: border-box;
+    padding: 0 16px;
+    border: 2px solid var(--line);
+    border-radius: 12px;
+    background: var(--white);
+    color: var(--ink);
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.main label:global(.admin-file-button):hover {
+    border-color: var(--red);
+}
+
+.main :global(.admin-file):has(input:focus-visible) label:global(.admin-file-button) {
+    border-color: var(--red);
+    outline: 3px solid var(--yellow);
+    outline-offset: 2px;
+}
+
+.main :global(.admin-file-name) {
+    min-width: 0;
+    font-size: 14px;
+    overflow-wrap: anywhere;
+}
+
+/* Quiet buttons, for actions that sit next to a main button or repeat on every card. */
+.main button:global(.admin-quiet) {
+    border: 2px solid var(--line);
+    background: var(--white);
+    color: var(--ink);
+}
+
+.main button:global(.admin-quiet):hover:not(:disabled) {
+    border-color: var(--red);
+    background: var(--white);
+}
+
+.main button:global(.admin-quiet):disabled {
+    cursor: default;
+}
+
+/* A small card for one setting, such as the sponsor board. */
+.main form:global(.admin-panel) {
+    padding: 16px 20px;
+    border: 2px solid var(--line);
+    border-radius: 20px;
+    background: var(--white);
+    box-sizing: border-box;
+}
+
+.main :global(.admin-actions),
+.main :global(.admin-choice) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+}
+
+/* The sponsor cards. Each has the tile, the name and link, and the actions. */
+.main :global(.admin-sponsors) {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    max-width: 960px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.main :global(.admin-sponsor) {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 16px;
+    border: 2px solid var(--line);
+    border-radius: 20px;
+    background: var(--white);
+}
+
+.main :global(.admin-sponsor-row) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 16px;
+}
+
+.main :global(.admin-sponsor)[data-hidden] :global(.admin-sponsor-row) > span:first-child {
+    opacity: 0.45;
+}
+
+.main :global(.admin-sponsor-text) {
+    flex: 1 1 200px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.main :global(.admin-sponsor-link) {
+    color: var(--muted);
+    font-size: 14px;
+    overflow-wrap: anywhere;
+}
+
+.main :global(.admin-sponsor-actions) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.main form:global(.admin-inline) {
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.main :global(.admin-badge) {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: var(--chip);
+    font-size: 12px;
+    font-weight: 700;
+    vertical-align: middle;
+}
+
+/* An on and off switch. The track is green when on. */
+.main button:global(.admin-switch) {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 2px solid var(--line);
+    background: var(--white);
+    color: var(--ink);
+}
+
+.main button:global(.admin-switch):hover {
+    border-color: var(--red);
+    background: var(--white);
+}
+
+.main :global(.admin-switch-track) {
+    position: relative;
+    width: 36px;
+    height: 20px;
+    border-radius: 999px;
+    background: #c9b8a6;
+}
+
+.main :global(.admin-switch-track)::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--white);
+}
+
+.main button:global(.admin-switch)[aria-checked='true'] :global(.admin-switch-track) {
+    background: #1e7a3c;
+}
+
+.main button:global(.admin-switch)[aria-checked='true'] :global(.admin-switch-track)::after {
+    left: 18px;
+}
+
+.main form:global(.admin-confirm) {
+    align-items: center;
+    padding: 12px 14px;
+    border: 2px solid var(--red);
+    border-radius: 14px;
+    background: #fde3de;
+    font-weight: 600;
+}
+
+/* The add and edit form of a sponsor. Name and link get room for a long address. */
+.main form:global(.admin-sponsor-form) {
+    width: 100%;
+    max-width: 560px;
+    gap: 14px;
+}
+
+.main form:global(.admin-sponsor-form) > * {
+    align-self: stretch;
+}
+
+.main form:global(.admin-sponsor-form) > h3 {
+    margin: 0;
+}
+
+.main :global(.admin-sponsor-form) label:has(> input[name='name'], > input[name='link']) {
+    width: min(420px, 100%);
+}
+
+.main :global(.admin-sponsor-form) input[name='name'],
+.main :global(.admin-sponsor-form) input[name='link'] {
+    width: 100%;
+}
+
+/* A stretched field keeps its controls at their own width. */
+.main form:global(.admin-sponsor-form) :global(.admin-field) {
+    align-items: flex-start;
+}
+
+/* Inside a card the edit form needs no card of its own. */
+.main :global(.admin-sponsor) form:global(.admin-sponsor-form) {
+    max-width: none;
+    padding: 16px 0 0;
+    border: 0;
+    border-top: 2px solid var(--line);
+    border-radius: 0;
+}
+
 /* Tables scroll inside their card, never the page. */
 .main :global(.admin-table) {
     width: 100%;
