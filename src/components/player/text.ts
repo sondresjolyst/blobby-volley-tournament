@@ -50,7 +50,8 @@ const NOTICES: Record<string, string> = {
     placed: 'Spelet ditt e lagt inn. Lykke te!',
     raised: 'Spelet ditt e høgna. Modig!',
     sent: 'Utfordringå e sendt. No e det opp te motstandaren.',
-    accepted: 'Du sa ja. Ein admin rope dåkke opp når dåkke står for tur.',
+    accepted: 'Du sa ja. Kampen e ropt opp, så det e bare å spela.',
+    queued: 'Du sa ja. Ein av dåkke e midt i ein kamp, så dåkke blir ropt opp når han e ferdig.',
     declined: 'Du sa nei takk. Kampen e avlyst.',
     withdrawn: 'Du trakk utfordringå tebake.',
 };

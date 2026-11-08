@@ -1,0 +1,28 @@
+/* A small hint in a corner that something on the page changed. It never moves the page. */
+.hint {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 20;
+    margin: 0;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: #fcebc0;
+    border: 2px solid #f6c445;
+    color: #2a1a12;
+    font-weight: 700;
+    font-size: 0.9rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+}
+
+.shown {
+    opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hint {
+        transition: none;
+    }
+}

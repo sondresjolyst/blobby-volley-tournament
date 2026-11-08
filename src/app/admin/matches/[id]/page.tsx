@@ -71,7 +71,7 @@ export default async function AdminMatch({ params, searchParams }: { params: Pro
                     The series score was set by hand to {match.manualScore.score1}-{match.manualScore.score2} after game {match.manualScore.afterGame}.
                 </p>
             )}
-            {match.tournamentId === null && match.state === 'upcoming' && <p>{match.acceptedAt ? 'Accepted by the other player.' : 'Waiting for the other player to accept.'}</p>}
+            {match.tournamentId === null && match.state === 'upcoming' && <p>{match.acceptedAt ? 'Accepted by the other player. It is called by itself as soon as both players are free.' : 'Waiting for the other player to accept.'}</p>}
             {match.awaitingDecision && <p role="alert">The last game was abandoned. {stoppedGame(match, match.games.at(-1)!)} Restart it from 0-0 or award it.</p>}
 
             <h2>Games</h2>

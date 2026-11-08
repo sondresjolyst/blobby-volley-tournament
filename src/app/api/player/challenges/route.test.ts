@@ -75,11 +75,16 @@ describe('POST /api/player/challenges/[id]', () => {
 
     it('accepts or declines as the signed in player and passes refusals on', async () => {
         getActivePlayer.mockResolvedValue({ id: 5 });
-        acceptChallenge.mockResolvedValueOnce({ ok: true, events: [] }).mockResolvedValueOnce({ ok: false, error: 'not-allowed' });
+        acceptChallenge
+            .mockResolvedValueOnce({ ok: true, events: [], called: true })
+            .mockResolvedValueOnce({ ok: true, events: [], called: false })
+            .mockResolvedValueOnce({ ok: false, error: 'not-allowed' });
         declineChallenge.mockResolvedValueOnce({ ok: true, events: [] });
         const accepted = await answer(post('/api/player/challenges/9', sameSite, { answer: 'accept' }), params('9'));
         expect(accepted.headers.get('location')).toBe('/me?challenge=accepted#utfordringa');
         expect(acceptChallenge).toHaveBeenCalledWith({}, 9, 5);
+        const queued = await answer(post('/api/player/challenges/9', sameSite, { answer: 'accept' }), params('9'));
+        expect(queued.headers.get('location')).toBe('/me?challenge=queued#utfordringa');
         const refused = await answer(post('/api/player/challenges/9', sameSite, { answer: 'accept' }), params('9'));
         expect(refused.headers.get('location')).toBe('/me?challengeError=not-allowed#utfordringa');
         const declined = await answer(post('/api/player/challenges/9', sameSite, { answer: 'decline' }), params('9'));
