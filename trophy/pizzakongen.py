@@ -27,6 +27,7 @@ TEXT = "Svettaste Blåbby"        # first line on the plaque
 OVERALL_HEIGHT = 170.0           # mm, bottom of base to the top of the crown balls (150 to 200)
 TOLERANCE = 0.3                  # mm total clearance per fit. PLA 0.3, PETG 0.4
 PART = "all"                     # all, blob, crown, base, plaque, pin
+BASE_STYLE = "pizza"             # pizza, plain, tiers, drum or court. See BASE_STYLES
 
 # Base: a closed pizza box with a round pizza on top
 BOX_W = 140.0                    # mm, square box
@@ -39,6 +40,18 @@ PIZZA_CHEESE_Z = 4.5             # mm, cheese surface above the box top
 PIZZA_CRUST_W = 8.0              # mm, width of the rounded crust rim
 RELIEF = 1.2                     # mm, height of pepperoni and other relief
 NUM_CUTS = 6                     # engraved slice cut lines in the cheese
+
+# Base styles. The blob stands at the same height on every style, so the blob
+# and the crown stay the same. Every style has the same plaque pocket and pin socket.
+BASE_STYLES = {
+    "pizza": "Pizza box with a pizza on top",
+    "plain": "Plain box with a chamfered top",
+    "tiers": "Three tiers, like a classic trophy plinth",
+    "drum": "Rounded pedestal with a flat front and a flared foot",
+    "court": "Box with a raised white volleyball court on top",
+}
+COURT_LINE = 2.4                 # mm, width of the court lines
+COURT_RELIEF = 1.2               # mm, height of the court lines
 
 # Plaque (separate part, pushed into a pocket in the box front)
 PLAQUE_W = 122.0
@@ -351,7 +364,37 @@ def pizza_profile():
     return pts, dict(cx=cx, rc=rc, zc=zc, r_inner=arc[-1][0])
 
 
-def make_base(g):
+def base_top():
+    """Height of the blob seat. The court lines need a layer boundary for the
+    filament switch, so that style seats the blob on the layer below."""
+    top = BOX_H + PIZZA_CHEESE_Z
+    if BASE_STYLE == "court":
+        top = math.floor(top / LAYER_H + 1e-6) * LAYER_H
+    return top
+
+
+def prism(cs, z0, z1, top=0.0, foot=0.4):
+    """Convex section cs from z0 to z1, with a 45 degree chamfer of foot at the
+    bottom and of top at the top edge. Both chamfers only narrow the part."""
+    pieces = [slab(cs.offset(-foot), z0), slab(cs, z0 + foot)] if foot else [slab(cs, z0)]
+    if top:
+        pieces += [slab(cs, z1 - top), slab(cs.offset(-top), z1 - 0.01)]
+    else:
+        pieces.append(slab(cs, z1 - 0.01))
+    return union(pieces).hull()
+
+
+def plaque_pocket(y_front, plaque_z):
+    """Pocket for the plaque in a flat front at y_front, its roof sloped at 45 degrees."""
+    pw, ph = PLAQUE_W + TOLERANCE, PLAQUE_H + TOLERANCE
+    z_p0 = plaque_z - TOLERANCE / 2
+    pocket = Manifold.cube([pw, PLAQUE_POCKET + 5, ph]).translate([-pw / 2, y_front - 5, z_p0])
+    roof = (slab_x(pw, y_front - 5, y_front + PLAQUE_POCKET, z_p0 + ph - 0.01) +
+            slab_x(pw, y_front - 5, y_front - 0.01, z_p0 + ph + PLAQUE_POCKET)).hull()
+    return pocket + roof
+
+
+def base_pizza(g, top):
     sq = rounded_rect(BOX_W, BOX_W, BOX_CORNER_R)
     lid = sq.offset(LID_LIP, circular_segments=48)
     zl = BOX_H - LID_H
@@ -360,17 +403,8 @@ def make_base(g):
              slab(lid.offset(-0.8), BOX_H - 0.01)).hull()
     box = body + lid_m
 
-    # plaque pocket on the front (-y), its roof sloped at 45 degrees
-    pw, ph = PLAQUE_W + TOLERANCE, PLAQUE_H + TOLERANCE
-    y_front = -BOX_W / 2
-    z_p0 = PLAQUE_Z - TOLERANCE / 2
-    pocket = Manifold.cube([pw, PLAQUE_POCKET + 5, ph]).translate([-pw / 2, y_front - 5, z_p0])
-    roof = (slab_x(pw, y_front - 5, y_front + PLAQUE_POCKET, z_p0 + ph - 0.01) +
-            slab_x(pw, y_front - 5, y_front - 0.01, z_p0 + ph + PLAQUE_POCKET)).hull()
-    box = box - pocket - roof
-
-    # the pizza
     z0 = BOX_H
+    # the pizza
     pts, pz = pizza_profile()
     pizza = Manifold.revolve(CrossSection([np.array(pts)]), 256).translate([0, 0, z0 - 0.01])
     cx, rc, zc = pz["cx"], pz["rc"], pz["zc"]
@@ -422,9 +456,70 @@ def make_base(g):
         rel.append(olive.translate([rr * math.cos(a), rr * math.sin(a), cheese_z - 0.01]))
     pizza = pizza + union(rel)
 
-    base = box + pizza
-    base = base - pin_socket(PIN_DEPTH + 1.5).translate([0, 0, cheese_z - PIN_DEPTH - 0.5])
-    return base, dict(cheese_z=cheese_z, crust_top=z0 + zc + rc)
+    return box + pizza, -BOX_W / 2, PLAQUE_Z, None
+
+
+def base_plain(g, top):
+    sq = rounded_rect(BOX_W, BOX_W, BOX_CORNER_R)
+    return prism(sq, 0, top, top=2.0), -BOX_W / 2, (top - PLAQUE_H) / 2, None
+
+
+def base_tiers(g, top):
+    z1, z2 = 34.0, top - 4.5
+    t1 = prism(rounded_rect(BOX_W, BOX_W, BOX_CORNER_R), 0, z1, top=0.8)
+    t2 = prism(rounded_rect(BOX_W - 22, BOX_W - 22, 5.0), z1 - 0.01, z2, top=0.8, foot=0)
+    t3 = prism(rounded_rect(BOX_W - 44, BOX_W - 44, 4.0), z2 - 0.01, top, top=0.8, foot=0)
+    return t1 + t2 + t3, -BOX_W / 2, PLAQUE_Z, None
+
+
+def base_drum(g, top):
+    r = BOX_W / 2 - 2.0
+    fw, cr = PLAQUE_W + 10.0, 4.0                 # flat front for the plaque
+    plan = (CrossSection.circle(r, 128) +
+            CrossSection.circle(cr, 24).translate([-fw / 2 + cr, -r + cr]) +
+            CrossSection.circle(cr, 24).translate([fw / 2 - cr, -r + cr])).hull()
+    foot = (slab(plan.offset(2.6, circular_segments=48), 0) +
+            slab(plan.offset(3.0, circular_segments=48), 0.4) +
+            slab(plan.offset(3.0, circular_segments=48), 1.5) + slab(plan, 4.5)).hull()
+    body = prism(plan, 4.4, top, top=2.0, foot=0)
+    return foot + body, -r, 8.0, None
+
+
+def court_lines(g):
+    """The court seen from above. The net is the line from front to back."""
+    inset, w = 7.0, COURT_LINE
+    outer = rounded_rect(BOX_W - 2 * inset, BOX_W - 2 * inset, 3.0)
+    lines = outer - outer.offset(-w, circular_segments=24)
+    net = CrossSection.square([w, BOX_W - 2 * inset], True)
+    # a volleyball: a ring with two curved seams across it
+    rb, cx, cy = 13.0, -BOX_W / 2 + 30.0, -BOX_W / 2 + 30.0
+    disk = CrossSection.circle(rb, 96)
+    ball = disk - disk.offset(-1.8, circular_segments=64)
+    for r in (2.4 * rb, 1.75 * rb):
+        c = CrossSection.circle(r, 192).translate([2.0 * rb, 0])
+        ball = ball + (disk ^ (c - c.offset(-1.4, circular_segments=192)))
+    ball = ball.rotate(35)
+    lines = lines + net + ball.translate([cx, cy])
+    r_foot = float(g["profile"][0, 0])
+    return lines - CrossSection.circle(r_foot + 2.0, 96)
+
+
+def base_court(g, top):
+    body, y_front, pz, _ = base_plain(g, top)
+    rel = court_lines(g).extrude(COURT_RELIEF).translate([0, 0, top - 0.01])
+    return body + rel, y_front, pz, top
+
+
+BASE_BUILDERS = {"pizza": base_pizza, "plain": base_plain, "tiers": base_tiers,
+                 "drum": base_drum, "court": base_court}
+
+
+def make_base(g):
+    top = base_top()
+    body, y_front, plaque_z, relief = BASE_BUILDERS[BASE_STYLE](g, top)
+    base = body - plaque_pocket(y_front, plaque_z)
+    base = base - pin_socket(PIN_DEPTH + 1.5).translate([0, 0, top - PIN_DEPTH - 0.5])
+    return base, dict(cheese_z=top, front_y=y_front, plaque_z=plaque_z, relief_z=relief)
 
 
 def slab_x(w, y0, y1, z):
@@ -552,7 +647,7 @@ def build():
     zc = base_info["cheese_z"]
     asm = {"base": base, "blob": blob.translate([0, 0, zc]),
            "crown": crown.translate([0, 0, zc + g["band_bot"]])}
-    asm["plaque"] = place_plaque(plaque)
+    asm["plaque"] = place_plaque(plaque, base_info)
     asm["pin"] = make_pin_vertical().translate([0, 0, zc - PIN_DEPTH])
 
     parts = {"blob": to_bed(blob), "crown": to_bed(crown),
@@ -560,11 +655,12 @@ def build():
     return parts, asm, dict(g=g, band=band_radii(g), base=base_info, plaque=pinfo)
 
 
-def place_plaque(plaque):
-    """Stand the flat plaque up in its pocket on the box front."""
+def place_plaque(plaque, base_info):
+    """Stand the flat plaque up in its pocket on the front of the base."""
     pl = plaque.rotate([90, 0, 0])        # the text side (+z) turns to face the front (-y)
     pb = pl.bounding_box()
-    return pl.translate([0, -BOX_W / 2 + PLAQUE_POCKET - pb[4], PLAQUE_Z - pb[2]])
+    return pl.translate([0, base_info["front_y"] + PLAQUE_POCKET - pb[4],
+                         base_info["plaque_z"] - pb[2]])
 
 
 def relief_z(name):
@@ -572,6 +668,8 @@ def relief_z(name):
     starts, or None if the part has no relief that can take a second colour."""
     if name == "plaque" and not STENCIL:
         return PLAQUE_T
+    if name == "base" and BASE_STYLE == "court":
+        return base_top()
     return None
 
 
@@ -669,7 +767,8 @@ def run_checks(parts, asm, info):
         gaps = t.offset(0.4).offset(-0.4).area() / t.area() - 1
         print(f"  {label}: {bb[2] - bb[0]:.1f} x {bb[3] - bb[1]:.1f} mm. Area lost by a 0.8 mm "
               f"opening {thin * 100:.2f}%, area filled by a 0.8 mm closing {gaps * 100:.2f}%")
-    for name in ("plaque",):
+    print(f"base style: {BASE_STYLE}, {BASE_STYLES[BASE_STYLE]}")
+    for name in ("plaque", "base"):
         z = relief_z(name)
         if z is not None:
             n, start, top = switch_layer(z)
@@ -693,13 +792,15 @@ def run_checks(parts, asm, info):
 
 
 def main(argv=None):
-    global YEAR, TEXT, OVERALL_HEIGHT, TOLERANCE, PART
+    global YEAR, TEXT, OVERALL_HEIGHT, TOLERANCE, PART, BASE_STYLE
     ap = argparse.ArgumentParser(description="Pizzakongen trophy generator")
     ap.add_argument("--year", type=int, default=YEAR)
     ap.add_argument("--text", default=TEXT)
     ap.add_argument("--height", type=float, default=OVERALL_HEIGHT)
     ap.add_argument("--tolerance", type=float, default=TOLERANCE)
     ap.add_argument("--part", default=PART, choices=["all"] + PARTS)
+    ap.add_argument("--base", default=BASE_STYLE, choices=list(BASE_STYLES),
+                    help="style of the base")
     ap.add_argument("--stencil", action="store_true",
                     help="stencil text cut through the plaque instead of raised text")
     ap.add_argument("--out", default=os.path.join(HERE, "stl"))
@@ -711,6 +812,7 @@ def main(argv=None):
     YEAR, TEXT, OVERALL_HEIGHT, TOLERANCE, PART = a.year, a.text, a.height, a.tolerance, a.part
     global STENCIL
     STENCIL = a.stencil
+    BASE_STYLE = a.base
     if not 150 <= OVERALL_HEIGHT <= 200:
         raise SystemExit("OVERALL_HEIGHT must be between 150 and 200 mm")
 

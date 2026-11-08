@@ -52,6 +52,26 @@ The crown is one part. Its band is the same as before. The inside follows the sh
 
 `NUM_POINTS`, `POINT_WALL`, `POINT_FLARE`, `BALL_R` and `CROWN_H` at the top of the script set the shape. Keep the number of points odd, so the front view shows a single ball at the front instead of two balls in a line.
 
+### Base styles
+
+The base comes in five styles. The default is still the pizza box. Pick another with `--base` or with `BASE_STYLE` at the top of `pizzakongen.py`. Every style keeps the same blob seat, pin socket and plaque pocket, so the blob, the crown, the plaque and the pin stay the same. Every style is black, has a flat bottom, fits within 142 x 142 mm and has no faces steeper than 45 degrees.
+
+![Base styles](renders/bases/compare.png)
+
+| Style | Look | Base filament |
+|---|---|---|
+| `pizza` (default) | Pizza box with a lid line and a pizza on top | 276 g black |
+| `plain` | Plain box with a 2 mm chamfer round the top. The plaque sits in the middle of the front | 277 g black |
+| `tiers` | Three stepped tiers, like a classic trophy plinth. The plaque sits in the bottom tier | 257 g black |
+| `drum` | Rounded pedestal with a flat front for the plaque and a flared foot | 237 g black |
+| `court` | Plain box with a raised white volleyball court on top: the court lines, the net line and a ball | 276 g black, 2 g white |
+
+The `court` style is the only base with a filament switch. Start in black. Pause at layer 233 (Z 46.4 mm, slider 46.60) and change to white. The lines stand 1.2 mm above the top. The top of this base is 46.4 mm instead of 46.5 mm, so the switch falls on a layer boundary. The trophy is then 169.9 mm tall.
+
+A regular hexagon or octagon base does not work. The plaque needs a flat front about 124 mm wide, and an octagon 140 mm across has 58 mm sides.
+
+Each style has an assembled render and a print render in `renders/bases/`, for example `renders/bases/tiers_angle.png` and `renders/bases/tiers_print_base.png`. Run `python render_previews.py --bases` to render them again. `python pizzakongen.py --base tiers --part base` writes the base STL for one style. It overwrites `stl/pizzakongen_base.stl`, which holds the default style.
+
 ### Print notes
 
 The printer has no AMS, so the plaque gets its second colour from one filament switch. Layers are 0.2 mm, the first layer included. Layer N is printed from Z = (N - 1) x 0.2 mm to N x 0.2 mm, so pause before layer N starts. Bambu Studio shows each layer by its top height, so layer 16 shows as 3.20 mm in the layer slider.
@@ -99,6 +119,7 @@ Other options:
 - `--height 150` to `--height 200` sets the overall height. The blob scales to match.
 - `--tolerance 0.3` is the total clearance for every fit. Use 0.3 for PLA and 0.4 for PETG.
 - `--stencil` makes the one colour stencil plaque instead of raised text.
+- `--base plain` picks the base style: `pizza`, `plain`, `tiers`, `drum` or `court`.
 - `--part blob` exports a single part. The choices are `all`, `blob`, `crown`, `base`, `plaque` and `pin`.
 
 ## Checks

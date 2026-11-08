@@ -4,8 +4,10 @@ Uses a small z-buffer rasteriser written with numpy, so the previews show
 correct hidden surfaces. Run after changing parameters in pizzakongen.py:
 
     python render_previews.py
+    python render_previews.py --bases     # every base style, to renders/bases/
 """
 
+import argparse
 import math
 import os
 
@@ -29,8 +31,10 @@ GLOSS = {BLACK: 0.5, BLUE: 0.55, WHITE: 0.15}
 NAMES = {BLACK: "black", BLUE: "dark blue", WHITE: "white"}
 
 # Colour per assembled piece. "plaque_top" is the raised text and frame on the
-# plaque, printed after one filament change.
-SCHEME = dict(base=BLACK, blob=BLUE, crown=BLACK, plaque=BLACK, plaque_top=WHITE, pin=BLACK)
+# plaque and "base_top" the court lines on the court base. Both are printed
+# after one filament change.
+SCHEME = dict(base=BLACK, blob=BLUE, crown=BLACK, plaque=BLACK, plaque_top=WHITE, pin=BLACK,
+              base_top=WHITE)
 TITLE = "Dark blue blob, black crown and box, white letters"
 
 
@@ -168,17 +172,20 @@ def bed_under(m, margin=8.0):
 SPLIT_GAP = 0.02   # mm, render only. Keeps the two colours of a part off one plane
 
 
-def split_scene(asm):
-    """Split the plaque into plate and raised letters for the renders.
+def split_scene(asm, info):
+    """Split the plaque, and the court base, into their two colours for the renders.
 
-    The cut runs SPLIT_GAP above the plate top, so the letter mesh never
-    shares a face with the plate mesh. The STL parts are not touched.
+    The cut runs SPLIT_GAP above the switch height, so the two meshes never
+    share a face. The STL parts are not touched.
     """
     asm = dict(asm)
     if not P.STENCIL:
-        front = -P.BOX_W / 2 + P.PLAQUE_POCKET - P.PLAQUE_T
+        front = info["base"]["front_y"] + P.PLAQUE_POCKET - P.PLAQUE_T
         asm["plaque_top"], asm["plaque"] = asm["plaque"].split_by_plane(
             [0, -1, 0], -front + SPLIT_GAP)
+    rz = info["base"]["relief_z"]
+    if rz is not None:
+        asm["base_top"], asm["base"] = asm["base"].split_by_plane([0, 0, 1], rz + SPLIT_GAP)
     return asm
 
 
@@ -193,7 +200,7 @@ PLAQUE_LIGHTS = [((-0.6, -0.5, 0.6), 1.0), ((0.4, -0.8, 0.2), 0.25)]
 def render_plaque(asm, scheme, path):
     """Straight on close up of the plaque with a raking light from the upper left."""
     crop = (P.mesh_arrays(asm["plaque"])[0], 5.0)
-    names = [n for n in ("base", "plaque", "plaque_top") if n in asm]
+    names = [n for n in ("base", "base_top", "plaque", "plaque_top") if n in asm]
     items = [prep(asm[n], scheme[n], GLOSS[scheme[n]]) for n in names]
     render(items, path, az=0, el=12, size=(1400, 380), crop=crop, lights=PLAQUE_LIGHTS,
            title=None)
@@ -206,10 +213,100 @@ def render_crown(asm, path):
            title=f"Crown, {P.NUM_POINTS} points with a ball on each tip")
 
 
-def main():
+def print_pieces(name, m):
+    """A print part in its colours, split at the filament switch if it has one."""
+    col = SCHEME[name]
+    z = P.relief_z(name)
+    if z is None:
+        return [prep(m, col, GLOSS[col])]
+    top_col = SCHEME[name + "_top"]
+    low, top = P.split_relief(m, z + SPLIT_GAP)
+    return [prep(low, col, GLOSS[col]), prep(top, top_col, GLOSS[top_col])]
+
+
+def render_print(name, m, path, title):
+    render(print_pieces(name, m) + [prep(bed_under(m), BED, 0.0)], path, az=30, el=32,
+           size=(900, 900), title=title)
+
+
+def base_grams(m):
+    """Filament per colour for a base part, in grams."""
+    z = P.relief_z("base")
+    pieces = [(m, "black")]
+    if z is not None:
+        low, top = P.split_relief(m, z)
+        pieces = [(low, "black"), (top, "white")]
+    out = {}
+    for piece, col in pieces:
+        r = P.check_part("x", piece)
+        out[col] = out.get(col, 0.0) + P.filament_grams(r["volume_cm3"], r["area_cm2"])
+    return out
+
+
+def render_bases():
+    """Every base style: assembled from the front left, on the bed, and a comparison sheet."""
+    from PIL import Image, ImageDraw, ImageFont
+    out = os.path.join(OUT, "bases")
+    os.makedirs(out, exist_ok=True)
+    keep = P.BASE_STYLE
+    tiles = []
+    for style, label in P.BASE_STYLES.items():
+        P.BASE_STYLE = style
+        parts, asm, info = P.build()
+        asm = split_scene(asm, info)
+        angle = os.path.join(out, f"{style}_angle.png")
+        render(scene(asm, SCHEME), angle, az=35, el=24, size=(1000, 1000),
+               title=f"Base: {style}. {label}")
+        render_print("base", parts["base"], os.path.join(out, f"{style}_print_base.png"),
+                     f"Base {style}, upright")
+        tiles.append((style, label, angle, base_grams(parts["base"])))
+    P.BASE_STYLE = keep
+
+    font = os.path.join(os.path.dirname(matplotlib.__file__), "mpl-data", "fonts", "ttf")
+    big = ImageFont.truetype(os.path.join(font, "DejaVuSans-Bold.ttf"), 30)
+    small = ImageFont.truetype(os.path.join(font, "DejaVuSans.ttf"), 21)
+    tw, th_txt = 640, 150
+    sheet = Image.new("RGB", (tw * len(tiles), tw + th_txt), (246, 247, 249))
+    draw = ImageDraw.Draw(sheet)
+    for i, (style, label, angle, grams) in enumerate(tiles):
+        x = i * tw
+        a = Image.open(angle).convert("RGB")
+        # paint over the title of the single render, the label goes below
+        ImageDraw.Draw(a).rectangle((0, 0, a.width, 48), fill=a.getpixel((4, 50)))
+        sheet.paste(a.resize((tw, tw), Image.LANCZOS), (x, 0))
+        y = tw + 14
+        default = " (default)" if style == keep else ""
+        draw.text((x + 20, y), f"{i + 1}. {style}{default}", font=big, fill=(25, 25, 30))
+        y += 42
+        words, line, lines = label.split(), "", []
+        for w in words:
+            if len(line) + len(w) > 46:
+                lines.append(line)
+                line = ""
+            line = f"{line} {w}".strip()
+        lines.append(line)
+        lines.append("Base filament: " + ", ".join(f"{c} {g:.0f} g" for c, g in grams.items()))
+        for t in lines:
+            draw.text((x + 20, y), t, font=small, fill=(55, 55, 62))
+            y += 28
+        if i:
+            draw.line([(x, 0), (x, sheet.height)], fill=(200, 202, 208), width=2)
+    path = os.path.join(out, "compare.png")
+    sheet.save(path)
+    print("wrote", path)
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description="Render Pizzakongen previews")
+    ap.add_argument("--bases", action="store_true",
+                    help="render every base style to renders/bases/ and stop")
+    a = ap.parse_args(argv)
     os.makedirs(OUT, exist_ok=True)
+    if a.bases:
+        render_bases()
+        return
     parts, asm, info = P.build()
-    asm = split_scene(asm)
+    asm = split_scene(asm, info)
 
     items = scene(asm, SCHEME)
     render(items, os.path.join(OUT, "assembled_front.png"), az=0, el=6,
@@ -225,17 +322,7 @@ def main():
               "plaque": "Plaque, flat, front facing up. Letters after the switch",
               "pin": "Pin, lying on its flat side"}
     for name, m in parts.items():
-        col = SCHEME[name]
-        z = P.relief_z(name)
-        if z is not None:
-            low, top = P.split_relief(m, z + SPLIT_GAP)
-            pieces = [prep(low, col, GLOSS[col]),
-                      prep(top, SCHEME["plaque_top"], GLOSS[SCHEME["plaque_top"]])]
-        else:
-            pieces = [prep(m, col, GLOSS[col])]
-        render(pieces + [prep(bed_under(m), BED, 0.0)],
-               os.path.join(OUT, f"print_{name}.png"), az=30, el=32, size=(900, 900),
-               title=labels[name])
+        render_print(name, m, os.path.join(OUT, f"print_{name}.png"), labels[name])
 
 
 if __name__ == "__main__":
