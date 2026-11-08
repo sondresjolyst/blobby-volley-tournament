@@ -2,7 +2,7 @@
 // results, games, bets and placings when it is read, so a corrected result, a reset or a reversed
 // settlement shows up at once, also in past events.
 import type { Pool } from 'pg';
-import { compareCorrect, bettorStats, type BettorStats, type SettledBet } from '@/lib/stats/betting';
+import { compareNet, bettorStats, type BettorStats, type SettledBet } from '@/lib/stats/betting';
 import { ELO_START, eloChanges, replayElo, type RatedMatch } from '@/lib/stats/elo';
 import { compareWins, countedGames, playerStats, type PlayedMatch, type PlayedSeries, type PlayerStats } from '@/lib/stats/players';
 
@@ -177,7 +177,7 @@ export interface Leaderboard {
     nicknames: Map<number, string>;
     /** Players with a played match, the most wins first. */
     wins: PlayerStats[];
-    /** Bettors with a settled bet, the most correct bets first. */
+    /** Bettors with a settled bet, the most Foza won net first. */
     bettors: BettorStats[];
     /** Every player of the event, or of the tournament, the highest rating first. */
     elo: EloEntry[];
@@ -207,7 +207,7 @@ export async function getLeaderboard(pool: Pool, eventId: number, tournamentId: 
         tournamentId,
         nicknames,
         wins: [...playerStats(matches).values()].sort((a, b) => compareWins(a, b) || byName(a.playerId, b.playerId)),
-        bettors: [...bettorStats(bets).values()].sort((a, b) => compareCorrect(a, b) || byName(a.playerId, b.playerId)),
+        bettors: [...bettorStats(bets).values()].sort((a, b) => compareNet(a, b) || byName(a.playerId, b.playerId)),
         elo: [...elo.values()].filter((e) => shown === null || shown.has(e.playerId)).sort((a, b) => b.rating - a.rating || byName(a.playerId, b.playerId)),
         placings: placed,
     };

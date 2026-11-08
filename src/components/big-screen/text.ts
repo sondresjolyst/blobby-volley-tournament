@@ -5,7 +5,7 @@ import { STATE_TAGS } from '@/lib/tournaments/board';
 import { foza, payout } from '@/components/player/text';
 
 export const BOARD_TEXT: Record<BoardKey, { tab: string; title: string; empty: string }> = {
-    rette: { tab: 'Flest rette', title: 'Flest rette spel', empty: 'Ingen spel e avgjort enno. Sett någe Foza på ein kamp då!' },
+    foza: { tab: 'Mest Foza', title: 'Mest Foza vunne', empty: 'Ingen spel e avgjort enno. Sett någe Foza på ein kamp då!' },
     sigra: { tab: 'Flest sigra', title: 'Flest sigra', empty: 'Ingen kampa e ferdigspelt enno. Det tar seg opp, sjå.' },
     elo: { tab: 'Elo', title: 'Elo-toppen', empty: 'Ingen spelara her enno.' },
 };
@@ -61,9 +61,9 @@ export const SCREEN_LABELS = {
 } as const;
 
 export const FOZA_TEXT = {
-    net: 'Mest Foza vunne',
+    net: BOARD_TEXT.foza.title,
     wins: 'Største gevinsta',
-    empty: BOARD_TEXT.rette.empty,
+    empty: BOARD_TEXT.foza.empty,
     noWins: 'Ingen har vunne någe enno. Någen må jo vinna snart?',
 };
 

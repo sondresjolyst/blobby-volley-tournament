@@ -9,7 +9,8 @@ import type { LiveScore } from '@/lib/store/game-server';
 import type { MatchSummary } from '@/lib/store/matches';
 import type { SponsorRow } from '@/lib/store/sponsors';
 import type { Leaderboard } from '@/lib/store/stats';
-import { compareCorrect } from '@/lib/stats/betting';
+import { signed } from '@/components/stats/format';
+import { compareNet } from '@/lib/stats/betting';
 import { nicknameOf } from '@/lib/stats/players';
 import { boardRoundName, buildBoard, feedName, type BoardBracketMatch, type BoardRound, type BoardSection, type BoardSlot } from '@/lib/tournaments/board';
 import { screenFacts, type PlayedSeries, type ScreenFact } from './facts';
@@ -121,7 +122,7 @@ export interface ScreenWinner {
     final: { round: string; sides: [{ name: string; score: number }, { name: string; score: number }] } | null;
 }
 
-export type BoardKey = 'rette' | 'sigra' | 'elo';
+export type BoardKey = 'foza' | 'sigra' | 'elo';
 
 export interface ScreenBoard {
     key: BoardKey;
@@ -353,7 +354,7 @@ export function upNextMatches(matches: readonly MatchSummary[], live: readonly L
 export function screenFoza(leaderboard: Leaderboard): ScreenFoza {
     const name = nicknameOf(leaderboard.nicknames);
     const bettors = [...leaderboard.bettors]
-        .sort((a, b) => b.net - a.net || compareCorrect(a, b))
+        .sort(compareNet)
         .slice(0, FOZA_ROWS)
         .map((b) => ({ nickname: name(b.playerId), net: b.net, correct: b.correct, bets: b.bets }));
     const wins = leaderboard.bettors
@@ -396,7 +397,7 @@ export function screenWinner(leaderboard: Leaderboard, matches: readonly MatchSu
     return { tournamentId: champion.tournamentId, tournamentName: champion.tournamentName, champion: name(champion.playerId), podium, final };
 }
 
-/** The three leaderboards, top five each. Bets are ranked by correct bets, not by Foza held. */
+/** The three leaderboards, top five each. Bettors are ranked by Foza won net, the same as on the Foza screen. */
 export function screenBoards(leaderboard: Leaderboard): ScreenBoard[] {
     const name = nicknameOf(leaderboard.nicknames);
     const top = <T>(list: readonly T[], row: (item: T) => { id: number; value: string }) =>
@@ -405,7 +406,7 @@ export function screenBoards(leaderboard: Leaderboard): ScreenBoard[] {
             return { rank: i + 1, nickname: name(id), value };
         });
     return [
-        { key: 'rette', rows: top(leaderboard.bettors, (b) => ({ id: b.playerId, value: `${b.correct} av ${b.bets}` })) },
+        { key: 'foza', rows: top([...leaderboard.bettors].sort(compareNet), (b) => ({ id: b.playerId, value: signed(b.net) })) },
         { key: 'sigra', rows: top(leaderboard.wins, (s) => ({ id: s.playerId, value: `${s.matchesWon} ${s.matchesWon === 1 ? 'siger' : 'sigra'}` })) },
         { key: 'elo', rows: top(leaderboard.elo, (e) => ({ id: e.playerId, value: String(shownRating(e.rating)) })) },
     ];

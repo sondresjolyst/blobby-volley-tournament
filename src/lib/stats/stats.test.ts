@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bettorStats, compareCorrect, type SettledBet } from './betting';
+import { bettorStats, compareCorrect, compareNet, type SettledBet } from './betting';
 import { ELO_K, ELO_START, eloChanges, expectedScore, replayElo, shownRating, winnerGain, type RatedMatch } from './elo';
 import { compareWins, playerStats, type PlayedMatch } from './players';
 
@@ -115,5 +115,12 @@ describe('bettorStats', () => {
         const ranked = [...stats.values()].sort(compareCorrect).map((s) => s.playerId);
         expect(ranked).toEqual([1, 2, 3]);
         expect(stats.get(2)!.net).toBeGreaterThan(stats.get(1)!.net);
+    });
+
+    it('ranks the Foza boards by Foza won net, with correct bets on a tie', () => {
+        expect([...stats.values()].sort(compareNet).map((s) => s.playerId)).toEqual([2, 1, 3]);
+        const a = { ...stats.get(1)!, net: 10, correct: 1 };
+        const b = { ...stats.get(1)!, net: 10, correct: 3 };
+        expect([a, b].sort(compareNet)).toEqual([b, a]);
     });
 });

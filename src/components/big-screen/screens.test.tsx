@@ -25,7 +25,7 @@ const empty: BigScreenData = { ...EMPTY_SCREEN, eventId: 1, eventName: 'JulaLAN'
 
 const full: BigScreenData = {
     ...empty,
-    boards: [{ key: 'rette', rows: [{ rank: 1, nickname: 'Tippekongen', value: '4 av 5' }] }],
+    boards: [{ key: 'foza', rows: [{ rank: 1, nickname: 'Tippekongen', value: '4 av 5' }] }],
     sponsors: [
         { id: 1, name: 'Pizzabakeren', src: '/api/sponsors/1/logo?v=a', width: 300, height: 100 },
         { id: 2, name: 'Ostehuset', src: '/api/sponsors/2/logo?v=b', width: 300, height: 100 },
@@ -90,7 +90,7 @@ describe('the Foza screen', () => {
     });
 
     it('says nobody has bet yet', () => {
-        expect(html(<FozaScreen data={empty} />)).toContain(BOARD_TEXT.rette.empty.replace('!', ''));
+        expect(html(<FozaScreen data={empty} />)).toContain(BOARD_TEXT.foza.empty.replace('!', ''));
     });
 });
 

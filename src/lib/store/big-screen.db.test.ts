@@ -101,7 +101,7 @@ describe('getBigScreen', () => {
         expect(data.others.map((m) => [m.matchId, m.open, m.pool])).toEqual([[semi2.id, true, 50]]);
         expect(data.bracket).toMatchObject({ tournamentId, name: 'Hovedcupen', rows: 2 });
         expect(data.bracket!.rounds.map((r) => r.name)).toEqual(['Semifinala', 'Finale']);
-        expect(data.boards.map((b) => b.key)).toEqual(['rette', 'sigra', 'elo']);
+        expect(data.boards.map((b) => b.key)).toEqual(['foza', 'sigra', 'elo']);
         expect(data.sponsors.map((s) => s.name)).toEqual(['Pizzabakeren']);
         expect(data.sponsors[0].src).toBe(`/api/sponsors/${sponsor.id}/logo?v=${createHash('sha256').update(logo.value.bytes).digest('hex')}`);
         // Nothing but nicknames and numbers leaves the store.
@@ -127,8 +127,8 @@ describe('getBigScreen', () => {
         if (!saved.ok) throw new Error(saved.error);
 
         const data = await getBigScreen(pool);
-        const [rette, sigra, elo] = data.boards;
-        expect(rette.rows).toEqual([{ rank: 1, nickname: 'Skvett', value: '1 av 1' }]);
+        const [foza, sigra, elo] = data.boards;
+        expect(foza.rows).toEqual([{ rank: 1, nickname: 'Skvett', value: '0' }]);
         expect(sigra.rows[0]).toEqual({ rank: 1, nickname: 'Blobfisk', value: '1 siger' });
         expect(elo.rows[0]).toEqual({ rank: 1, nickname: 'Blobfisk', value: '1016' });
         // The newest tournament with a match left is shown by default.

@@ -6,7 +6,7 @@ import type { LiveScore } from '@/lib/store/game-server';
 import type { MatchSummary } from '@/lib/store/matches';
 import type { Leaderboard } from '@/lib/store/stats';
 import { DEFAULT_ROTATION } from './screens';
-import { buildBigScreen, floorMatches, focusMatches, pickSide, pickTournament, roundWindow, screenBoards, type ScreenInput } from './view';
+import { buildBigScreen, floorMatches, focusMatches, pickSide, pickTournament, roundWindow, screenBoards, screenFoza, type ScreenInput } from './view';
 
 const names: Record<number, string> = { 11: 'Blobfisk', 12: 'Skvett', 13: 'Ostebit', 14: 'Kantina' };
 
@@ -142,12 +142,16 @@ describe('pickSide', () => {
 });
 
 describe('screenBoards', () => {
-    it('ranks bets by correct bets and shows the top five of each board', () => {
-        const [rette, sigra, elo] = screenBoards(leaderboard());
-        expect(rette.key).toBe('rette');
-        expect(rette.rows).toHaveLength(5);
-        expect(rette.rows[0]).toEqual({ rank: 1, nickname: 'Ostebit', value: '14 av 19' });
-        expect(rette.rows[4]).toEqual({ rank: 5, nickname: 'Spelar 15', value: '5 av 12' });
+    it('ranks bettors by Foza won net, like the Foza screen, and shows the top five of each board', () => {
+        const board = leaderboard();
+        const net: Record<number, number> = { 11: 300, 12: 120, 13: 50, 14: -20, 15: 0, 16: 10 };
+        board.bettors = board.bettors.map((b) => ({ ...b, net: net[b.playerId] }));
+        const [foza, sigra, elo] = screenBoards(board);
+        expect(foza.key).toBe('foza');
+        expect(foza.rows.map((r) => r.nickname)).toEqual(['Blobfisk', 'Skvett', 'Ostebit', 'Spelar 16', 'Spelar 15']);
+        expect(foza.rows[0]).toEqual({ rank: 1, nickname: 'Blobfisk', value: '+300' });
+        expect(foza.rows[4]).toEqual({ rank: 5, nickname: 'Spelar 15', value: '0' });
+        expect(foza.rows.map((r) => r.nickname)).toEqual(screenFoza(board).bettors.slice(0, 5).map((b) => b.nickname));
         expect(sigra.rows).toEqual([
             { rank: 1, nickname: 'Blobfisk', value: '2 sigra' },
             { rank: 2, nickname: 'Skvett', value: '1 siger' },

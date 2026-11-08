@@ -44,7 +44,7 @@ function rowsFor(board: Board, data: Leaderboard): Row[] {
     const where = data.tournamentId === null ? 'på dette LANet' : 'i denne turneringå';
     switch (board) {
         case 'foza':
-            return data.bettors.map((b) => ({ playerId: b.playerId, detail: `${b.correct} av ${b.bets} spel rett · ${percent(b.hitRate)}`, value: `${b.correct} rette` }));
+            return data.bettors.map((b) => ({ playerId: b.playerId, detail: `${b.correct} av ${b.bets} spel rett · ${percent(b.hitRate)}`, value: signed(b.net) }));
         case 'sigra':
             return data.wins.map((s) => ({ playerId: s.playerId, detail: `${s.matchesWon} vunne · ${s.matchesLost} tapt · ${percent(s.winRate)}`, value: String(s.matchesWon) }));
         case 'elo':
@@ -57,7 +57,7 @@ function rowsFor(board: Board, data: Leaderboard): Row[] {
 }
 
 const EMPTY: Record<Board, string> = {
-    foza: BOARD_TEXT.rette.empty,
+    foza: BOARD_TEXT.foza.empty,
     sigra: BOARD_TEXT.sigra.empty,
     elo: BOARD_TEXT.elo.empty,
 };
@@ -142,7 +142,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
 
             <div className={styles.columns}>
                 <section aria-label={`Toppliste ${BOARDS[board]}`}>
-                    {board === 'foza' && <p className={styles.subtitle}>Flest rette spel vinn. Kor mykje Foza du har, bryr me oss ikkje om her.</p>}
+                    {board === 'foza' && <p className={styles.subtitle}>Den som har vunne mest Foza på spel, ligg øvst.</p>}
                     {rows.length === 0 ? (
                         <p className={styles.empty}>{EMPTY[board]}</p>
                     ) : (
@@ -237,12 +237,12 @@ function AllNumbers({ board, data, name }: { board: Board; data: Leaderboard; na
                     <thead>
                         <tr>
                             <th scope="col">Spelar</th>
+                            <th scope="col">Netto</th>
                             <th scope="col">Rette</th>
                             <th scope="col">Spel</th>
                             <th scope="col">Treff</th>
                             <th scope="col">Foza vunne</th>
                             <th scope="col">Foza tapt</th>
-                            <th scope="col">Netto</th>
                             <th scope="col">Største gevinst</th>
                             <th scope="col">Beste odds</th>
                         </tr>
@@ -251,12 +251,12 @@ function AllNumbers({ board, data, name }: { board: Board; data: Leaderboard; na
                         {data.bettors.map((b) => (
                             <tr key={b.playerId}>
                                 <td>{name(b.playerId)}</td>
+                                <td>{signed(b.net)}</td>
                                 <td>{b.correct}</td>
                                 <td>{b.bets}</td>
                                 <td>{percent(b.hitRate)}</td>
                                 <td>{number(b.fozaWon)}</td>
                                 <td>{number(b.fozaLost)}</td>
-                                <td>{signed(b.net)}</td>
                                 <td>{b.biggestWin ? signed(b.biggestWin.value) : ''}</td>
                                 <td>{b.bestOdds ? odds(b.bestOdds.value) : ''}</td>
                             </tr>
