@@ -428,7 +428,10 @@ test('an admin picks the screens of the big screen, and an open big screen follo
         await openScreensForm(adminPage);
         for (const type of Object.keys(SCREEN_NAMES) as Screen[]) await adminPage.getByLabel(`Use the ${SCREEN_NAMES[type]} screen`).setChecked(false);
         await adminPage.getByRole('button', { name: 'Save screens' }).click();
+        // Scoped to main, since the route announcer of Next is a second, empty alert outside it.
+        // Every other alert on the page still counts, so a stray one fails the check.
         await expect(adminPage.getByRole('main').getByRole('alert')).toHaveText('Turn on at least one screen for the big screen.');
+        await expect(adminPage.locator('[role="alert"]:not(#__next-route-announcer__)')).toHaveCount(1);
 
         if (shots) {
             await openScreensForm(adminPage);

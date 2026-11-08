@@ -656,7 +656,7 @@
    and the actions on the right. So the tiles and the buttons line up from card to card. */
 .main :global(.admin-sponsor-row) {
     display: grid;
-    grid-template-columns: 230px minmax(0, 1fr) auto;
+    grid-template-columns: var(--sponsor-tile-w) minmax(0, 1fr) auto;
     align-items: center;
     gap: 12px 16px;
 }
@@ -689,7 +689,7 @@
 /* Narrower, the actions move under the tile and the name, still the same in every card. */
 @media (max-width: 1180px) {
     .main :global(.admin-sponsor-row) {
-        grid-template-columns: 230px minmax(0, 1fr);
+        grid-template-columns: var(--sponsor-tile-w) minmax(0, 1fr);
     }
 
     .main :global(.admin-sponsor-actions) {

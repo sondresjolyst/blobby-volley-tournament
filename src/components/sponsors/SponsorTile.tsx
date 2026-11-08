@@ -16,19 +16,20 @@ export interface TileSponsor {
  */
 export function SponsorTile({ sponsor, alt = sponsor.name, copy = false, className, style }: { sponsor: TileSponsor; alt?: string; copy?: boolean; className?: string; style?: CSSProperties }) {
     const tileStyle: CSSProperties = { background: tileBackground(sponsor.background), ...style };
+    // data-sponsor-tile names the tile for tests, since the class name is made at build time.
     const cls = className ? `${styles.tile} ${className}` : styles.tile;
     // The logo is served as it was stored. The image optimizer of Next is not used.
     // eslint-disable-next-line @next/next/no-img-element
     const logo = <img className={styles.logo} src={sponsor.src} alt={copy ? '' : alt} />;
     if (sponsor.link) {
         return (
-            <a className={cls} style={tileStyle} href={sponsor.link} rel="sponsored noopener noreferrer" tabIndex={copy ? -1 : undefined}>
+            <a className={cls} style={tileStyle} data-sponsor-tile="" href={sponsor.link} rel="sponsored noopener noreferrer" tabIndex={copy ? -1 : undefined}>
                 {logo}
             </a>
         );
     }
     return (
-        <span className={cls} style={tileStyle}>
+        <span className={cls} style={tileStyle} data-sponsor-tile="">
             {logo}
         </span>
     );
