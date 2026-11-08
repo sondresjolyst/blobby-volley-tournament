@@ -341,6 +341,7 @@ describe('sessions', () => {
         const { token } = await createSession(pool, playerId, now);
         await deleteSession(pool, token);
         expect(await getSessionPlayer(pool, token, now)).toBeNull();
+        expect((await pool.query('SELECT 1 FROM player_sessions WHERE player_id = $1', [playerId])).rowCount).toBe(0);
     });
 
     it('does not find a player for an unknown token', async () => {

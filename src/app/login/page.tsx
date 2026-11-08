@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { connection } from 'next/server';
 import { AdminSignInButton } from '@/components/auth/AdminSignInButton';
+import { InfoLabel } from '@/components/InfoButton';
+import { FIELD_INFO } from '@/components/player/info';
 import { errorMessage } from '@/components/players/messages';
 import { AuthPage } from '@/components/site/AuthPage';
 import { NoEventText } from '@/components/site/NoEvent';
@@ -35,15 +37,15 @@ export default async function Login({ searchParams }: { searchParams: Promise<Se
                             Logg inn
                         </h2>
                         <div className={s.authField}>
-                            <label htmlFor="nickname" className={s.authLabel}>
-                                Kallenavn
-                            </label>
+                            <InfoLabel htmlFor="nickname" className={s.authLabel} text="Kallenavn" info={FIELD_INFO.signInNickname.label}>
+                                <p>{FIELD_INFO.signInNickname.text}</p>
+                            </InfoLabel>
                             <input id="nickname" name="nickname" required autoComplete="username" className={s.authInput} />
                         </div>
                         <div className={s.authField}>
-                            <label htmlFor="pin" className={s.authLabel}>
-                                PIN-kode
-                            </label>
+                            <InfoLabel htmlFor="pin" className={s.authLabel} text="PIN-kode" info={FIELD_INFO.signInPin.label}>
+                                <p>{FIELD_INFO.signInPin.text}</p>
+                            </InfoLabel>
                             <input
                                 id="pin"
                                 name="pin"

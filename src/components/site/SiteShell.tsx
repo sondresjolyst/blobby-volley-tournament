@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { EdgePizzas, HeaderPizzas } from '@/components/pizza/Decor';
 import { Pizza } from '@/components/pizza/Pizza';
 import p from '@/components/player/player.module.css';
+import { SignOutButton } from '@/components/player/PlayerShell';
 import { foza } from '@/components/player/text';
 import s from './site.module.css';
 
@@ -50,10 +51,13 @@ export function SiteShell({ eventName, player, children }: ShellProps) {
                             </Link>
                         )}
                         {player ? (
-                            <Link href="/me" className={`${p.wallet} ${s.walletLink}`}>
-                                {player.nickname} · <Pizza size={22} />
-                                {foza(player.balance)}
-                            </Link>
+                            <>
+                                <Link href="/me" className={`${p.wallet} ${s.walletLink}`}>
+                                    {player.nickname} · <Pizza size={22} />
+                                    {foza(player.balance)}
+                                </Link>
+                                <SignOutButton />
+                            </>
                         ) : (
                             <>
                                 <Link href="/login" className={p.navLink}>

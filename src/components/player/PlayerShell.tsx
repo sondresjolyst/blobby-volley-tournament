@@ -15,6 +15,17 @@ interface ShellProps {
     children: ReactNode;
 }
 
+/** The sign-out button of the player headers. It posts, so a link or a prefetch never signs out. */
+export function SignOutButton() {
+    return (
+        <form method="post" action="/api/player/signout">
+            <button type="submit" className={styles.signOut}>
+                Logg ut
+            </button>
+        </form>
+    );
+}
+
 /** The header, the theme and the main area that every player page shares. */
 export function PlayerShell({ page, eventName, nickname, balance, children }: ShellProps) {
     const current = (p: PlayerPage) => (p === page ? ('page' as const) : undefined);
@@ -35,15 +46,14 @@ export function PlayerShell({ page, eventName, nickname, balance, children }: Sh
                         <Link href="/bracket" className={styles.navLink} aria-current={current('bracket')}>
                             Kampoppsett
                         </Link>
+                        <Link href="/leaderboard" className={styles.navLink}>
+                            Toppliste
+                        </Link>
                         <span className={styles.wallet}>
                             {nickname} · <Pizza size={22} />
                             {foza(balance)}
                         </span>
-                        <form method="post" action="/api/player/signout">
-                            <button type="submit" className={styles.signOut}>
-                                Logg ut
-                            </button>
-                        </form>
+                        <SignOutButton />
                     </nav>
                 </div>
             </header>

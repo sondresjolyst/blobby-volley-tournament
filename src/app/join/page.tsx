@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { connection } from 'next/server';
+import { InfoLabel } from '@/components/InfoButton';
+import { FIELD_INFO } from '@/components/player/info';
 import { errorMessage } from '@/components/players/messages';
 import { foza } from '@/components/player/text';
 import { AuthPage } from '@/components/site/AuthPage';
@@ -27,27 +29,27 @@ export default async function Join({ searchParams }: { searchParams: Promise<{ e
                     Bli med
                 </h2>
                 <div className={s.authField}>
-                    <label htmlFor="code" className={s.authLabel}>
-                        LAN-kode
-                    </label>
+                    <InfoLabel htmlFor="code" className={s.authLabel} text="LAN-kode" info={FIELD_INFO.code.label}>
+                        <p>{FIELD_INFO.code.text}</p>
+                    </InfoLabel>
                     <input id="code" name="code" required autoComplete="off" autoCapitalize="characters" spellCheck={false} aria-describedby="code-hint" className={`${s.authInput} ${s.authCode}`} />
                     <span id="code-hint" className={s.authHint}>
                         Står på storskjermen, eller spør ein admin.
                     </span>
                 </div>
                 <div className={s.authField}>
-                    <label htmlFor="nickname" className={s.authLabel}>
-                        Kallenavn
-                    </label>
+                    <InfoLabel htmlFor="nickname" className={s.authLabel} text="Kallenavn" info={FIELD_INFO.nickname.label}>
+                        <p>{FIELD_INFO.nickname.text}</p>
+                    </InfoLabel>
                     <input id="nickname" name="nickname" required maxLength={NICKNAME_MAX_BYTES} autoComplete="nickname" aria-describedby="nickname-hint" className={s.authInput} />
                     <span id="nickname-hint" className={s.authHint}>
                         Vises i spelet og på storskjermen. Maks 15 teikn, og æ, ø og å tel som 2.
                     </span>
                 </div>
                 <div className={s.authField}>
-                    <label htmlFor="pin" className={s.authLabel}>
-                        PIN-kode (4 siffer)
-                    </label>
+                    <InfoLabel htmlFor="pin" className={s.authLabel} text="PIN-kode (4 siffer)" info={FIELD_INFO.pin.label}>
+                        <p>{FIELD_INFO.pin.text}</p>
+                    </InfoLabel>
                     <input
                         id="pin"
                         name="pin"

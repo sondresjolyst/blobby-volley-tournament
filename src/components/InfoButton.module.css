@@ -1,0 +1,58 @@
+/* The i button and its help text, on the admin and the player pages. The colours fall back to the
+   pizza theme when the page has no theme variables. */
+.row {
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    justify-items: start;
+    align-items: center;
+    gap: 6px 8px;
+}
+
+button.button {
+    display: inline-grid;
+    place-items: center;
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    min-height: 32px;
+    padding: 0;
+    border: 2px solid var(--red, #c8321f);
+    border-radius: 50%;
+    background: var(--white, #ffffff);
+    color: var(--red, #c8321f);
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 16px;
+    font-style: italic;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+}
+
+button.button:hover,
+button.button[aria-expanded='true'] {
+    background: var(--red, #c8321f);
+    color: var(--white, #ffffff);
+}
+
+.text {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 60ch;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--chip, #fcebc0);
+    color: var(--ink, #2a1a12);
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.45;
+}
+
+.text p {
+    margin: 0;
+}
+
+.text[hidden] {
+    display: none;
+}

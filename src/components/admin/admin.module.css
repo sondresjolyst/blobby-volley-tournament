@@ -510,6 +510,22 @@
     cursor: pointer;
 }
 
+/* A field whose label has an i button. The help text opens between the label and the input. */
+.main :global(.admin-field) {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-width: 100%;
+}
+
+.main :global(.admin-field-label) {
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    justify-items: start;
+    align-items: center;
+    gap: 6px 8px;
+}
+
 /* Tables scroll inside their card, never the page. */
 .main :global(.admin-table) {
     width: 100%;

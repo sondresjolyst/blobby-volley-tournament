@@ -1,4 +1,4 @@
-import { InfoButton } from '@/components/admin/InfoButton';
+import { InfoButton } from '@/components/InfoButton';
 import type { EventInput } from '@/lib/events/input';
 import { MAX_FOZA } from '@/lib/foza';
 import { CONTAINER_PORT } from '@/lib/game-server/commands';
