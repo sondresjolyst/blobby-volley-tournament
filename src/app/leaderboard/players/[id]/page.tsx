@@ -2,11 +2,13 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { number, odds, percent, ratingChange, signed } from '@/components/stats/format';
 import styles from '@/components/stats/stats.module.css';
+import { LiveRefresh } from '@/components/LiveRefresh';
 import { getPool } from '@/lib/db';
 import { parseId } from '@/lib/http';
 import { shownRating } from '@/lib/stats/elo';
 import { nicknameOf } from '@/lib/stats/players';
 import { getActiveEvent } from '@/lib/store/events';
+import { liveStamp } from '@/lib/store/live';
 import { getPlayerStats } from '@/lib/store/stats';
 
 /** Every stat of one player in the event the player signed up to. */
@@ -14,7 +16,10 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ id
     const id = parseId((await params).id);
     if (id === null) notFound();
     const pool = getPool();
-    const [page, active] = await Promise.all([getPlayerStats(pool, id), getActiveEvent(pool)]);
+    const active = await getActiveEvent(pool);
+    // Only the active event changes. Its stamp is read before the stats, so a change during the reads loads the page once more.
+    const stamp = active ? await liveStamp(pool, active.id) : null;
+    const page = await getPlayerStats(pool, id);
     if (!page) notFound();
     const { player, stats, betting, elo, placings } = page;
     const name = nicknameOf(page.nicknames);
@@ -22,6 +27,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ id
 
     return (
         <main lang="nn" className={styles.page}>
+            {stamp !== null && active?.id === player.eventId && <LiveRefresh eventId={active.id} stamp={stamp} />}
             <p>
                 <Link href={back}>Tebake te topplista</Link>
             </p>

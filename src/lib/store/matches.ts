@@ -836,20 +836,6 @@ export async function acceptChallenge(pool: Pool, matchId: number, playerId: num
     });
 }
 
-/**
- * A short text that changes whenever a match of the player changes in a way /me shows: a new 1v1
- * match, an answer to one, a call, a start, a score, an end. /me reads it often and loads again
- * only when it changes, so it must stay one small query.
- */
-export async function playerMatchesStamp(pool: Pool, playerId: number): Promise<string> {
-    const { rows } = await pool.query<{ stamp: string | null }>(
-        `SELECT string_agg(concat_ws(':', id, state, accepted_at IS NOT NULL, score1, score2), ',' ORDER BY id) AS stamp
-         FROM matches WHERE player1_id = $1 OR player2_id = $1`,
-        [playerId],
-    );
-    return rows[0]?.stamp ?? '';
-}
-
 /** Player 2 declines a 1v1 match. It is cancelled. */
 export async function declineChallenge(pool: Pool, matchId: number, playerId: number): Promise<MatchResult> {
     return withMatch(pool, matchId, async (tx) => {

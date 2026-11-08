@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { LiveRefresh } from '@/components/LiveRefresh';
 import { BracketBoard } from '@/components/player/BracketBoard';
 import { NO_BRACKET } from '@/components/big-screen/text';
 import { Pizza } from '@/components/pizza/Pizza';
@@ -11,6 +12,7 @@ import { nicknameOf } from '@/lib/stats/players';
 import { requireActivePlayer } from '@/lib/players/current';
 import { listMatchPools } from '@/lib/store/bets';
 import { getBalance } from '@/lib/store/foza';
+import { liveStamp } from '@/lib/store/live';
 import { getPlacings, listMatches } from '@/lib/store/matches';
 import { getTournament, listTournaments } from '@/lib/store/tournaments';
 import { buildBoard } from '@/lib/tournaments/board';
@@ -22,6 +24,8 @@ export default async function BracketPage({ searchParams }: { searchParams: Prom
     const player = await requireActivePlayer();
     const pool = getPool();
     const balance = (await getBalance(pool, player.id, new Date())) ?? player.fozaBalance;
+    // The stamp is read before the rest, so a change during the reads loads the page once more.
+    const stamp = await liveStamp(pool, player.eventId);
     const tournaments = await listTournaments(pool, player.eventId);
     const { t } = await searchParams;
     const wanted = typeof t === 'string' ? parseId(t) : null;
@@ -31,6 +35,7 @@ export default async function BracketPage({ searchParams }: { searchParams: Prom
     if (!chosen) {
         return (
             <PlayerShell {...shell}>
+                <LiveRefresh eventId={player.eventId} stamp={stamp} />
                 <div className={styles.wide}>
                     <h1 className={styles.h1}>Kampoppsett</h1>
                     <p className={styles.empty}>{NO_BRACKET}</p>
@@ -47,6 +52,7 @@ export default async function BracketPage({ searchParams }: { searchParams: Prom
     const champion = placings.find((p) => p.place === 1);
     return (
         <PlayerShell {...shell}>
+            <LiveRefresh eventId={player.eventId} stamp={stamp} />
             <div className={styles.wide}>
                 <div className={styles.banner}>
                     <Pizza size={140} variant="taco" className={styles.bannerPizza} />

@@ -27,10 +27,12 @@ import {
     restartCurrentGame,
     setSeriesScore,
     withdrawChallenge,
-    playerMatchesStamp,
     withMatchForBet,
 } from './matches';
 import { getTournament, saveTournament } from './tournaments';
+import { placeBet } from './bets';
+import { adjustBalance } from './foza';
+import { liveStamp } from './live';
 
 const handled = vi.hoisted(() => ({ calls: [] as MatchEvent[][], fail: false }));
 
@@ -706,30 +708,36 @@ describe('calling a 1v1 match by itself', () => {
         }
     });
 
-    it('changes the stamp of both players on every step of a 1v1 match, and not for others', async () => {
-        const { players } = await activeEvent(3);
+    it('changes the live stamp of the event on every step a player page shows, and not without a change', async () => {
+        const other = await createEvent(pool, { ...lan, code: 'LAN-OTHER' });
+        await addPlayers(other, 2, 'O');
+        const { eventId, players } = await activeEvent(3);
         const [a, b, c] = players;
-        const stamps = async () => Promise.all([a, b, c].map((p) => playerMatchesStamp(pool, p)));
-        let before = await stamps();
-        expect(before).toEqual(['', '', '']);
-        const steps: (() => Promise<unknown>)[] = [];
+        const otherMatches = async () => (await liveStamp(pool, other)).split(':')[0];
+        const otherBefore = await otherMatches();
+        let before = await liveStamp(pool, eventId);
+        expect(await liveStamp(pool, eventId)).toBe(before);
         let id = 0;
-        steps.push(async () => {
-            const created = await createChallenge(pool, a, b);
-            if (!created.ok) throw new Error(created.error);
-            id = created.matchId;
-        });
-        steps.push(() => acceptChallenge(pool, id, b));
-        steps.push(() => reportPlayersConnected(pool, id));
-        steps.push(() => report(id, 1, 1));
+        const steps: (() => Promise<unknown>)[] = [
+            async () => {
+                const created = await createChallenge(pool, a, b);
+                if (!created.ok) throw new Error(created.error);
+                id = created.matchId;
+            },
+            () => acceptChallenge(pool, id, b),
+            () => adjustBalance(pool, c, 100, 'Pizza money', null),
+            async () => expect(await placeBet(pool, c, { matchId: id, onPlayerId: a, amount: 10 }, new Date())).toMatchObject({ ok: true }),
+            () => reportPlayersConnected(pool, id),
+            () => report(id, 1, 1),
+            () => addPlayers(eventId, 1, 'Late'),
+        ];
         for (const step of steps) {
             await step();
-            const after = await stamps();
-            expect(after[0]).not.toBe(before[0]);
-            expect(after[1]).not.toBe(before[1]);
-            expect(after[2]).toBe('');
+            const after = await liveStamp(pool, eventId);
+            expect(after).not.toBe(before);
             before = after;
         }
+        expect(await otherMatches()).toBe(otherBefore);
     });
 
     it('never calls two matches for one player when matches end and are accepted at once', async () => {
