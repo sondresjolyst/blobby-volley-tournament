@@ -159,7 +159,8 @@ test('an admin adds, orders, turns off and deletes sponsors, and the footer and 
 
     // The footer tile takes the background colour and the frame.
     await homePage.goto('/');
-    const tile = footer.getByRole('listitem').filter({ has: homePage.getByRole('img', { name: second }) });
+    // The tile holds the logo. Only the first set of the moving strip has alt text.
+    const tile = footer.locator('[data-sponsor-tile]').filter({ has: homePage.getByRole('img', { name: second }) });
     await expect(tile).toHaveCSS('background-color', 'rgb(255, 233, 176)');
     await expect(tile).toHaveCSS('border-top-color', 'rgb(90, 64, 51)');
     await expect(tile).toHaveCSS('border-top-left-radius', '12px');

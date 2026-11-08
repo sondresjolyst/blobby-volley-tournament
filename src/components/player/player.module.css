@@ -48,12 +48,6 @@
     color: #f6c445;
 }
 
-:global(body):has(.shell) > :global(footer) li {
-    background: #fff8ec;
-    border-radius: 12px;
-    padding: 10px 14px;
-}
-
 .shell a {
     color: var(--red-dark);
 }

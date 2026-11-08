@@ -1,14 +1,15 @@
 'use client';
 // The big screen for the TV in the room. It reads the scores again every few seconds without a
 // page load, the leaderboards take turns on a timer, and so do the screens the admin picked.
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pizza } from '@/components/pizza/Pizza';
 import { usePolling } from '@/components/usePolling';
 import { foza, payout } from '@/components/player/text';
 import { currentBoard, nextBoard, REFRESH_MS, ROTATION_MS, screenMs, shownScreen, startScreenTurns } from '@/lib/big-screen/rotation';
 import type { ScreenType } from '@/lib/big-screen/screens';
 import { BOARD_ROWS, type BigScreenData, type BoardKey, type ScreenBracket, type ScreenMatch, type ScreenSponsor } from '@/lib/big-screen/view';
-import { BoardPanel, BracketPanel, RankRows, ScreenTop, SponsorLogo } from './parts';
+import { SponsorMarquee } from '@/components/sponsors/SponsorMarquee';
+import { BoardPanel, BracketPanel, RankRows, ScreenTop } from './parts';
 import { SiteContext, useSite } from './site';
 import { SPONSORS_LABEL } from '@/components/site/text';
 import { OtherScreen } from './screens';
@@ -149,33 +150,11 @@ function Join({ code, qr }: { code: string; qr: JoinQr | null }) {
 }
 
 function SponsorStrip({ sponsors }: { sponsors: ScreenSponsor[] }) {
-    const box = useRef<HTMLDivElement>(null);
-    const list = useRef<HTMLUListElement>(null);
-    const [moving, setMoving] = useState(false);
-    useLayoutEffect(() => {
-        const check = () => setMoving(!!box.current && !!list.current && list.current.scrollWidth > box.current.clientWidth);
-        check();
-        const observer = new ResizeObserver(check);
-        if (box.current) observer.observe(box.current);
-        return () => observer.disconnect();
-    }, [sponsors]);
     if (sponsors.length === 0) return null;
-    const items = (copy: boolean) => sponsors.map((s) => <SponsorLogo key={s.id} sponsor={s} copy={copy} />);
     return (
         <footer className={styles.sponsors} aria-label={SPONSORS_LABEL}>
             <span className={styles.sponsorLabel}>{SPONSOR_LABEL}</span>
-            <div ref={box} className={styles.sponsorBox}>
-                <div className={`${styles.sponsorTrack} ${moving ? styles.sponsorMoving : ''}`} style={{ '--count': sponsors.length } as CSSProperties}>
-                    <ul ref={list} className={styles.sponsorList}>
-                        {items(false)}
-                    </ul>
-                    {moving && (
-                        <ul className={styles.sponsorList} aria-hidden="true">
-                            {items(true)}
-                        </ul>
-                    )}
-                </div>
-            </div>
+            <SponsorMarquee sponsors={sponsors} className={styles.sponsorStrip} />
         </footer>
     );
 }

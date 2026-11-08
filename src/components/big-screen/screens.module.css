@@ -200,26 +200,16 @@
     gap: calc(32 * var(--u));
 }
 
+/* Each cell holds one shared sponsor tile that fills it. */
 .showTile {
     min-width: 0;
     min-height: 0;
-    box-sizing: border-box;
     display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: calc(32 * var(--u));
-    /* The frame of every sponsor tile. The colour of the tile comes from the sponsor. */
-    border: max(1px, calc(1 * var(--u))) solid #5a4033;
-    border-radius: calc(12 * var(--u));
-    background: var(--cream);
-}
-
-.showTile img {
-    max-width: 100%;
-    max-height: 100%;
-    width: auto;
-    height: auto;
-    object-fit: contain;
+    --tile-w: 100%;
+    --tile-h: 100%;
+    --tile-radius: calc(12 * var(--u));
+    --tile-pad: calc(24 * var(--u));
+    --logo-inset: calc(48 * var(--u));
 }
 
 /* Winner */
