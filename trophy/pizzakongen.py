@@ -25,7 +25,7 @@ from manifold3d import CrossSection, FillRule, Manifold, OpType
 # ---------------------------------------------------------------------------
 
 YEAR = 2026                      # year on the plaque
-TEXT = "Svettaste Blåbby"        # tournament name on the plaque
+TEXT = "Svettaste Blåbby"        # plaque text, set per place from PLACES by set_place()
 OVERALL_HEIGHT = 170.0           # mm, height of the 1st place trophy (150 to 200)
 TOLERANCE = 0.3                  # mm total clearance per fit. PLA 0.3, PETG 0.4
 PART = "all"                     # all, blob, hat, base, plaque, pin
@@ -37,11 +37,11 @@ MIN_CAP = 3.0                    # mm, smallest cap height allowed on the plaque
 # The three trophies. Scale applies to the blob, the base and the plaque. Walls,
 # fits, the pin and the layer based heights keep their full size values.
 PLACES = {
-    1: dict(name="Pizzakongen", scale=1.00, blob="dark blue", hat="crown", hat_colour="black",
+    1: dict(name="Pizzakongen", text="Svettaste Blåbby", scale=1.00, blob="dark blue", hat="crown", hat_colour="black",
             tiers=3, points=7, crown_h=30.0, ball_r=3.2),
-    2: dict(name="Prinsen", scale=0.85, blob="white", hat="crown", hat_colour="black",
+    2: dict(name="Prinsen", text="Beste tabaren", scale=0.85, blob="white", hat="crown", hat_colour="black",
             tiers=2, points=5, crown_h=20.0, ball_r=2.8),
-    3: dict(name="Fanten", scale=0.70, blob="dark green", hat="beanie", hat_colour="white",
+    3: dict(name="Fanten", text="Svettaste Blåbby", scale=0.70, blob="dark green", hat="beanie", hat_colour="white",
             tiers=1),
 }
 SCALE = 1.0
@@ -152,7 +152,7 @@ _FULL = {}
 
 def set_place(place):
     """Set the size, colours, hat and tiers for 1st, 2nd or 3rd place."""
-    global PLACE, SCALE, HAT, TIERS, NUM_POINTS, CROWN_H, BALL_R, COLOURS
+    global PLACE, SCALE, HAT, TIERS, NUM_POINTS, CROWN_H, BALL_R, COLOURS, TEXT
     global BOX_W, BOX_H, BOX_CORNER_R, PIZZA_CHEESE_Z, PLAQUE_W, PLAQUE_H
     names = ("BOX_W", "BOX_H", "BOX_CORNER_R", "PIZZA_CHEESE_Z", "PLAQUE_W", "PLAQUE_H",
              "NUM_POINTS", "CROWN_H", "BALL_R")
@@ -161,6 +161,7 @@ def set_place(place):
         _FULL.update({k: g[k] for k in names})
     cfg = PLACES[place]
     PLACE, SCALE, HAT, TIERS = place, cfg["scale"], cfg["hat"], cfg["tiers"]
+    TEXT = cfg["text"]
     if place != 1 and BASE_STYLE != "tiers":
         raise SystemExit("2nd and 3rd place use the tiers base only")
     for k in ("BOX_W", "BOX_H", "BOX_CORNER_R", "PIZZA_CHEESE_Z", "PLAQUE_W", "PLAQUE_H"):
@@ -1059,10 +1060,10 @@ def run_checks(parts, asm, info):
 
 
 def main(argv=None):
-    global YEAR, TEXT, OVERALL_HEIGHT, TOLERANCE, PART, BASE_STYLE, PLAQUE_LAYOUT
+    global YEAR, OVERALL_HEIGHT, TOLERANCE, PART, BASE_STYLE, PLAQUE_LAYOUT
     ap = argparse.ArgumentParser(description="Pizzakongen trophy generator")
     ap.add_argument("--year", type=int, default=YEAR)
-    ap.add_argument("--text", default=TEXT)
+    ap.add_argument("--text", help="plaque text for every place, in place of the text in PLACES")
     ap.add_argument("--height", type=float, default=OVERALL_HEIGHT)
     ap.add_argument("--tolerance", type=float, default=TOLERANCE)
     ap.add_argument("--part", default=PART, choices=["all"] + PARTS)
@@ -1081,7 +1082,10 @@ def main(argv=None):
     if a.from_sprite:
         print(widths_from_sprite(a.from_sprite))
         return None
-    YEAR, TEXT, OVERALL_HEIGHT, TOLERANCE, PART = a.year, a.text, a.height, a.tolerance, a.part
+    YEAR, OVERALL_HEIGHT, TOLERANCE, PART = a.year, a.height, a.tolerance, a.part
+    if a.text:
+        for cfg in PLACES.values():
+            cfg["text"] = a.text
     global STENCIL
     STENCIL = a.stencil
     BASE_STYLE = a.base

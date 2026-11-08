@@ -75,12 +75,22 @@ A bindle stick was left out. It would need its own mount on the base, and the cl
 
 ### Plaque
 
-The plaque is 122 x 28 mm on Pizzakongen and scales with the trophy, to 104 x 24 mm on Prinsen and 85 x 20 mm on Fanten. Its thickness, the 1.2 mm relief and the pocket depth stay the same. Two layouts are built in, and `--plaque` picks one:
+The plaque is 122 x 28 mm on Pizzakongen and scales with the trophy, to 104 x 24 mm on Prinsen and 85 x 20 mm on Fanten. Its thickness, the 1.2 mm relief and the pocket depth stay the same.
 
-- `number` (default): a big place number on the left, the name and the year on the right.
-- `lines`: "1. plass" over "Svettaste Blåbby 2026".
+Each place has its own text, set with `text` in `PLACES` at the top of `pizzakongen.py`:
 
-The big number reads better, mostly on the small plaques. On Fanten the name is 4.1 mm cap height with `number` and 3.6 mm with `lines`. The script stops if any text is below 3 mm cap height (`MIN_CAP`).
+| Place | Text |
+|---|---|
+| 1. Pizzakongen | Svettaste Blåbby |
+| 2. Prinsen | Beste tabaren |
+| 3. Fanten | Svettaste Blåbby, for now |
+
+Two layouts are built in, and `--plaque` picks one:
+
+- `number` (default): a big place number on the left, the text and the year on the right.
+- `lines`: "1. plass" over the text and the year, for example "Svettaste Blåbby 2026".
+
+The big number reads better, mostly on the small plaques. With `number` the text has a cap height of 6.2 mm on Pizzakongen, 6.3 mm on Prinsen and 4.1 mm on Fanten. With `lines` Fanten drops to 3.6 mm. The script stops if any text is below 3 mm cap height (`MIN_CAP`). A long text on Fanten gives thin strokes, so a shorter text there prints cleaner and larger.
 
 ![Plaque layouts, true relative size](renders/plaque_layouts.png)
 
@@ -141,7 +151,7 @@ Options for `pizzakongen.py`:
 
 - `--place 2` builds one trophy. The choices are `1`, `2`, `3` and `all` (default).
 - `--plaque lines` picks the plaque layout: `number` (default) or `lines`.
-- `--text "..."` changes the name on the plaque.
+- `--text "..."` sets the plaque text of every place for one run. Edit `PLACES` to change one place for good.
 - `--height 150` to `--height 200` sets the height of Pizzakongen. The other two scale with it.
 - `--tolerance 0.3` is the total clearance for every fit. Use 0.3 for PLA and 0.4 for PETG.
 - `--stencil` makes the one colour stencil plaque instead of raised text.
