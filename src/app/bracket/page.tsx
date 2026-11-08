@@ -24,9 +24,7 @@ export default async function BracketPage({ searchParams }: { searchParams: Prom
     const player = await requireActivePlayer();
     const pool = getPool();
     const balance = (await getBalance(pool, player.id, new Date())) ?? player.fozaBalance;
-    // The stamp is read before the rest, so a change during the reads loads the page once more.
-    const stamp = await liveStamp(pool, player.eventId);
-    const tournaments = await listTournaments(pool, player.eventId);
+    const [tournaments, stamp] = await Promise.all([listTournaments(pool, player.eventId), liveStamp(pool, player.eventId)]);
     const { t } = await searchParams;
     const wanted = typeof t === 'string' ? parseId(t) : null;
     // Only a tournament of the player's own event is shown. Any other id falls back to the newest.
@@ -35,7 +33,7 @@ export default async function BracketPage({ searchParams }: { searchParams: Prom
     if (!chosen) {
         return (
             <PlayerShell {...shell}>
-                <LiveRefresh eventId={player.eventId} stamp={stamp} />
+                {stamp !== null && <LiveRefresh eventId={player.eventId} stamp={stamp} />}
                 <div className={styles.wide}>
                     <h1 className={styles.h1}>Kampoppsett</h1>
                     <p className={styles.empty}>{NO_BRACKET}</p>
@@ -52,7 +50,7 @@ export default async function BracketPage({ searchParams }: { searchParams: Prom
     const champion = placings.find((p) => p.place === 1);
     return (
         <PlayerShell {...shell}>
-            <LiveRefresh eventId={player.eventId} stamp={stamp} />
+            {stamp !== null && <LiveRefresh eventId={player.eventId} stamp={stamp} />}
             <div className={styles.wide}>
                 <div className={styles.banner}>
                     <Pizza size={140} variant="taco" className={styles.bannerPizza} />

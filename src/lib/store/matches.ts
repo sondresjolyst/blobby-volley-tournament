@@ -468,11 +468,19 @@ async function callWaitingChallenges(client: PoolClient, playerIds: readonly (nu
 }
 
 /**
+ * Takes the lock that match changes of the event take first. A change to the event row itself takes
+ * it before the row, since a match change takes the event row last, when it commits.
+ */
+export async function lockEventMatches(client: PoolClient, eventId: number) {
+    await client.query('SELECT pg_advisory_xact_lock($1, $2)', [EVENT_MATCHES_LOCK, eventId]);
+}
+
+/**
  * Calls the waiting 1v1 matches of an event that was just made active, in the transaction that
  * activates it. They were left waiting while the event was not active.
  */
 export async function callWaitingInEvent(client: PoolClient, eventId: number) {
-    await client.query('SELECT pg_advisory_xact_lock($1, $2)', [EVENT_MATCHES_LOCK, eventId]);
+    await lockEventMatches(client, eventId);
     const { rows } = await client.query<MatchRow>(
         `SELECT ${MATCH_COLUMNS} FROM matches m
          WHERE event_id = $1 AND tournament_id IS NULL AND state = 'upcoming' AND accepted_at IS NOT NULL

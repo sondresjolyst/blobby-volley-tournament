@@ -103,6 +103,7 @@ Signed in players bet on `/me`. Odds are parimutuel. All bets on a match form a 
 
 The two GET routes answer 401 when nobody is signed in. A signed out bet post is sent to `/login`.
 - `GET /api/matches/<id>/pool` is public and returns the pool of a match and the payout multiplier for each player.
+- `GET /api/live?event=<id>` is public and returns `{ "stamp": "<active event id>:<live version>" }`. The front page, `/me`, `/bracket` and the leaderboards of the active event read it every 5 seconds while the tab shows, and load again without a page load when it changes. Every change to the matches, games, players, tournaments, Foza ledger or the row of the event moves the live version when it commits. The open tabs share one read for 2 seconds. It answers 400 for a bad id and 404 for an event that does not exist. Reads the shared cache cannot answer count against the limit of the client, 120 a minute, and answer 429 past it.
 
 An admin can add or take Foza from a player with a reason on the event page.
 

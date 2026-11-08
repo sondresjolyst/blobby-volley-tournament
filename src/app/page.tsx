@@ -67,8 +67,6 @@ export default async function Home() {
     await connection();
     const pool = getPool();
     const event = await getActiveEvent(pool);
-    // The stamp is read before the rest, so a change during the reads loads the page once more.
-    const stamp = event ? await liveStamp(pool, event.id) : null;
     const player = event ? await getActivePlayer() : null;
     const shellPlayer = player && player.eventId === event?.id ? { nickname: player.nickname, balance: player.fozaBalance } : null;
 
@@ -91,7 +89,7 @@ export default async function Home() {
         );
     }
 
-    const [matches, pools] = await Promise.all([listMatches(pool, event.id), listMatchPools(pool, event.id)]);
+    const [matches, pools, stamp] = await Promise.all([listMatches(pool, event.id), listMatchPools(pool, event.id), liveStamp(pool, event.id)]);
     const poolOf = new Map(pools.map((x) => [x.matchId, x]));
     const live = matches.filter(isLive).sort((a, b) => (a.state === b.state ? a.id - b.id : a.state === 'started' ? -1 : 1));
     const upcoming = matches.filter((m) => m.state === 'upcoming' && !isPending(m) && m.players.some((x) => x !== null)).sort((a, b) => a.id - b.id);
@@ -99,7 +97,7 @@ export default async function Home() {
 
     return (
         <SiteShell eventName={event.name} player={shellPlayer}>
-            <LiveRefresh eventId={event.id} stamp={stamp!} />
+            {stamp !== null && <LiveRefresh eventId={event.id} stamp={stamp} />}
             <section className={s.hero} aria-labelledby="tittel">
                 <div className={s.heroText}>
                     {dates && <p className={s.heroDates}>{dates}</p>}

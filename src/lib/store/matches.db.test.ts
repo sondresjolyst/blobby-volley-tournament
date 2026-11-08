@@ -752,8 +752,8 @@ describe('calling a 1v1 match by itself', () => {
         await addPlayers(other, 2, 'O');
         const { eventId, players } = await activeEvent(3);
         const [a, b, c] = players;
-        const otherMatches = async () => (await liveStamp(pool, other)).split(':')[0];
-        const otherBefore = await otherMatches();
+        const version = async (event: number) => (await liveStamp(pool, event))!.split(':')[1];
+        const otherBefore = await version(other);
         let before = await liveStamp(pool, eventId);
         expect(await liveStamp(pool, eventId)).toBe(before);
         let id = 0;
@@ -769,6 +769,8 @@ describe('calling a 1v1 match by itself', () => {
             () => reportPlayersConnected(pool, id),
             () => report(id, 1, 1),
             () => addPlayers(eventId, 1, 'Late'),
+            () => pool.query("UPDATE players SET nickname = 'Renamed', nickname_key = 'renamed' WHERE id = $1", [c]),
+            () => pool.query("UPDATE events SET name = 'LAN 2026 renamed' WHERE id = $1", [eventId]),
         ];
         for (const step of steps) {
             await step();
@@ -776,7 +778,30 @@ describe('calling a 1v1 match by itself', () => {
             expect(after).not.toBe(before);
             before = after;
         }
-        expect(await otherMatches()).toBe(otherBefore);
+        expect(await version(other)).toBe(otherBefore);
+        // Another event going active changes the stamp too, so an open front page moves to it.
+        await setActiveEvent(pool, other);
+        expect(await liveStamp(pool, eventId)).not.toBe(before);
+        expect(await liveStamp(pool, 999_999)).toBeNull();
+    });
+
+    it('moves the live version when a change commits, so a slow change is never hidden by a quicker one', async () => {
+        const { eventId, players } = await activeEvent(2);
+        const [a, b] = players;
+        const slow = await pool.connect();
+        try {
+            await slow.query('BEGIN');
+            await slow.query("UPDATE players SET nickname = 'Slow', nickname_key = 'slow' WHERE id = $1", [a]);
+            const before = await liveStamp(pool, eventId);
+            // A quicker change commits first.
+            await pool.query("UPDATE players SET nickname = 'Quick', nickname_key = 'quick' WHERE id = $1", [b]);
+            const quick = await liveStamp(pool, eventId);
+            expect(quick).not.toBe(before);
+            await slow.query('COMMIT');
+            expect(await liveStamp(pool, eventId)).not.toBe(quick);
+        } finally {
+            slow.release();
+        }
     });
 
     it('never calls two matches for one player when matches end and are accepted at once', async () => {

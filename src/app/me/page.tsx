@@ -31,14 +31,13 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
     const player = await requireActivePlayer();
     const pool = getPool();
     const balance = (await getBalance(pool, player.id, new Date())) ?? player.fozaBalance;
-    // The stamp is read first, so a change during the reads below loads the page once more.
-    const stamp = await liveStamp(pool, player.eventId);
-    const [matches, pools, bets, players, event] = await Promise.all([
+    const [matches, pools, bets, players, event, stamp] = await Promise.all([
         listMatches(pool, player.eventId),
         listMatchPools(pool, player.eventId),
         listPlayerBets(pool, player.id),
         listPlayers(pool, player.eventId),
         getEvent(pool, player.eventId),
+        liveStamp(pool, player.eventId),
     ]);
     const plays = (m: MatchSummary) => m.players.some((p) => p?.id === player.id);
     // A player is in at most one called or started match, since calling refuses a busy player.
@@ -63,7 +62,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
     const challengeNotice = noticeMessage(search.challenge);
     return (
         <PlayerShell page="matches" eventName={player.eventName} nickname={player.nickname} balance={balance}>
-            <LiveRefresh eventId={player.eventId} stamp={stamp} />
+            {stamp !== null && <LiveRefresh eventId={player.eventId} stamp={stamp} />}
             <div className={styles.column}>
                 <h1 className={styles.h1}>Hei, {player.nickname}!</h1>
                 {betError && (

@@ -9,6 +9,12 @@ export class TtlCache<T> {
         private readonly now: () => number = Date.now,
     ) {}
 
+    /** True when the key has a value that is not older than the time to live. */
+    has(key: string): boolean {
+        const hit = this.entries.get(key);
+        return hit !== undefined && this.now() - hit.at < this.ttlMs;
+    }
+
     /** The value for the key, loaded again once it is older than the time to live. A failed load is not kept. */
     get(key: string, load: () => Promise<T>): Promise<T> {
         const time = this.now();
