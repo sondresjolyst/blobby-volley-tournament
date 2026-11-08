@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.6.0](https://github.com/sondresjolyst/blobby-volley-tournament/compare/v0.5.0...v0.6.0) (2026-11-08)
+
+
+### Features
+
+* add the Pizzakongen trophy set and two alternative trophies ([#27](https://github.com/sondresjolyst/blobby-volley-tournament/issues/27)) ([0835354](https://github.com/sondresjolyst/blobby-volley-tournament/commit/0835354be4d5d1c44013ce242db8cd81493eeb71))
+
+
+### Bug Fixes
+
+* make the site texts clearer and consistent ([#80](https://github.com/sondresjolyst/blobby-volley-tournament/issues/80)) ([f11fb72](https://github.com/sondresjolyst/blobby-volley-tournament/commit/f11fb72004670bad677d756d1a60c2d746a7ca78))
+* put the token button on its own line below the confirm box ([#83](https://github.com/sondresjolyst/blobby-volley-tournament/issues/83)) ([ec8c4c8](https://github.com/sondresjolyst/blobby-volley-tournament/commit/ec8c4c8fa038b00d69c7d88dd656b7edf03b9522))
+* show the sponsors as a moving strip of design tiles with centred logos ([#82](https://github.com/sondresjolyst/blobby-volley-tournament/issues/82)) ([9f2b2af](https://github.com/sondresjolyst/blobby-volley-tournament/commit/9f2b2afa824124bcc0fc8aae10fd0a4d3ae188c4))
+
 ## [0.5.0](https://github.com/sondresjolyst/blobby-volley-tournament/compare/v0.4.0...v0.5.0) (2026-11-08)
 
 
