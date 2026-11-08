@@ -14,7 +14,7 @@ import { listMatchPools, type MatchPool } from '@/lib/store/bets';
 import { getActiveEvent } from '@/lib/store/events';
 import { liveStamp } from '@/lib/store/live';
 import { listMatches, type MatchSummary } from '@/lib/store/matches';
-import { STATE_TAGS } from '@/lib/tournaments/board';
+import { calledText, STATE_TAGS } from '@/lib/tournaments/board';
 
 /** How many upcoming matches the front page lists. The bracket has the rest. */
 const UPCOMING_SHOWN = 6;
@@ -26,7 +26,7 @@ const isPending = (m: MatchSummary) => m.tournamentId === null && m.state === 'u
 function PublicMatch({ match, pool, signedIn }: { match: MatchSummary; pool: MatchPool | undefined; signedIn: boolean }) {
     const name = (slot: 0 | 1) => match.players[slot]?.nickname ?? 'Ikkje klart enno';
     const live = match.state === 'started';
-    const tag = live ? 'LIVE' : match.state === 'called' ? STATE_TAGS.called : pool?.open ? 'Spel opent' : STATE_TAGS.upcoming;
+    const tag = live ? 'LIVE' : match.state === 'called' ? calledText(match.tournamentId !== null).tag : pool?.open ? 'Spel opent' : STATE_TAGS.upcoming;
     const sides = pool?.sides ?? [];
     return (
         <article className={p.card}>
@@ -140,10 +140,10 @@ export default async function Home() {
             <div className={p.column}>
                 <section className={p.section} aria-labelledby="i-ringen">
                     <h2 id="i-ringen" className={p.h2}>
-                        I ringen no
+                        I ringen nå
                     </h2>
                     {live.length === 0 ? (
-                        <p className={p.muted}>Ingen kampa e i gang akkurat no.</p>
+                        <p className={p.muted}>Ingen kampa e i gang akkurat nå.</p>
                     ) : (
                         <div className={p.cards}>
                             {live.map((m) => (
@@ -209,7 +209,7 @@ export default async function Home() {
                     <ol className={s.steps}>
                         <li>Bli med med LAN-koden, eit kallenavn og ein PIN-kode.</li>
                         <li>Sats Foza på kampane du trur du kan lesa.</li>
-                        <li>Når kampen din blir ropt opp, kopiere du lenkjå på sidå di og hoppe inn i spelet.</li>
+                        <li>Når kampen din e klar, kopiere du lenkjå på sidå di og hoppe inn i spelet.</li>
                     </ol>
                 </section>
             </aside>

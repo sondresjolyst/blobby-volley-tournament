@@ -2,7 +2,7 @@
 import { GITHUB_SIGN_IN_FAILED, SOMETHING_WENT_WRONG } from '@/lib/texts';
 
 const MESSAGES: Record<string, string> = {
-    'no-event': 'Ingen LAN e opent akkurat no. Ein admin må opna eit LAN først.',
+    'no-event': 'Ingen LAN e opent akkurat nå. Ein admin må opna eit LAN først.',
     code: 'Den LAN-koden stemme ikkje.',
     taken: 'Det kallenavnet e allerede tatt på dette LANet.',
     'nickname-empty': 'Velg deg eit kallenavn.',

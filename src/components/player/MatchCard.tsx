@@ -2,7 +2,7 @@ import type { MatchPool } from '@/lib/store/bets';
 import type { MatchSummary } from '@/lib/store/matches';
 import { nicknameOf } from '@/lib/stats/players';
 import styles from './player.module.css';
-import { STATE_TAGS } from '@/lib/tournaments/board';
+import { calledText, STATE_TAGS } from '@/lib/tournaments/board';
 import { matchTitle } from '../matches/describe';
 import { foza, matchSettings, payout } from './text';
 
@@ -18,7 +18,10 @@ interface CardProps {
 
 function tagOf(match: MatchSummary, open: boolean): { text: string; live: boolean } {
     if (match.state === 'started') return { text: 'LIVE · spelå e stengt', live: true };
-    if (match.state === 'called') return { text: open ? `${STATE_TAGS.called} · spel opent` : STATE_TAGS.called, live: true };
+    if (match.state === 'called') {
+        const called = calledText(match.tournamentId !== null).tag;
+        return { text: open ? `${called} · spel opent` : called, live: true };
+    }
     return { text: open ? 'Spel opent' : STATE_TAGS.upcoming, live: false };
 }
 

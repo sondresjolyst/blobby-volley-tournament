@@ -24,7 +24,7 @@ function BoardCard({ match }: { match: BoardMatch }) {
             <SlotRow slot={match.slots[1]} />
             {match.openForBets && (
                 <Link href={`/me#kamp-${match.matchId}`} className={styles.betLink}>
-                    Sats no
+                    Sats nå
                 </Link>
             )}
         </article>

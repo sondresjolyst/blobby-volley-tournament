@@ -18,6 +18,7 @@ import { getBalance } from '@/lib/store/foza';
 import { liveStamp } from '@/lib/store/live';
 import { listMatches, type MatchSummary } from '@/lib/store/matches';
 import { getJoinCode, listPlayers } from '@/lib/store/players';
+import { calledText } from '@/lib/tournaments/board';
 
 type Search = { error?: string | string[]; bet?: string | string[]; challenge?: string | string[]; challengeError?: string | string[] };
 
@@ -90,7 +91,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                             {matchTitle(current, 'player')} · {matchSettings(current)}
                         </p>
                         <h2 id="din-kamp" className={styles.heroTitle}>
-                            {current.state === 'called' ? 'Kampen din e ropt opp!' : 'Kampen din e i gang'}
+                            {current.state === 'called' ? calledText(current.tournamentId !== null).heading : 'Kampen din e i gang'}
                         </h2>
                         <p className={styles.heroVersus}>
                             {matchPlayers(current, 'player')}
@@ -211,7 +212,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                             {challengeNotice}
                         </p>
                     )}
-                    {incoming.length === 0 && outgoing.length === 0 && <p className={styles.muted}>Ingen utfordringa akkurat no.</p>}
+                    {incoming.length === 0 && outgoing.length === 0 && <p className={styles.muted}>Ingen utfordringa akkurat nå.</p>}
                     {incoming.length > 0 && (
                         <ul className={styles.list} aria-label="Utfordringa te deg">
                             {incoming.map((m) => (

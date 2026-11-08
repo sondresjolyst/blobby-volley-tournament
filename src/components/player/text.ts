@@ -49,9 +49,9 @@ export function challengeErrorMessage(code: string | string[] | undefined): stri
 const NOTICES: Record<string, string> = {
     placed: 'Spelet ditt e lagt inn. Lykke te!',
     raised: 'Spelet ditt e høgna. Modig!',
-    sent: 'Utfordringå e sendt. No e det opp te motstandaren.',
-    accepted: 'Du sa ja. Kampen e ropt opp, så det e bare å spela.',
-    queued: 'Du sa ja. Ein av dåkke e midt i ein kamp, så dåkke blir ropt opp når han e ferdig.',
+    sent: 'Utfordringå e sendt. Nå e det opp te motstandaren.',
+    accepted: 'Du sa ja. Dåkke kan spela med det same.',
+    queued: 'Du sa ja. Ein av dåkke e midt i ein kamp, så dåkke kan spela når han e ferdig.',
     declined: 'Du sa nei takk. Kampen e avlyst.',
     withdrawn: 'Du trakk utfordringå tebake.',
 };

@@ -41,7 +41,7 @@ test('the front page shows the active event and the way in for a visitor', async
     await expect(main.getByRole('link', { name: /^Toppliste/ })).toHaveAttribute('href', '/leaderboard');
     // The big screen link never carries a key.
     await expect(main.getByRole('link', { name: /^Storskjermen/ })).toHaveAttribute('href', '/big');
-    await expect(page.getByRole('heading', { level: 2, name: 'I ringen no' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: 'I ringen nå' })).toBeVisible();
     await expect(page.getByRole('heading', { level: 2, name: 'Snart i ringen' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Admin', exact: true })).toHaveAttribute('href', '/admin');
 });

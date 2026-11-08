@@ -1,7 +1,7 @@
 // The words of the big screen, in the same jokey Rogaland dialect as the player pages.
 import type { BoardKey, ScreenMatch } from '@/lib/big-screen/view';
 import type { MatchState } from '@/lib/matches/state';
-import { STATE_TAGS } from '@/lib/tournaments/board';
+import { calledText, STATE_TAGS } from '@/lib/tournaments/board';
 import { foza, payout } from '@/components/player/text';
 
 export const BOARD_TEXT: Record<BoardKey, { tab: string; title: string; empty: string }> = {
@@ -10,10 +10,11 @@ export const BOARD_TEXT: Record<BoardKey, { tab: string; title: string; empty: s
     elo: { tab: 'Elo', title: 'Elo-toppen', empty: 'Ingen spelara her enno.' },
 };
 
-const PILL_STATE: Partial<Record<MatchState, string>> = { started: STATE_TAGS.started, called: STATE_TAGS.called.toUpperCase(), upcoming: STATE_TAGS.upcoming.toUpperCase() };
+const PILL_STATE: Partial<Record<MatchState, string>> = { started: STATE_TAGS.started, upcoming: STATE_TAGS.upcoming.toUpperCase() };
 
 /** The state and the round of a match for the pill and the tags, such as `LIVE` and `Semifinala, kamp 1`. */
-export function matchPill(match: Pick<ScreenMatch, 'state' | 'label'>): { state: string; label: string } {
+export function matchPill(match: Pick<ScreenMatch, 'state' | 'label' | 'tournamentName'>): { state: string; label: string } {
+    if (match.state === 'called') return { state: calledText(match.tournamentName !== null).tag.toUpperCase(), label: match.label };
     return { state: PILL_STATE[match.state] ?? '', label: match.label };
 }
 

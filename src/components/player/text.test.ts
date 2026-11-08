@@ -55,7 +55,7 @@ describe('player texts', () => {
         expect(challengeErrorMessage('taken')).toBe('Dåkke har allerede ein open 1v1. Spel han ferdig først.');
         expect(challengeErrorMessage('constructor')).toBeNull();
         expect(challengeErrorMessage(['taken'])).toBeNull();
-        expect(noticeMessage('sent')).toBe('Utfordringå e sendt. No e det opp te motstandaren.');
+        expect(noticeMessage('sent')).toBe('Utfordringå e sendt. Nå e det opp te motstandaren.');
         expect(noticeMessage('toString')).toBeNull();
     });
 });

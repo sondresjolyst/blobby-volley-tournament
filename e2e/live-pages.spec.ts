@@ -44,7 +44,7 @@ test('open pages show new players, a new match, a bet and a new balance without 
     await form.getByRole('button', { name: 'Send utfordring' }).click();
     await asked.page.goto('/me');
     await asked.page.getByRole('list', { name: 'Utfordringa te deg' }).getByRole('listitem').filter({ hasText: `La${tag} utfordre deg!` }).getByRole('button', { name: 'Godta' }).click();
-    const card = front.getByRole('region', { name: 'I ringen no' }).getByRole('article').filter({ hasText: `La${tag} vs Lb${tag}` });
+    const card = front.getByRole('region', { name: 'I ringen nå' }).getByRole('article').filter({ hasText: `La${tag} vs Lb${tag}` });
     await expect(card).toBeVisible({ timeout: 15_000 });
     await expect(front.getByText('Nytt på sidå')).toBeVisible();
 

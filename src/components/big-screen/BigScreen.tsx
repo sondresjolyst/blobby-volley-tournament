@@ -23,7 +23,7 @@ export interface JoinQr {
 function Hero({ match }: { match: ScreenMatch | null }) {
     if (!match) {
         return (
-            <section className={`${styles.card} ${styles.heroEmpty}`} aria-label="Kampen no">
+            <section className={`${styles.card} ${styles.heroEmpty}`} aria-label="Kampen nå">
                 <Pizza size={120} />
                 <div>
                     <p className={styles.heroEmptyTitle}>{NO_MATCH.title}</p>
@@ -37,7 +37,7 @@ function Hero({ match }: { match: ScreenMatch | null }) {
     const center = match.live ? match.live.points : match.state === 'started' ? [a.sets, b.sets] : null;
     const sub = (sets: number, elo: number) => (match.state === 'upcoming' || match.state === 'called' ? `Elo ${elo}` : `${sets} sett · Elo ${elo}`);
     return (
-        <section className={`${styles.card} ${styles.hero}`} aria-label="Kampen no">
+        <section className={`${styles.card} ${styles.hero}`} aria-label="Kampen nå">
             <div className={styles.heroScore}>
                 <div className={styles.heroSide}>
                     <span className={styles.heroName}>{a.nickname}</span>

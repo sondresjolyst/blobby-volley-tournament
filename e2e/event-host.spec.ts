@@ -48,10 +48,10 @@ test('an admin moves the game server to another PC and the join link follows at 
         .getByRole('button', { name: 'Godta' })
         .click();
     // Both players are free, so the match is called as soon as it is accepted.
-    await expect(asked.page.getByRole('heading', { name: 'Kampen din e ropt opp!' })).toBeVisible();
+    await expect(asked.page.getByRole('heading', { name: 'Kampen din e klar!' })).toBeVisible();
 
     await asker.page.goto('/me');
-    const hero = asker.page.getByRole('region', { name: 'Kampen din e ropt opp!' });
+    const hero = asker.page.getByRole('region', { name: 'Kampen din e klar!' });
     await expect(hero.getByRole('link', { name: 'opne lenkjå direkte' })).toHaveAttribute('href', /^blobby:\/\/join\?server=e2e-server\.lan:1234&code=/);
 
     await page.goto('/admin/events');
