@@ -1,18 +1,19 @@
 import type { CSSProperties } from 'react';
+import { TILE_RADIUS, TILE_STROKE, tileBackground } from '@/lib/sponsors/tile';
 
-/** The frame of a sponsor tile in the design: rounded corners and a thin brown stroke. */
-export const TILE_FRAME = { borderRadius: 12, border: '1px solid #5a4033' } as const;
+/** The frame and colour of a sponsor tile, for the places that draw their own tile element. */
+export const tileStyle = (background: string | null): CSSProperties => ({
+    borderRadius: TILE_RADIUS,
+    border: `1px solid ${TILE_STROKE}`,
+    background: tileBackground(background),
+});
 
-/**
- * A sponsor logo in its tile: the frame, and the background colour of the sponsor behind the logo,
- * or nothing when the logo stays transparent.
- */
+/** A sponsor logo in its tile, as the site shows it: the frame and the background colour of the sponsor. */
 export function SponsorTile({ src, alt, width, height, background }: { src: string; alt: string; width?: number; height: number; background: string | null }) {
     const style: CSSProperties = {
-        ...TILE_FRAME,
+        ...tileStyle(background),
         display: 'inline-flex',
         padding: 6,
-        background: background ?? 'transparent',
         boxSizing: 'content-box',
         maxWidth: '100%',
     };

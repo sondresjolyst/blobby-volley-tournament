@@ -70,13 +70,13 @@ export function SponsorForm({ action, sponsor, title, submitLabel, onCancel }: {
                         Background colour
                     </span>
                     <InfoButton label="About the background colour">
-                        <p>The colour behind the logo. The game uses it on the sponsor board.</p>
-                        <p>With Transparent, the transparent parts of the logo show what is behind it, such as the board in the game.</p>
+                        <p>The colour of the tile behind the logo, on the site, on the big screen and on the sponsor board in the game. A logo with transparent parts sits on this colour.</p>
+                        <p>With Standard, the site and the big screen use a cream tile, and the game shows its board through the transparent parts.</p>
                     </InfoButton>
                 </div>
                 <div role="radiogroup" aria-labelledby={`${id}-background`} className="admin-choice">
                     <label>
-                        <input type="radio" name="ownBackground" value="off" checked={!ownBackground} onChange={() => setOwnBackground(false)} /> Transparent
+                        <input type="radio" name="ownBackground" value="off" checked={!ownBackground} onChange={() => setOwnBackground(false)} /> Standard
                     </label>
                     <label>
                         <input type="radio" name="ownBackground" value="on" checked={ownBackground} onChange={() => setOwnBackground(true)} /> Colour

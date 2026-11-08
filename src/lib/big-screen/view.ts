@@ -134,6 +134,8 @@ export interface ScreenSponsor {
     src: string;
     width: number;
     height: number;
+    /** The background colour of the tile, or null for the standard tile. */
+    background: string | null;
 }
 
 export interface BigScreenData {
@@ -429,7 +431,14 @@ export function buildBigScreen(input: ScreenInput): BigScreenData {
         others: others.slice(0, OTHER_MATCHES),
         bracket: input.tournament && sections ? screenBracket(input.tournament, sections) : null,
         boards: screenBoards(input.leaderboard),
-        sponsors: input.sponsors.map((s) => ({ id: s.id, name: s.name, src: `/api/sponsors/${s.id}/logo?v=${s.logoHash}`, width: s.logoWidth, height: s.logoHeight })),
+        sponsors: input.sponsors.map((s) => ({
+            id: s.id,
+            name: s.name,
+            src: `/api/sponsors/${s.id}/logo?v=${s.logoHash}`,
+            width: s.logoWidth,
+            height: s.logoHeight,
+            background: s.gameBackground,
+        })),
         rotation: input.rotation,
         fullBracket: input.tournament && sections ? fullBracket(input.tournament, sections) : null,
         upNext: upNextMatches(input.matches, input.live).map(show),
