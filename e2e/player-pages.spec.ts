@@ -45,7 +45,7 @@ test('a player challenges another to a 1v1, the other accepts, and the called pl
     await form.getByLabel('Fart i fps').fill('90');
     await form.getByRole('button', { name: 'Send utfordring' }).click();
     await expect(asker.page.getByRole('status')).toHaveText('Utfordringå e sendt. No e det opp te motstandaren.');
-    await expect(asker.page.getByRole('list', { name: 'Utfordringa frå deg' })).toContainText(`Du venta på svar frå Ub${tag}`);
+    await expect(asker.page.getByRole('list', { name: 'Utfordringa frå deg' })).toContainText(`Du vente på svar frå Ub${tag}`);
 
     // The same pair cannot have two open 1v1 matches.
     await form.getByLabel('Motstandar').selectOption({ label: `Ub${tag}` });
@@ -56,7 +56,7 @@ test('a player challenges another to a 1v1, the other accepts, and the called pl
     const incoming = asked.page.getByRole('list', { name: 'Utfordringa te deg' }).getByRole('listitem').filter({ hasText: `Ua${tag} utfordre deg!` });
     await expect(incoming).toContainText('Best av 3 · først te 21 · 90 fps');
     await incoming.getByRole('button', { name: 'Godta' }).click();
-    await expect(asked.page.getByRole('status')).toHaveText('Du sa ja. Ein admin rope dåkke opp når det e dykkar tur.');
+    await expect(asked.page.getByRole('status')).toHaveText('Du sa ja. Ein admin rope dåkke opp når dåkke står for tur.');
     const card = asked.page.getByRole('article').filter({ hasText: `Ua${tag} vs Ub${tag}` });
     await expect(card).toContainText('Spel opent');
     await expect(card).toContainText('Din kamp');
@@ -127,16 +127,16 @@ test('the asked player declines a 1v1, the asker withdraws the next one, and the
     await expect(asked.page.getByRole('listitem').filter({ hasText: `Da${tag} utfordre deg!` })).toHaveCount(0);
 
     await asker.page.goto('/me');
-    await expect(asker.page.getByText(`Du venta på svar frå Db${tag}`)).toHaveCount(0);
+    await expect(asker.page.getByText(`Du vente på svar frå Db${tag}`)).toHaveCount(0);
     await form.getByLabel('Motstandar').selectOption({ label: `Db${tag}` });
     await form.getByRole('button', { name: 'Send utfordring' }).click();
     await expect(asker.page.getByRole('status')).toHaveText('Utfordringå e sendt. No e det opp te motstandaren.');
 
     // The asker takes the new request back before it is answered.
-    const outgoing = asker.page.getByRole('list', { name: 'Utfordringa frå deg' }).getByRole('listitem').filter({ hasText: `Du venta på svar frå Db${tag}` });
-    await outgoing.getByRole('button', { name: 'Trekk tilbake' }).click();
-    await expect(asker.page.getByRole('status')).toHaveText('Du trakk utfordringå tilbake.');
-    await expect(asker.page.getByText(`Du venta på svar frå Db${tag}`)).toHaveCount(0);
+    const outgoing = asker.page.getByRole('list', { name: 'Utfordringa frå deg' }).getByRole('listitem').filter({ hasText: `Du vente på svar frå Db${tag}` });
+    await outgoing.getByRole('button', { name: 'Trekk tebake' }).click();
+    await expect(asker.page.getByRole('status')).toHaveText('Du trakk utfordringå tebake.');
+    await expect(asker.page.getByText(`Du vente på svar frå Db${tag}`)).toHaveCount(0);
     await asked.page.goto('/me');
     await expect(asked.page.getByRole('listitem').filter({ hasText: `Da${tag} utfordre deg!` })).toHaveCount(0);
 
@@ -179,7 +179,7 @@ test('a player sees the bracket of a tournament with the own match marked', asyn
     await expect(own).toBeVisible();
 
     // A match open for bets links to its bet form on the matches page.
-    const bettable = page.getByRole('link', { name: 'Sats nå' }).first();
+    const bettable = page.getByRole('link', { name: 'Sats no' }).first();
     const href = await bettable.getAttribute('href');
     expect(href).toMatch(/^\/me#kamp-\d+$/);
     await bettable.click();

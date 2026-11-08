@@ -1,4 +1,5 @@
 import { connection } from 'next/server';
+import { SPONSORS_LABEL } from '@/components/big-screen/text';
 import { getPool } from '@/lib/db';
 import { listShownSponsors, type SponsorRow } from '@/lib/store/sponsors';
 
@@ -18,7 +19,7 @@ export async function SponsorFooter() {
     }
     if (sponsors.length === 0) return null;
     return (
-        <footer aria-label="Sponsors">
+        <footer aria-label={SPONSORS_LABEL}>
             <ul style={{ listStyle: 'none', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '1.5rem', padding: 0 }}>
                 {sponsors.map((sponsor) => {
                     const logo = (

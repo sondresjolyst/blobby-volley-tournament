@@ -31,9 +31,9 @@ export function parseAdjustmentForm(form: Record<string, string>): { amount: num
 
 // Players read these on their own page, which is written in the dialect of the LAN.
 const BET_MESSAGES: Record<string, string> = {
-    'not-found': 'Den kampen finnes ikkje.',
+    'not-found': 'Den kampen fins ikkje.',
     closed: 'Spelå på den kampen e stengt.',
-    event: 'Du kan bare satsa på kampar på LANet du e med på.',
+    event: 'Du kan bare satsa på kampa på LANet du e med på.',
     side: 'Velg ein av dei to spelarane i kampen.',
     switch: 'Du har allerede satsa på den andre. Du kan høgna spelet, men ikkje bytta side.',
     amount: 'Innsatsen må vera eit heilt tal Foza, minst 1.',

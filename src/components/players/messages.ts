@@ -11,7 +11,7 @@ const MESSAGES: Record<string, string> = {
     locked: 'For mange feil PIN-koda. Kontoen din e låst ei stund. Prøv igjen seinare, eller be ein admin om å nullstilla PIN-koden.',
     busy: 'For mange feilforsøk frå dette nettverket. Prøv igjen seinare.',
     pins: 'For mange feil PIN-koda frå dette nettverket. Vent ein time og prøv igjen.',
-    'sign-ups': 'For mange nye spelarar frå dette nettverket. Vent ein time og prøv igjen.',
+    'sign-ups': 'For mange nye spelara frå dette nettverket. Vent ein time og prøv igjen.',
     form: 'Nokke gjekk gale. Prøv igjen.',
 };
 
@@ -21,6 +21,6 @@ const ADMIN_CODES = new Set(['OAuthSignin', 'OAuthCallback', 'OAuthCreateAccount
 /** The text for an error code in the address. Unknown codes show nothing. */
 export function errorMessage(code: string | string[] | undefined): string | null {
     if (typeof code !== 'string') return null;
-    if (ADMIN_CODES.has(code)) return 'Innlogginga med GitHub gjekk ikkje. Prøv igjen.';
+    if (ADMIN_CODES.has(code)) return 'Innloggingå med GitHub gjekk ikkje. Prøv igjen.';
     return Object.hasOwn(MESSAGES, code) ? MESSAGES[code] : null;
 }

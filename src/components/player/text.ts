@@ -34,9 +34,9 @@ const CHALLENGE_MESSAGES: Record<string, string> = {
     players: 'Du kan ikkje utfordra deg sjøl.',
     'no-event': 'Begge må vera med på LANet som e i gang.',
     taken: 'Dåkke har allerede ein open 1v1. Spel han ferdig først.',
-    'not-found': 'Den kampen finnes ikkje.',
-    'not-allowed': 'Bare den som e utfordra kan svara, og bare den som utfordra kan trekka tilbake.',
-    state: 'Den utfordringå e allerede svart på eller trekt tilbake.',
+    'not-found': 'Den kampen fins ikkje.',
+    'not-allowed': 'Bare den som e utfordra kan svara, og bare den som utfordra kan trekka tebake.',
+    state: 'Den utfordringå e allerede svart på eller trekt tebake.',
 };
 
 /** The text for a 1v1 error code in the address. Unknown codes show nothing. */
@@ -49,9 +49,9 @@ const NOTICES: Record<string, string> = {
     placed: 'Spelet ditt e lagt inn. Lykke te!',
     raised: 'Spelet ditt e høgna. Modig!',
     sent: 'Utfordringå e sendt. No e det opp te motstandaren.',
-    accepted: 'Du sa ja. Ein admin rope dåkke opp når det e dykkar tur.',
+    accepted: 'Du sa ja. Ein admin rope dåkke opp når dåkke står for tur.',
     declined: 'Du sa nei takk. Kampen e avlyst.',
-    withdrawn: 'Du trakk utfordringå tilbake.',
+    withdrawn: 'Du trakk utfordringå tebake.',
 };
 
 /** The text for a success code in the address. Unknown codes show nothing. */

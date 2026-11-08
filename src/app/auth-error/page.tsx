@@ -9,7 +9,7 @@ export default async function AuthError({ searchParams }: { searchParams: Promis
     if (error === 'AccessDenied') redirect('/denied');
     return (
         <AuthPage title="Det gjekk ikkje" adminLink={false}>
-            <p className={s.authText}>Innlogginga med GitHub gjekk ikkje.</p>
+            <p className={s.authText}>Innloggingå med GitHub gjekk ikkje.</p>
             <p className={s.authSwitch}>
                 <Link href="/login">Prøv igjen</Link>
             </p>

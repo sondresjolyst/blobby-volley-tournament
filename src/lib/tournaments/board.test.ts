@@ -50,7 +50,7 @@ describe('buildBoard', () => {
         expect(board.map((s) => s.key)).toEqual(['main']);
         expect(board[0].rounds.map((r) => r.name)).toEqual(['Semifinala', 'Finale', 'Bronsefinale']);
         const [semi1] = board[0].rounds[0].matches;
-        expect(semi1).toMatchObject({ matchId: 101, number: 1, status: 'Kjem', mine: true, openForBets: true });
+        expect(semi1).toMatchObject({ matchId: 101, number: 1, status: 'Snart', mine: true, openForBets: true });
         expect(semi1.slots.map((s) => [s.name, s.mine, s.score])).toEqual([
             ['P11', true, null],
             ['P14', false, null],

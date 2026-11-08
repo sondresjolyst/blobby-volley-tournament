@@ -74,7 +74,7 @@ const html = (node: React.ReactElement) => renderToStaticMarkup(node);
 describe('the bracket screen', () => {
     it('shows every round of both sides', () => {
         const out = html(<BracketScreen data={full} />);
-        for (const text of ['Heile kampoppsettet', 'Kampoppsett · Hovedcupen', 'Vinnarsida', 'Tapersida', 'Semifinala', 'Finale', 'Taperrunde 1', 'Taper av kamp 2']) expect(out).toContain(text);
+        for (const text of ['Heile kampoppsettet', 'Kampoppsett · Hovedcupen', 'Vinnarsidå', 'Tapersidå', 'Semifinala', 'Finale', 'Taperrunde 1', 'Taper av kamp 2']) expect(out).toContain(text);
         expect(out).toContain('--card-max:34');
     });
 
@@ -86,7 +86,7 @@ describe('the bracket screen', () => {
 describe('the Foza screen', () => {
     it('ranks the bettors and lists the biggest wins', () => {
         const out = html(<FozaScreen data={full} />);
-        for (const text of ['Mest Foza vunne', 'Tippekongen', '4 av 5 rette', '+840', 'Største gevinstar', 'på Skvett', '+600', 'Ledig plass']) expect(out).toContain(text);
+        for (const text of ['Mest Foza vunne', 'Tippekongen', '4 av 5 rette', '+840', 'Største gevinsta', 'på Skvett', '+600', 'Ledig plass']) expect(out).toContain(text);
     });
 
     it('says nobody has bet yet', () => {
@@ -97,7 +97,7 @@ describe('the Foza screen', () => {
 describe('the up next screen', () => {
     it('lists the matches with the live score of the running one', () => {
         const out = html(<UpNextScreen data={full} />);
-        for (const text of ['Neste kampar', 'LIVE', '11–8', 'Sett 2 · 1–0 i sett · best av 3', 'SNART', 'Blobfisk', 'Ingen spel enno']) expect(out).toContain(text);
+        for (const text of ['Neste kampa', 'LIVE', '11–8', 'Sett 2 · 1–0 i sett · best av 3', 'SNART', 'Blobfisk', 'Ingen spel enno']) expect(out).toContain(text);
         expect(out.indexOf('Skvett')).toBeLessThan(out.indexOf('Blobfisk'));
     });
 
@@ -109,7 +109,7 @@ describe('the up next screen', () => {
 describe('the stats screen', () => {
     it('shows the records it has, and only those', () => {
         const out = html(<StatsScreen data={full} />);
-        for (const text of ['Rekordar', 'Største siger i eit sett', '15–0', 'Lengste kamp', '31 min']) expect(out).toContain(text);
+        for (const text of ['Rekorda', 'Største siger i eit sett', '15–0', 'Lengste kamp', '31 min']) expect(out).toContain(text);
         expect(out).not.toContain('Største snuoperasjon');
     });
 

@@ -10,7 +10,7 @@ import type { ScreenType } from '@/lib/big-screen/screens';
 import { BOARD_ROWS, type BigScreenData, type BoardKey, type ScreenBracket, type ScreenMatch, type ScreenSponsor } from '@/lib/big-screen/view';
 import { BoardPanel, BracketPanel, RankRows, ScreenTop, SponsorLogo } from './parts';
 import { OtherScreen } from './screens';
-import { BOARD_TEXT, joinLine, livePoints, matchOdds, matchPill, SIDE_NAMES, NO_EVENT, NO_MATCH, poolLine, SPONSOR_LABEL } from './text';
+import { BOARD_TEXT, joinLine, livePoints, matchOdds, matchPill, SIDE_NAMES, NO_EVENT, NO_MATCH, poolLine, SPONSOR_LABEL, SPONSORS_LABEL } from './text';
 import styles from './big.module.css';
 
 export interface JoinQr {
@@ -136,7 +136,7 @@ function Join({ code, qr }: { code: string; qr: JoinQr | null }) {
                 </svg>
             )}
             <div className={styles.joinText}>
-                <span className={styles.joinTitle}>Bli med å spel</span>
+                <span className={styles.joinTitle}>Bli med og spel</span>
                 <span className={styles.muted}>{joinLine(qr !== null)}</span>
                 <span className={styles.joinCode}>{code}</span>
             </div>
@@ -158,7 +158,7 @@ function SponsorStrip({ sponsors }: { sponsors: ScreenSponsor[] }) {
     if (sponsors.length === 0) return null;
     const items = (copy: boolean) => sponsors.map((s) => <SponsorLogo key={s.id} sponsor={s} copy={copy} />);
     return (
-        <footer className={styles.sponsors} aria-label="Sponsora">
+        <footer className={styles.sponsors} aria-label={SPONSORS_LABEL}>
             <span className={styles.sponsorLabel}>{SPONSOR_LABEL}</span>
             <div ref={box} className={styles.sponsorBox}>
                 <div className={`${styles.sponsorTrack} ${moving ? styles.sponsorMoving : ''}`} style={{ '--count': sponsors.length } as CSSProperties}>

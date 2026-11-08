@@ -109,7 +109,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                                 </p>
                                 <div className={styles.joinManual}>
                                     <p className={styles.heroNote}>
-                                        Vil du heller skriva det inn sjøl? Velg &quot;online game&quot; eller &quot;lan game&quot;, så &quot;direct connect&quot;. Skriv inn serveren, og bruk koden som namn.
+                                        Vil du heller skriva det inn sjøl? Velg &quot;online game&quot; eller &quot;lan game&quot;, så &quot;direct connect&quot;. Skriv inn serveren, og bruk koden som navn.
                                     </p>
                                     <dl className={styles.joinFacts}>
                                         <div>
@@ -141,7 +141,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                         </a>
                     </div>
                     {ahead.length === 0 ? (
-                        <p className={styles.empty}>Ingen kampar enno. Ta deg ei øl og nokon nædæ.</p>
+                        <p className={styles.empty}>Ingen kampa enno. Ta deg ei øl og nogen nædæ.</p>
                     ) : (
                         <div className={styles.cards}>
                             {ahead.map((m) => (
@@ -206,7 +206,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                             {challengeNotice}
                         </p>
                     )}
-                    {incoming.length === 0 && outgoing.length === 0 && <p className={styles.muted}>Ingen utfordringa akkurat nå.</p>}
+                    {incoming.length === 0 && outgoing.length === 0 && <p className={styles.muted}>Ingen utfordringa akkurat no.</p>}
                     {incoming.length > 0 && (
                         <ul className={styles.list} aria-label="Utfordringa te deg">
                             {incoming.map((m) => (
@@ -235,12 +235,12 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                         <ul className={styles.list} aria-label="Utfordringa frå deg">
                             {outgoing.map((m) => (
                                 <li key={m.id} className={styles.challenge}>
-                                    <strong>Du venta på svar frå {m.players[1]?.nickname}</strong>
+                                    <strong>Du vente på svar frå {m.players[1]?.nickname}</strong>
                                     <span className={styles.meta}>{matchSettings(m)}</span>
                                     <form method="post" action={`/api/player/challenges/${m.id}`}>
                                         <input type="hidden" name="answer" value="withdraw" />
                                         <button type="submit" className={styles.buttonQuiet}>
-                                            Trekk tilbake
+                                            Trekk tebake
                                         </button>
                                     </form>
                                 </li>

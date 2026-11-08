@@ -12,6 +12,7 @@ import { getActivePlayer } from '@/lib/players/current';
 import { listMatchPools, type MatchPool } from '@/lib/store/bets';
 import { getActiveEvent } from '@/lib/store/events';
 import { listMatches, type MatchSummary } from '@/lib/store/matches';
+import { STATE_TAGS } from '@/lib/tournaments/board';
 
 /** How many upcoming matches the front page lists. The bracket has the rest. */
 const UPCOMING_SHOWN = 6;
@@ -23,7 +24,7 @@ const isPending = (m: MatchSummary) => m.tournamentId === null && m.state === 'u
 function PublicMatch({ match, pool, signedIn }: { match: MatchSummary; pool: MatchPool | undefined; signedIn: boolean }) {
     const name = (slot: 0 | 1) => match.players[slot]?.nickname ?? 'Ikkje klart enno';
     const live = match.state === 'started';
-    const tag = live ? 'LIVE' : match.state === 'called' ? 'Ropt opp' : pool?.open ? 'Spel opent' : 'Seinare';
+    const tag = live ? 'LIVE' : match.state === 'called' ? STATE_TAGS.called : pool?.open ? 'Spel opent' : STATE_TAGS.upcoming;
     const sides = pool?.sides ?? [];
     return (
         <article className={p.card}>
@@ -78,7 +79,7 @@ export default async function Home() {
                         </h1>
                         <p className={s.heroPitch}>Her blir det turnering i Blobby Volley og spel om Foza. Men ein admin må opna eit LAN før nogen kan bli med.</p>
                         <p className={s.heroNote}>
-                            E du admin? <Link href="/admin">Gå te admin</Link> og opne eit LAN. Gamle LAN finn du på <Link href="/leaderboard">topplista</Link>.
+                            E du admin? <Link href="/admin">Gå te admin</Link> og opne eit LAN. Gamle LAN finn du på <Link href="/leaderboard">topplistå</Link>.
                         </p>
                     </div>
                     <Pizza size={260} className={s.heroPizza} />
@@ -137,7 +138,7 @@ export default async function Home() {
                         I ringen no
                     </h2>
                     {live.length === 0 ? (
-                        <p className={p.muted}>Ingen kampar e i gang akkurat no.</p>
+                        <p className={p.muted}>Ingen kampa e i gang akkurat no.</p>
                     ) : (
                         <div className={p.cards}>
                             {live.map((m) => (
@@ -159,7 +160,7 @@ export default async function Home() {
                         )}
                     </div>
                     {upcoming.length === 0 ? (
-                        <p className={p.empty}>Ingen kampar enno. Ta deg ei øl og nokon nædæ.</p>
+                        <p className={p.empty}>Ingen kampa enno. Ta deg ei øl og nogen nædæ.</p>
                     ) : (
                         <div className={p.cards}>
                             {upcoming.slice(0, UPCOMING_SHOWN).map((m) => (
@@ -179,7 +180,7 @@ export default async function Home() {
                         <li>
                             <Link href="/bracket" className={s.linkCard}>
                                 <span className={s.linkTitle}>Kampoppsett</span>
-                                <span className={s.linkText}>Heile turneringa, runde for runde.</span>
+                                <span className={s.linkText}>Heile turneringå, runde for runde.</span>
                             </Link>
                         </li>
                         <li>

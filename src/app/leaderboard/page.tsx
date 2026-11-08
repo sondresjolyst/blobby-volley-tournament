@@ -9,6 +9,7 @@ import { nicknameOf } from '@/lib/stats/players';
 import { listEvents, type EventRow } from '@/lib/store/events';
 import { getLeaderboard, type Leaderboard } from '@/lib/store/stats';
 import { listTournaments } from '@/lib/store/tournaments';
+import { BOARD_TEXT } from '@/components/big-screen/text';
 
 type Search = Record<string, string | string[] | undefined>;
 
@@ -40,7 +41,7 @@ interface Row {
 }
 
 function rowsFor(board: Board, data: Leaderboard): Row[] {
-    const where = data.tournamentId === null ? 'dette LANet' : 'i denne turneringa';
+    const where = data.tournamentId === null ? 'på dette LANet' : 'i denne turneringå';
     switch (board) {
         case 'foza':
             return data.bettors.map((b) => ({ playerId: b.playerId, detail: `${b.correct} av ${b.bets} spel rett · ${percent(b.hitRate)}`, value: `${b.correct} rette` }));
@@ -56,9 +57,9 @@ function rowsFor(board: Board, data: Leaderboard): Row[] {
 }
 
 const EMPTY: Record<Board, string> = {
-    foza: 'Ingen spel e avgjort enno. Sett nokke Foza på ein kamp, då!',
-    sigra: 'Ingen kampar e ferdigspelt enno. Det tar seg opp, sjå.',
-    elo: 'Ingen spelarar her enno.',
+    foza: BOARD_TEXT.rette.empty,
+    sigra: BOARD_TEXT.sigra.empty,
+    elo: BOARD_TEXT.elo.empty,
 };
 
 /** The leaderboards of the active event, or of a past one, for the whole event or one tournament. */
@@ -273,8 +274,8 @@ function AllNumbers({ board, data, name }: { board: Board; data: Leaderboard; na
                     <thead>
                         <tr>
                             <th scope="col">Spelar</th>
-                            <th scope="col">Kampar vunne</th>
-                            <th scope="col">Kampar tapt</th>
+                            <th scope="col">Kampa vunne</th>
+                            <th scope="col">Kampa tapt</th>
                             <th scope="col">Vinn %</th>
                             <th scope="col">Sett vunne</th>
                             <th scope="col">Sett tapt</th>
@@ -311,8 +312,8 @@ function AllNumbers({ board, data, name }: { board: Board; data: Leaderboard; na
                         <th scope="col">Spelar</th>
                         <th scope="col">Elo</th>
                         <th scope="col">Inn i LANet</th>
-                        <th scope="col">{data.tournamentId === null ? 'Endring dette LANet' : 'Endring i turneringa'}</th>
-                        <th scope="col">Kampar med Elo</th>
+                        <th scope="col">{data.tournamentId === null ? 'Endring på dette LANet' : 'Endring i turneringå'}</th>
+                        <th scope="col">Kampa med Elo</th>
                     </tr>
                 </thead>
                 <tbody>

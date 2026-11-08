@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { BracketBoard } from '@/components/player/BracketBoard';
-import { NO_BRACKET } from '@/components/big-screen/text';
+import { NO_BRACKET, SIDE_NAMES } from '@/components/big-screen/text';
 import { Pizza } from '@/components/pizza/Pizza';
 import { PlayerShell } from '@/components/player/PlayerShell';
 import styles from '@/components/player/player.module.css';
@@ -72,7 +72,7 @@ export default async function BracketPage({ searchParams }: { searchParams: Prom
                 {sections.map((section) => (
                     <section key={section.key} className={styles.section} aria-labelledby={`side-${section.key}`}>
                         <h2 id={`side-${section.key}`} className={sections.length > 1 ? styles.h2 : styles.srOnly}>
-                            {section.key === 'losers' ? 'Tapersida' : sections.length > 1 ? 'Vinnarsida' : 'Kampane'}
+                            {section.key === 'losers' ? SIDE_NAMES.losers : sections.length > 1 ? SIDE_NAMES.main : 'Kampane'}
                         </h2>
                         <BracketBoard rounds={section.rounds} champion={section.key === 'main' ? { name: champion ? nickname(champion.playerId) : null } : undefined} />
                     </section>

@@ -264,8 +264,8 @@ test('a double elimination bracket of 16 players fits the screen', async ({ brow
     const screen = await browser.newContext({ baseURL: process.env.E2E_BASE_URL, viewport: { width: 1920, height: 1080 } });
     const page = await screen.newPage();
     await page.goto(`/big?t=${tournamentId}&key=${key}`);
-    await expect(page.getByRole('region', { name: 'Kampoppsett' })).toContainText('Vinnarsida');
-    await expect(page.getByRole('region', { name: 'Kampoppsett' })).toContainText('+ 4 kampar te');
+    await expect(page.getByRole('region', { name: 'Kampoppsett' })).toContainText('Vinnarsidå');
+    await expect(page.getByRole('region', { name: 'Kampoppsett' })).toContainText('+ 4 kampa te');
     await expectFits(page);
     await page.screenshot({ path: join(shots!, 'big-de16-1920x1080.png') });
     await page.setViewportSize({ width: 1280, height: 720 });
@@ -276,8 +276,8 @@ test('a double elimination bracket of 16 players fits the screen', async ({ brow
     await page.setViewportSize({ width: 1920, height: 1080 });
     await page.goto(`/big?t=${tournamentId}&key=${key}&screen=bracket`);
     const full = page.getByRole('region', { name: 'Heile kampoppsettet' });
-    await expect(full).toContainText('Tapersida');
-    await expect(full).not.toContainText('kampar te');
+    await expect(full).toContainText('Tapersidå');
+    await expect(full).not.toContainText('kampa te');
     await expectFits(page, ['Heile kampoppsettet']);
     await page.screenshot({ path: join(shots!, 'screen-bracket-de16-1920x1080.png') });
     await screen.close();
@@ -479,14 +479,14 @@ test('the other screens show the records and the champion, and never the code wi
     await expect(winner).toContainText(champion);
     await expect(winner).toContainText('0–2');
     await page.goto(`/big?t=${tournamentId}&screen=stats`);
-    await expect(page.getByRole('region', { name: 'Rekordar' })).toContainText('Største snuoperasjon');
+    await expect(page.getByRole('region', { name: 'Rekorda' })).toContainText('Største snuoperasjon');
 
     const regions: Record<Screen, string[]> = {
         overview: ['Kampen no', 'Kampoppsett', 'Toppliste', 'Bli med'],
         bracket: ['Heile kampoppsettet'],
         foza: ['Foza-toppen'],
-        next: ['Neste kampar'],
-        stats: ['Rekordar'],
+        next: ['Neste kampa'],
+        stats: ['Rekorda'],
         sponsors: ['Sponsorane'],
         winner: ['Vinnaren'],
     };

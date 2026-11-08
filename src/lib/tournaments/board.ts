@@ -90,7 +90,7 @@ export interface BoardSection {
 }
 
 export const STATE_TAGS: Record<MatchState, string> = {
-    upcoming: 'Kjem',
+    upcoming: 'Snart',
     called: 'Ropt opp',
     started: 'LIVE',
     finished: 'Ferdig',

@@ -15,8 +15,8 @@ describe('big screen text', () => {
     });
 
     it('tells a player to scan, or to go to /join without a QR code', () => {
-        expect(joinLine(true)).toBe('Skann, så bruka koden');
-        expect(joinLine(false)).toBe('Gå te /join, så bruka koden');
+        expect(joinLine(true)).toBe('Skann og bruk koden');
+        expect(joinLine(false)).toBe('Gå te /join og bruk koden');
     });
 
     it('leaves the score out before a match starts', () => {

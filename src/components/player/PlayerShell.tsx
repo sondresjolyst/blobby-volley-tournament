@@ -30,7 +30,7 @@ export function PlayerShell({ page, eventName, nickname, balance, children }: Sh
                     </Link>
                     <nav aria-label="Spelarsidå" className={styles.nav}>
                         <Link href="/me" className={styles.navLink} aria-current={current('matches')}>
-                            Kampar
+                            Kampa
                         </Link>
                         <Link href="/bracket" className={styles.navLink} aria-current={current('bracket')}>
                             Kampoppsett

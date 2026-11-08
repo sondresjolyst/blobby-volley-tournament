@@ -68,7 +68,7 @@ test('an admin adds, orders, turns off and deletes sponsors, and the footer and 
     const home = await page.context().browser()!.newContext({ baseURL: process.env.E2E_BASE_URL });
     const homePage = await home.newPage();
     await homePage.goto('/');
-    const footer = homePage.getByRole('contentinfo', { name: 'Sponsors' });
+    const footer = homePage.getByRole('contentinfo', { name: 'Sponsora' });
     await expect(footer.getByRole('link', { name: first })).toHaveAttribute('href', `https://${tag}.example.test/acme`);
     await expect.poll(() => footer.getByRole('img', { name: first }).evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(300);
     const alts = await footer.getByRole('img').evaluateAll((imgs) => imgs.map((img) => img.getAttribute('alt')));
