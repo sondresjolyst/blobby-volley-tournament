@@ -98,11 +98,11 @@ export const STATE_LABELS: Record<MatchState, string> = {
 };
 
 const MESSAGES: Record<string, string> = {
-    form: 'A field is missing or not valid.',
+    form: 'A field is missing or not valid. Check the form and try again.',
     'not-found': 'The match was not found.',
     state: 'The match is not in a state that allows this.',
     players: 'Both players must be known first.',
-    'player-busy': 'A player is already in a called or started match.',
+    'player-busy': 'A player is already in a called or started match. Finish, reset or cancel that match first.',
     'not-accepted': 'The other player has not accepted this 1v1 match yet.',
     game: 'The game must be one of the games played or the next one.',
     score: 'The score is not valid. The winner of a game must have more points, and a series score must fit the best-of.',

@@ -24,7 +24,7 @@ export default async function TournamentPage({ params, searchParams }: { params:
     return (
         <AdminShell section="tournaments">
             <h1>{tournament.name}</h1>
-            {saved === '1' && <p role="status">Saved.</p>}
+            {saved === '1' && <p role="status">Saved the tournament.</p>}
             {error === 'next-game-delay' && (
                 <p role="alert">
                     The pause between games must be a whole number of seconds from {MIN_NEXT_GAME_DELAY} to {MAX_NEXT_GAME_DELAY}.
@@ -52,7 +52,7 @@ export default async function TournamentPage({ params, searchParams }: { params:
             </ol>
             <h2>Placings</h2>
             {placings.length === 0 ? (
-                <p>No places decided yet.</p>
+                <p>No placings yet.</p>
             ) : (
                 <ul aria-label="Placings">
                     {placings.map((p) => (

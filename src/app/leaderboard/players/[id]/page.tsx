@@ -53,14 +53,14 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ id
                             <span className={styles.factValue}>
                                 {stats?.matchesWon ?? 0}-{stats?.matchesLost ?? 0}
                             </span>
-                            {stats ? `${percent(stats.winRate)} vunne` : 'Ingen kampa enno'}
+                            {stats ? `${percent(stats.winRate)} vunne` : 'Ingen kampa ennå'}
                         </dd>
                     </div>
                     <div className={styles.fact}>
                         <dt>Rette spel</dt>
                         <dd>
                             <span className={styles.factValue}>{betting?.correct ?? 0}</span>
-                            {betting ? `av ${betting.bets} · ${percent(betting.hitRate)} treff` : 'Ingen spel avgjort enno'}
+                            {betting ? `av ${betting.bets} · ${percent(betting.hitRate)} treff` : 'Ingen spel e avgjort ennå'}
                         </dd>
                     </div>
                     <div className={styles.fact}>
@@ -93,7 +93,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ id
                                         </td>
                                     </tr>
                                     <tr>
-                                        <th scope="row">Vinn %</th>
+                                        <th scope="row">Vunne %</th>
                                         <td>{percent(stats.winRate)}</td>
                                     </tr>
                                     <tr>
@@ -110,7 +110,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ id
                             </table>
                         </div>
                     ) : (
-                        <p className={styles.empty}>Ingen ferdigspelte kampa enno. Ut på banen!</p>
+                        <p className={styles.empty}>Ingen ferdigspelte kampa ennå. Ut på banen!</p>
                     )}
                 </section>
 
@@ -119,7 +119,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ id
                         Plasseringa
                     </h2>
                     {placings.length === 0 ? (
-                        <p className={styles.empty}>Ingen plasseringa enno.</p>
+                        <p className={styles.empty}>Ingen plasseringa ennå.</p>
                     ) : (
                         <ul className={styles.plainList}>
                             {placings.map((p) => (
@@ -136,7 +136,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ id
                         Mot kvar motstandar
                     </h2>
                     {!stats || stats.headToHead.length === 0 ? (
-                        <p className={styles.empty}>Ingen motstandara enno.</p>
+                        <p className={styles.empty}>Ingen motstandara ennå.</p>
                     ) : (
                         <div className={styles.tableWrap}>
                             <table className={styles.table}>
@@ -168,7 +168,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ id
                         Spel
                     </h2>
                     {!betting ? (
-                        <p className={styles.empty}>Ingen spel avgjort enno. Foza gjer seg ikkje sjøl!</p>
+                        <p className={styles.empty}>Ingen spel e avgjort ennå. Foza gjer seg ikkje sjøl!</p>
                     ) : (
                         <div className={styles.tableWrap}>
                             <table className={styles.table}>

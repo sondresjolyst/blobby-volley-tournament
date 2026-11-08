@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { joinLine, matchPill, poolLine, slotScore } from './text';
+import { joinChip, joinLine, matchPill, poolLine, slotScore } from './text';
 
 describe('big screen text', () => {
     it('names the state of a match for the pill', () => {
         expect(matchPill({ state: 'started', label: 'Semifinala, kamp 1', tournamentName: 'Hovedcupen' })).toEqual({ state: 'LIVE', label: 'Semifinala, kamp 1' });
         expect(matchPill({ state: 'called', label: 'Finale, kamp 1', tournamentName: 'Hovedcupen' }).state).toBe('ROPT OPP');
         // The players run a 1v1 match themselves, so it is ready, not called up.
-        expect(matchPill({ state: 'called', label: '1v1-utfordring', tournamentName: null }).state).toBe('KLAR');
+        expect(matchPill({ state: 'called', label: '1v1', tournamentName: null }).state).toBe('KLAR');
         expect(matchPill({ state: 'upcoming', label: 'Finale, kamp 1', tournamentName: 'Hovedcupen' }).state).toBe('SNART');
     });
 
@@ -19,6 +19,12 @@ describe('big screen text', () => {
     it('tells a player to scan, or to go to /join without a QR code', () => {
         expect(joinLine(true)).toBe('Skann og bruk koden');
         expect(joinLine(false)).toBe('Gå te /join og bruk koden');
+    });
+
+    it('shows the full site address when the host is known', () => {
+        expect(joinLine(false, 'julalan.no')).toBe('Gå te julalan.no/join og bruk koden');
+        expect(joinChip('ABCD-1234', 'julalan.no')).toBe('Bli med på julalan.no/join · ABCD-1234');
+        expect(poolLine({ open: true, pool: 0 }, 'julalan.no')).toContain('Sats på julalan.no/me!');
     });
 
     it('leaves the score out before a match starts', () => {

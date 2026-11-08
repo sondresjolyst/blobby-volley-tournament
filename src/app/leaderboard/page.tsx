@@ -48,7 +48,7 @@ function rowsFor(board: Board, data: Leaderboard): Row[] {
     const where = data.tournamentId === null ? 'på dette LANet' : 'i denne turneringå';
     switch (board) {
         case 'foza':
-            return data.bettors.map((b) => ({ playerId: b.playerId, detail: `${b.correct} av ${b.bets} spel rett · ${percent(b.hitRate)}`, value: signed(b.net) }));
+            return data.bettors.map((b) => ({ playerId: b.playerId, detail: `${b.correct} av ${b.bets} rette · ${percent(b.hitRate)}`, value: signed(b.net) }));
         case 'sigra':
             return data.wins.map((s) => ({ playerId: s.playerId, detail: `${s.matchesWon} vunne · ${s.matchesLost} tapt · ${percent(s.winRate)}`, value: String(s.matchesWon) }));
         case 'elo':
@@ -80,7 +80,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
             <SiteShell {...header} current="/leaderboard">
                 <div lang="nn" className={styles.page}>
                     <h1 className={styles.title}>Toppliste</h1>
-                    <p className={styles.empty}>Her e det ingen LAN enno. Kom tebake når det e i gang!</p>
+                    <p className={styles.empty}>Her e det ingen LAN ennå. Kom tebake når det e i gang!</p>
                 </div>
             </SiteShell>
         );
@@ -107,9 +107,9 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
     const scorer = [...data.wins].sort((a, b) => b.pointsScored - a.pointsScored)[0];
     const facts = [
         biggest && { label: 'Største gevinst', value: signed(biggest.biggestWin!.value), who: `${name(biggest.playerId)} på ${name(biggest.biggestWin!.onPlayerId)}` },
-        streak && streak.longestStreak > 0 && { label: 'Lengste rekke', value: `${streak.longestStreak} ${streak.longestStreak === 1 ? 'seier' : 'seira'}`, who: name(streak.playerId) },
+        streak && streak.longestStreak > 0 && { label: 'Lengste rekke', value: `${streak.longestStreak} ${streak.longestStreak === 1 ? 'seier' : 'seira'} på rad`, who: name(streak.playerId) },
         bestOdds && { label: 'Beste odds truffe', value: odds(bestOdds.bestOdds!.value), who: name(bestOdds.playerId) },
-        scorer && { label: 'Poeng scora', value: number(scorer.pointsScored), who: name(scorer.playerId) },
+        scorer && { label: 'Flest poeng', value: number(scorer.pointsScored), who: name(scorer.playerId) },
     ].filter((f) => !!f);
 
     const podium = tournamentId === null ? [] : data.placings;
@@ -124,7 +124,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
                     {!event.isActive && ' · tidlegare LAN'}
                 </p>
 
-                <nav aria-label="Kor mykje av LANet">
+                <nav aria-label="Velg turnering">
                     <ul className={styles.tabs}>
                         <li>
                             <Link href={href(view, { tournamentId: null })} aria-current={tournamentId === null ? 'page' : undefined}>
@@ -197,7 +197,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
                                 Gjæve fakta
                             </h2>
                             {facts.length === 0 ? (
-                                <p className={styles.empty}>Ingen fakta enno. Dei kjem når ballen fyk.</p>
+                                <p className={styles.empty}>Ingen fakta ennå. Dei kjem når ballen fyk.</p>
                             ) : (
                                 <dl className={styles.facts}>
                                     {facts.map((f) => (
@@ -289,7 +289,7 @@ function AllNumbers({ board, data, name }: { board: Board; data: Leaderboard; na
                             <th scope="col">Spelar</th>
                             <th scope="col">Kampa vunne</th>
                             <th scope="col">Kampa tapt</th>
-                            <th scope="col">Vinn %</th>
+                            <th scope="col">Vunne %</th>
                             <th scope="col">Sett vunne</th>
                             <th scope="col">Sett tapt</th>
                             <th scope="col">Poeng scora</th>
@@ -324,7 +324,7 @@ function AllNumbers({ board, data, name }: { board: Board; data: Leaderboard; na
                     <tr>
                         <th scope="col">Spelar</th>
                         <th scope="col">Elo</th>
-                        <th scope="col">Inn i LANet</th>
+                        <th scope="col">Elo før LANet</th>
                         <th scope="col">{data.tournamentId === null ? 'Endring på dette LANet' : 'Endring i turneringå'}</th>
                         <th scope="col">Kampa med Elo</th>
                     </tr>

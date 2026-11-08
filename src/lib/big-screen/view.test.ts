@@ -176,7 +176,7 @@ describe('buildBigScreen', () => {
                 live: [live(1, [11, 8])],
             }),
         );
-        expect(data.featured).toMatchObject({ matchId: 1, label: '1v1-utfordring', live: { game: 2, points: [11, 8] }, pool: 4300, bestOf: 3 });
+        expect(data.featured).toMatchObject({ matchId: 1, label: '1v1', live: { game: 2, points: [11, 8] }, pool: 4300, bestOf: 3 });
         expect(data.featured!.sides[0]).toMatchObject({ nickname: 'Blobfisk', sets: 1, elo: 1084, stake: 2666 });
         expect(data.featured!.sides[1]).toMatchObject({ nickname: 'Skvett', sets: 0, elo: 1032 });
         expect(data.others.map((m) => m.matchId)).toEqual([2]);

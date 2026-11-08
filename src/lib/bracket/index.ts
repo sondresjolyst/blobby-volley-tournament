@@ -21,6 +21,9 @@ export function isFormatId(value: unknown): value is FormatId {
 export const BEST_OF = [1, 3, 5, 7] as const;
 export type BestOf = (typeof BEST_OF)[number];
 
+/** The error when a best of is not one of BEST_OF, such as `Best of must be 1, 3, 5 or 7.` */
+export const BEST_OF_ERROR = `Best of must be ${BEST_OF.slice(0, -1).join(', ')} or ${BEST_OF.at(-1)}.`;
+
 /** The normal game rules. */
 export const DEFAULT_RULES = 'default.lua';
 
@@ -71,7 +74,7 @@ export function generateBracket(request: BracketRequest): PlannedBracket {
         const settings = request.rounds && Object.hasOwn(request.rounds, round.key) ? request.rounds[round.key] : {};
         const bestOf = settings.bestOf ?? 1;
         const ruleFile = settings.ruleFile ?? DEFAULT_RULES;
-        if (!isBestOf(bestOf)) throw new Error('Best of must be 1, 3, 5 or 7.');
+        if (!isBestOf(bestOf)) throw new Error(BEST_OF_ERROR);
         if (!isRuleFile(ruleFile)) throw new Error('The rule file name is not valid.');
         return { ...round, bestOf, ruleFile };
     });

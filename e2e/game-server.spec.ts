@@ -76,7 +76,7 @@ test('the game server page shows how long ago the game server reported, and foll
     await expect(line).toHaveText('Health check failed. Trying again.', { timeout: 10_000 });
     await page.unroute('**/api/admin/game-server/health');
     await page.route('**/api/admin/game-server/health', (route) => route.fulfill({ status: 401, json: { error: 'unauthorized' } }));
-    await expect(line).toHaveText('Health check failed. Sign in again.', { timeout: 10_000 });
+    await expect(line).toHaveText('Health check failed because you are signed out. Sign in again.', { timeout: 10_000 });
     await page.unroute('**/api/admin/game-server/health');
     await expect(line).toHaveText(/^Last report: \d+ s ago$/, { timeout: 10_000 });
     await expect(line).toHaveAttribute('data-ok', 'true');
@@ -101,13 +101,13 @@ test('the game server syncs a called match, starts it, sends a live score and re
     await expect(page.getByLabel('Pause between games in seconds')).toHaveValue('10');
     await page.getByLabel('Pause between games in seconds').fill('30');
     await page.getByRole('button', { name: 'Save pause' }).click();
-    await expect(page.getByRole('status')).toHaveText('Saved.');
+    await expect(page.getByRole('status')).toHaveText('Saved the tournament.');
     await expect(page.getByLabel('Pause between games in seconds')).toHaveValue('30');
 
     await page.goto('/admin/matches');
     const row = page.getByRole('region', { name: 'Upcoming' }).getByRole('row', { name: new RegExp(name) });
     await row.getByRole('checkbox').check();
-    await page.getByRole('button', { name: 'Call the picked matches' }).click();
+    await page.getByRole('button', { name: 'Call selected matches' }).click();
     await expect(page.getByRole('status')).toHaveText(/^Called match \d+\.$/);
 
     const sync = await readSync(request);
@@ -156,7 +156,7 @@ test('an admin gives a player a new join code', async ({ page, browser, request 
     await page.goto('/admin/events');
     await page.getByRole('row', { name: /E2E LAN/ }).getByRole('link').click();
     await page.getByRole('button', { name: `New join code for ${nickname}` }).click();
-    await expect(page.getByRole('status')).toHaveText(`${nickname} has a new join code. The old code stops working.`);
+    await expect(page.getByRole('status')).toHaveText(`${nickname} has a new join code. The old join link stops working.`);
     // The admin page does not show codes.
     await expect(page.getByText(before)).toHaveCount(0);
 
@@ -182,7 +182,7 @@ test('an abandoned game with the player who left waits for the admin on the admi
     await page.goto('/admin/matches');
     const row = page.getByRole('region', { name: 'Upcoming' }).getByRole('row', { name: new RegExp(name) });
     await row.getByRole('checkbox').check();
-    await page.getByRole('button', { name: 'Call the picked matches' }).click();
+    await page.getByRole('button', { name: 'Call selected matches' }).click();
     await expect(page.getByRole('status')).toHaveText(/^Called match \d+\.$/);
 
     const sync = await readSync(request);
@@ -219,7 +219,7 @@ test('an abandoned game with the player who left waits for the admin on the admi
     await expect(waiting).toContainText(`${one} vs ${two}`);
     await expect(waiting).toContainText(stopped);
     await waiting.getByRole('link', { name: `Open match ${match.matchId}` }).click();
-    await expect(page.getByRole('alert').filter({ hasText: 'The last game was abandoned.' })).toHaveText(`The last game was abandoned. ${stopped} Restart it from 0-0 or award it.`);
+    await expect(page.getByRole('alert').filter({ hasText: 'The last game was abandoned.' })).toHaveText(`The last game was abandoned. ${stopped} Select Restart current game, or enter the result under Enter or correct a game result.`);
     await expect(page.getByRole('cell', { name: `Abandoned, ${nicknames[0]} left` })).toBeVisible();
 
     await page.getByRole('button', { name: 'Restart current game' }).click();

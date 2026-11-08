@@ -29,13 +29,13 @@ test('an admin calls a tournament match, enters the result and sees the placings
     await page.getByRole('button', { name: 'Preview' }).click();
     await page.getByRole('button', { name: 'Save tournament' }).click();
     await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
-    await expect(page.getByText('No places decided yet.')).toBeVisible();
+    await expect(page.getByText('No placings yet.')).toBeVisible();
 
     await page.goto('/admin');
     await page.getByRole('link', { name: 'Matches' }).click();
     const row = page.getByRole('region', { name: 'Upcoming' }).getByRole('row', { name: new RegExp(name) });
     await row.getByRole('checkbox').check();
-    await page.getByRole('button', { name: 'Call the picked matches' }).click();
+    await page.getByRole('button', { name: 'Call selected matches' }).click();
     await expect(page.getByRole('status')).toHaveText(/^Called match \d+\.$/);
     await page.getByRole('region', { name: 'Called' }).getByRole('link', { name: new RegExp(name) }).click();
 
@@ -124,7 +124,7 @@ test('a correction blocked by a called later match links to it, and works after 
     await alert.getByRole('link').click();
     await expect(page).toHaveURL(finalUrl);
     await page.getByRole('button', { name: 'Reset to upcoming' }).click();
-    await expect(page.getByRole('status')).toHaveText('The match is back to upcoming. Its games are cleared.');
+    await expect(page.getByRole('status')).toHaveText('The match is back to upcoming. Its games are cleared and its bets are refunded.');
     await expect(page.getByText('State: Upcoming')).toBeVisible();
 
     await openMatch(page, `${name}, Round 1, match 1`);

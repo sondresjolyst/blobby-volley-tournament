@@ -96,8 +96,8 @@ async function saveScreens(page: Page, screens: Screen[], seconds: number) {
         await page.getByLabel(`Order of the ${SCREEN_NAMES[type]} screen`).fill(String(i + 1));
     }
     await page.getByLabel('Seconds on each screen').fill(String(seconds));
-    await page.getByRole('button', { name: 'Set screens' }).click();
-    await expect(page.getByRole('status')).toHaveText('Saved the big screen screens.');
+    await page.getByRole('button', { name: 'Save screens' }).click();
+    await expect(page.getByRole('status')).toHaveText('Saved the screens.');
 }
 
 /** Calls a match and enters its games from the admin match page. Each game is the slot that won and the points of both. */
@@ -156,7 +156,7 @@ test('the big screen shows the live score, the odds, the bracket and the sign-up
     const rows = adminPage.getByRole('region', { name: 'Upcoming' }).getByRole('row', { name: new RegExp(name) });
     await rows.nth(0).getByRole('checkbox').check();
     await rows.nth(1).getByRole('checkbox').check();
-    await adminPage.getByRole('button', { name: 'Call the picked matches' }).click();
+    await adminPage.getByRole('button', { name: 'Call selected matches' }).click();
     await expect(adminPage.getByRole('status')).toHaveText(/^Called match/);
 
     const sync = await (await admin.request.get('/api/server/sync', { headers: auth() })).json();
@@ -357,11 +357,11 @@ test('an admin sees the big screen address and makes a new key, and the old addr
     await expect(address).toHaveValue(`https://localhost/big?key=${old}`);
 
     // The box must be checked first.
-    await adminPage.getByRole('button', { name: 'New key' }).click();
+    await adminPage.getByRole('button', { name: 'Make a new key' }).click();
     await expect(address).toHaveValue(`https://localhost/big?key=${old}`);
-    await adminPage.getByLabel('The old address stops showing the join card').check();
-    await adminPage.getByRole('button', { name: 'New key' }).click();
-    await expect(adminPage.getByRole('status')).toHaveText('The big screen has a new key. The old address stops showing the join card.');
+    await adminPage.getByLabel('I understand the old address stops showing the join card').check();
+    await adminPage.getByRole('button', { name: 'Make a new key' }).click();
+    await expect(adminPage.getByRole('status')).toHaveText('Made a new big screen key. Open the new address on the TV, since the old one no longer shows the join card.');
     const fresh = new URL(await address.inputValue()).searchParams.get('key')!;
     expect(fresh).toMatch(/^[A-Za-z0-9_-]{43}$/);
     expect(fresh).not.toBe(old);
@@ -427,7 +427,7 @@ test('an admin picks the screens of the big screen, and an open big screen follo
         // The form refuses no screens.
         await openScreensForm(adminPage);
         for (const type of Object.keys(SCREEN_NAMES) as Screen[]) await adminPage.getByLabel(`Use the ${SCREEN_NAMES[type]} screen`).setChecked(false);
-        await adminPage.getByRole('button', { name: 'Set screens' }).click();
+        await adminPage.getByRole('button', { name: 'Save screens' }).click();
         await expect(adminPage.getByRole('alert')).toHaveText('Turn on at least one screen for the big screen.');
 
         if (shots) {
@@ -487,7 +487,7 @@ test('the other screens show the records and the champion, and never the code wi
         overview: ['Kampen nå', 'Kampoppsett', 'Toppliste', 'Bli med'],
         bracket: ['Heile kampoppsettet'],
         foza: ['Foza-toppen'],
-        next: ['Neste kampa'],
+        next: ['Snart i ringen'],
         stats: ['Rekorda'],
         sponsors: ['Sponsorane'],
         winner: ['Vinnaren'],

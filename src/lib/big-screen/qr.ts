@@ -15,6 +15,16 @@ export function qrCode(text: string): QrCode {
     return { size: code.size, path: toSvgPath(code) };
 }
 
+/** The host of the site from NEXTAUTH_URL, such as `julalan.no`, for addresses on the TV. Null when it is not set. */
+export function siteHost(env: Record<string, string | undefined>): string | null {
+    if (!env.NEXTAUTH_URL) return null;
+    try {
+        return new URL(env.NEXTAUTH_URL).host || null;
+    } catch {
+        return null;
+    }
+}
+
 /** The sign-up address for the QR code, from NEXTAUTH_URL, the public address of the site. Null when it is not set. */
 export function joinUrl(env: Record<string, string | undefined>): string | null {
     if (!env.NEXTAUTH_URL) return null;

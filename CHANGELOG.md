@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.5.0](https://github.com/sondresjolyst/blobby-volley-tournament/compare/v0.4.0...v0.5.0) (2026-11-08)
+
+
+### Features
+
+* add a sponsor library that every event can use ([#75](https://github.com/sondresjolyst/blobby-volley-tournament/issues/75)) ([6d589c0](https://github.com/sondresjolyst/blobby-volley-tournament/commit/6d589c0bdf06eba67de98a6083d1896e5315b825))
+* add admin PIN unlock, network PIN limit reset and live game server health ([#61](https://github.com/sondresjolyst/blobby-volley-tournament/issues/61)) ([a65700a](https://github.com/sondresjolyst/blobby-volley-tournament/commit/a65700a0d2bfaa01904871ed64d9b325dfc29418))
+* add big screen types that take turns on the TV ([#63](https://github.com/sondresjolyst/blobby-volley-tournament/issues/63)) ([0658c20](https://github.com/sondresjolyst/blobby-volley-tournament/commit/0658c20a2e0f3313f713a25bd157e50a1e1158b4))
+* add help buttons, the leaderboard menu and sign-out in every player header ([#72](https://github.com/sondresjolyst/blobby-volley-tournament/issues/72)) ([a60ff69](https://github.com/sondresjolyst/blobby-volley-tournament/commit/a60ff69d8a03242280c28ded81d278eaac4cbdad))
+* add the pizza as the browser tab icon ([#58](https://github.com/sondresjolyst/blobby-volley-tournament/issues/58)) ([5a15771](https://github.com/sondresjolyst/blobby-volley-tournament/commit/5a157714bd607059aa7cb65d46f5b54a0d90b1e5))
+* call a 1v1 match as soon as it is accepted and both players are free ([#67](https://github.com/sondresjolyst/blobby-volley-tournament/issues/67)) ([c4bf278](https://github.com/sondresjolyst/blobby-volley-tournament/commit/c4bf278e9563c4b7877d8bf7614d395e23abe77c))
+* frame every sponsor tile and use the sponsor background colour on the site ([#74](https://github.com/sondresjolyst/blobby-volley-tournament/issues/74)) ([89f2b68](https://github.com/sondresjolyst/blobby-volley-tournament/commit/89f2b6899c0f13781b9fa0f566522d57dfa80567))
+* redesign the admin sponsor section as cards with one add and edit form ([#73](https://github.com/sondresjolyst/blobby-volley-tournament/issues/73)) ([7ca7006](https://github.com/sondresjolyst/blobby-volley-tournament/commit/7ca7006468b387e4d2e0aa88489570ccba5440cc))
+* refresh the player pages when the event changes ([#71](https://github.com/sondresjolyst/blobby-volley-tournament/issues/71)) ([a4167bf](https://github.com/sondresjolyst/blobby-volley-tournament/commit/a4167bf232cdd8cbc15e52cf2e648f490b884790))
+* show one start command on the game server page ([#68](https://github.com/sondresjolyst/blobby-volley-tournament/issues/68)) ([5087b50](https://github.com/sondresjolyst/blobby-volley-tournament/commit/5087b5000b99ab81bfaf878a0e7ae8557f5909b8))
+* suggest and generate event codes, explain the game server host and let admins change it ([#66](https://github.com/sondresjolyst/blobby-volley-tournament/issues/66)) ([379d981](https://github.com/sondresjolyst/blobby-volley-tournament/commit/379d98149463d44edcb58de5734e6a0112072b2d))
+
+
+### Bug Fixes
+
+* add per-client PIN and sign-up limits and update the game server commands ([#60](https://github.com/sondresjolyst/blobby-volley-tournament/issues/60)) ([9f53dee](https://github.com/sondresjolyst/blobby-volley-tournament/commit/9f53deeb7963fe64e340e1e2154fca8e56e24d3c))
+* keep the header title and links readable on hover ([#70](https://github.com/sondresjolyst/blobby-volley-tournament/issues/70)) ([cc6f472](https://github.com/sondresjolyst/blobby-volley-tournament/commit/cc6f472654f20722d3074b2600395b58eed95cde))
+* make the dialect texts consistent ([#69](https://github.com/sondresjolyst/blobby-volley-tournament/issues/69)) ([c8cba88](https://github.com/sondresjolyst/blobby-volley-tournament/commit/c8cba88d07e9af5521338cd299cb54bd9f0ef4c8))
+* shorten texts on the front and join pages ([#65](https://github.com/sondresjolyst/blobby-volley-tournament/issues/65)) ([7d77861](https://github.com/sondresjolyst/blobby-volley-tournament/commit/7d77861aef5017e4e80af96516958641d30b601f))
+* time out database connections and handle dropped idle connections ([#64](https://github.com/sondresjolyst/blobby-volley-tournament/issues/64)) ([f956d7f](https://github.com/sondresjolyst/blobby-volley-tournament/commit/f956d7f65be7bb268c96055be5698198e309b391))
+
 ## [0.4.0](https://github.com/sondresjolyst/blobby-volley-tournament/compare/v0.3.0...v0.4.0) (2026-11-07)
 
 

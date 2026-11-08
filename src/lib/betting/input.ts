@@ -49,8 +49,8 @@ export function betErrorMessage(code: string | string[] | undefined): string | n
 }
 
 const ADJUST_MESSAGES: Record<string, string> = {
-    'foza-form': 'The Foza change must be a whole number other than 0, and the reason 1 to 200 characters.',
-    'foza-balance': 'That would take the balance below 0.',
+    'foza-form': 'Enter a Foza change that is a whole number other than 0, such as 50 or -50, and a reason of up to 200 characters.',
+    'foza-balance': 'The change would take the balance below 0. Enter a smaller amount.',
 };
 
 /** The text for an adjustment error code in the address. Unknown codes show nothing. */

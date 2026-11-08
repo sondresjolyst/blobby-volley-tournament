@@ -1,5 +1,7 @@
 import { randomInt } from 'node:crypto';
+import { NAME_LENGTH_ERROR, NO_ACTIVE_EVENT } from '@/lib/admin-texts';
 import {
+    BEST_OF_ERROR,
     DEFAULT_RULES,
     generateBracket,
     isBestOf,
@@ -161,19 +163,19 @@ export function roundsMatch(draft: TournamentDraft, plan: PlannedBracket): boole
 }
 
 const DRAFT_ERRORS: Record<string, string> = {
-    name: 'The name must be 1 to 100 characters.',
-    format: 'Choose a format.',
-    seeding: 'Choose how to seed the players.',
+    name: NAME_LENGTH_ERROR,
+    format: 'Select a format.',
+    seeding: 'Select how to seed the players.',
     'random-seed': `The random seed must be a whole number from 0 to ${MAX_RANDOM_SEED}.`,
-    players: `Choose ${MIN_PLAYERS} to ${MAX_PLAYERS} players from the event.`,
+    players: `Select ${MIN_PLAYERS} to ${MAX_PLAYERS} players from the event.`,
     seeds: 'For hand seeding, give each chosen player a different seed from 1 to the number of players.',
     'third-place': `A third place match needs at least ${THIRD_PLACE_MIN_PLAYERS} players.`,
-    rounds: 'The players or the format changed after the preview. Press Preview and check the rounds again before you save.',
-    'best-of': 'Best of must be 1, 3, 5 or 7.',
+    rounds: 'The players or the format changed after the preview. Select Preview and check the rounds again before you save.',
+    'best-of': BEST_OF_ERROR,
     rules: 'A rule file must be a file name that ends in .lua, such as default.lua.',
     'score-to-win': `Points to win a game must be a whole number from ${MIN_SCORE_TO_WIN} to ${MAX_SCORE_TO_WIN}.`,
     speed: `Game speed must be a whole number from ${MIN_GAME_SPEED} to ${MAX_GAME_SPEED} frames per second.`,
-    'no-event': 'There is no active event. Set an event active first.',
+    'no-event': NO_ACTIVE_EVENT,
 };
 
 export function tournamentErrorMessage(code: string | string[] | undefined): string | null {

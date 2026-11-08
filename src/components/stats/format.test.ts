@@ -4,7 +4,7 @@ import { number, odds, percent, ratingChange, signed } from './format';
 describe('stats format', () => {
     it('writes numbers the Norwegian way', () => {
         expect(number(3420)).toBe('3\u00a0420');
-        expect(percent(0.818)).toBe('82%');
+        expect(percent(0.818)).toBe('82 %');
         expect(percent(null)).toBe('-');
     });
 

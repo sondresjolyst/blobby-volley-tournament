@@ -10,6 +10,7 @@ import s from '@/components/site/site.module.css';
 import { safeCallback } from '@/lib/auth/gate';
 import { getPool } from '@/lib/db';
 import { getActiveEvent } from '@/lib/store/events';
+import { NO_LAN } from '@/lib/texts';
 
 type Search = { error?: string | string[]; callbackUrl?: string | string[] };
 
@@ -24,7 +25,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<Se
     const message = errorMessage(error);
     const fromAdmin = typeof callbackUrl === 'string';
     return (
-        <AuthPage title={event ? event.name : 'Ingen LAN e i gang'} intro={event ? 'Velkommen tebake! Skriv kallenavnet og PIN-koden din.' : undefined} adminLink={false}>
+        <AuthPage title={event ? event.name : NO_LAN} intro={event ? 'Velkommen tebake! Skriv kallenavnet og PIN-koden din.' : undefined} adminLink={false}>
             {message && (
                 <p role="alert" className={s.authAlert}>
                     {message}

@@ -1,6 +1,8 @@
 // The words of the player pages. They are written in the jokey Rogaland dialect of the LAN.
 import type { MatchSummary } from '@/lib/store/matches';
 import type { BetStatus } from '@/lib/store/bets';
+import { BEST_OF } from '@/lib/bracket';
+import { MAX_GAME_SPEED, MAX_SCORE_TO_WIN, MIN_GAME_SPEED, MIN_SCORE_TO_WIN } from '@/lib/matches/settings';
 import { MATCH_NOT_FOUND } from '@/lib/texts';
 import { odds } from '../stats/format';
 
@@ -13,8 +15,11 @@ export function foza(amount: number): string {
 
 /** Such as `betale 1,60×`, or a note while nobody backs the player. */
 export function payout(multiplier: number | null): string {
-    return multiplier === null ? 'ingen spel enno' : `betale ${odds(multiplier)}`;
+    return multiplier === null ? 'ingen spel ennå' : `betale ${odds(multiplier)}`;
 }
+
+/** The quiet note on /me about the daily Foza, such as `Du får 100 Foza kvar dag du e med.` */
+export const dailyFozaLine = (daily: number) => `Du får ${foza(daily)} kvar dag du e med.`;
 
 /** Such as `Best av 3 · først te 15 · 75 fps`. */
 export function matchSettings(match: Pick<MatchSummary, 'bestOf' | 'scoreToWin' | 'speed'>): string {
@@ -25,16 +30,18 @@ export const BET_STATUS: Record<BetStatus, string> = {
     open: 'Opent',
     won: 'Vunne',
     lost: 'Tapt',
-    returned: 'Fekk innsatsen tebake, ingen satsa på vinnaren',
-    refunded: 'Betalt tebake',
+    returned: 'Tebake, ingen satsa på vinnaren',
+    refunded: 'Tebake, kampen blei avlyst eller nullstilt',
 };
 
+const SETTINGS_LIMITS = `Poeng må vera ${MIN_SCORE_TO_WIN} te ${MAX_SCORE_TO_WIN}, fart ${MIN_GAME_SPEED} te ${MAX_GAME_SPEED} fps, og best av ${BEST_OF.slice(0, -1).join(', ')} eller ${BEST_OF.at(-1)}.`;
+
 const CHALLENGE_MESSAGES: Record<string, string> = {
-    form: 'Velg ein motstandar. Poeng må vera 1 te 99, fart 30 te 120 fps, og best av 1, 3, 5 eller 7.',
-    settings: 'Poeng må vera 1 te 99, fart 30 te 120 fps, og best av 1, 3, 5 eller 7.',
+    form: `Velg ein motstandar. ${SETTINGS_LIMITS}`,
+    settings: SETTINGS_LIMITS,
     players: 'Du kan ikkje utfordra deg sjøl.',
     'no-event': 'Begge må vera med på LANet som e i gang.',
-    taken: 'Dåkke har allerede ein open 1v1. Spel ferdig den kampen først.',
+    taken: 'Dåkke to har allerede ein 1v1 som ikkje e ferdig. Svar på utfordringå, eller spel ferdig den kampen først.',
     'not-found': MATCH_NOT_FOUND,
     'not-allowed': 'Bare den som e utfordra kan svara, og bare den som utfordra kan trekka tebake.',
     state: 'Den utfordringå e allerede svart på eller trekt tebake.',

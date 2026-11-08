@@ -31,7 +31,7 @@ test('a finished match shows on the leaderboards and the player stats', async ({
     await expect(adminPage.getByRole('heading', { level: 1, name })).toBeVisible();
     await adminPage.goto('/admin/matches');
     await adminPage.getByRole('region', { name: 'Upcoming' }).getByRole('row', { name: new RegExp(name) }).getByRole('checkbox').check();
-    await adminPage.getByRole('button', { name: 'Call the picked matches' }).click();
+    await adminPage.getByRole('button', { name: 'Call selected matches' }).click();
     await adminPage.getByRole('region', { name: 'Called' }).getByRole('link', { name: new RegExp(name) }).click();
     await adminPage.getByLabel('Result').selectOption({ label: `${nicknames[1]} won` });
     await adminPage.getByLabel(`Points for ${nicknames[0]}`).fill('6');
@@ -44,14 +44,14 @@ test('a finished match shows on the leaderboards and the player stats', async ({
     const page = await visitor.newPage();
     await page.goto('/leaderboard');
     await expect(page.getByRole('heading', { level: 1, name: 'Toppliste' })).toBeVisible();
-    await page.getByRole('navigation', { name: 'Kor mykje av LANet' }).getByRole('link', { name }).click();
+    await page.getByRole('navigation', { name: 'Velg turnering' }).getByRole('link', { name }).click();
     // Wait for the tournament page, so the board links below belong to it.
     await expect(page).toHaveURL(/[?&]tournament=\d+/);
     await page.getByRole('navigation', { name: 'Toppliste for' }).getByRole('link', { name: 'Seira' }).click();
     await expect(page).toHaveURL(/[?&]board=sigra/);
     const board = page.getByRole('region', { name: 'Toppliste Seira' }).getByRole('listitem');
     await expect(board.first()).toContainText(nicknames[1]);
-    await expect(board.first()).toContainText('1 vunne · 0 tapt · 100%');
+    await expect(board.first()).toContainText('1 vunne · 0 tapt · 100 %');
     await expect(page.getByRole('region', { name: 'Pallen' }).getByRole('listitem')).toHaveText([`1. plass: ${nicknames[1]}`, `2. plass: ${nicknames[0]}`]);
 
     await page.getByRole('navigation', { name: 'Toppliste for' }).getByRole('link', { name: 'Elo' }).click();

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { NO_ACTIVE_EVENT } from '@/lib/admin-texts';
 import { firewallCommand, serverHelp, startScripts } from '@/lib/game-server/commands';
 import { CopyButton } from '../CopyButton';
 
@@ -10,7 +11,7 @@ const DOCKER_ENGINE = 'https://docs.docker.com/engine/install/';
  * host the join links use.
  */
 export function EventHost({ port, event }: { port: number; event: { id: number; serverHost?: string | null } | null }) {
-    if (!event) return <p>There is no active event, so the join links have no game server address yet.</p>;
+    if (!event) return <p>{NO_ACTIVE_EVENT} Until then the join links have no game server address.</p>;
     if (!event.serverHost)
         return (
             <p>
@@ -37,7 +38,7 @@ export function FirstTimeSetup({ port }: { port: number }) {
                     Linux, install <a href={DOCKER_ENGINE}>Docker Engine</a>. Check that <code>docker info</code> works.
                 </li>
                 <li>
-                    On Windows, open UDP port {port} in the Windows firewall. Run this in PowerShell as administrator. This holds with WSL too, since Docker Desktop opens the port on
+                    On Windows, open UDP port {port} in the Windows firewall. Run this in PowerShell as administrator. This also applies with WSL, since Docker Desktop opens the port on
                     Windows. On Linux, Docker opens the port itself.
                     <p className="admin-command">
                         <code>{firewall}</code> <CopyButton text={firewall} label="Copy firewall command" noun="command" />
@@ -65,7 +66,7 @@ export function OtherWays({ token, siteUrl, port, image }: { token: string | nul
                         <a href={script.href}>Start script for {script.system}</a>
                         {[
                             { label: 'Download', key: 'download', command: script.download },
-                            ...(script.image ? [{ label: 'Then, in the same window, pick the server of this site', key: 'image', command: script.image }] : []),
+                            ...(script.image ? [{ label: 'Then, in the same window, set the server image of this site', key: 'image', command: script.image }] : []),
                             { label: 'Start', key: 'start', command: script.command },
                             { label: 'Update', key: 'update', command: script.update },
                             { label: 'New token', key: 'new token', command: script.setToken },

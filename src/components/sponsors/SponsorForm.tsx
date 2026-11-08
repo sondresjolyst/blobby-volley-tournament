@@ -129,13 +129,13 @@ export function SponsorForm({
                 {tile ? (
                     <SponsorTile src={tile.src} alt={`Preview of the logo of ${sponsor?.name ?? 'the new sponsor'}`} height={TILE_LOGO_HEIGHT} width={tile.width} background={background} />
                 ) : (
-                    <span className="admin-hint">Pick a logo to see it here.</span>
+                    <span className="admin-hint">Select a logo to see it here.</span>
                 )}
             </div>
             {withShown && (
                 <p>
                     <label>
-                        <input name="enabled" type="checkbox" defaultChecked={sponsor?.enabled ?? true} /> Shown on the site and in the game
+                        <input name="enabled" type="checkbox" defaultChecked={sponsor?.enabled ?? true} /> Shown on the site, on the big screen and in the game
                     </label>
                 </p>
             )}

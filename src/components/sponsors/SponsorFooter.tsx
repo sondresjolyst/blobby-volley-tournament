@@ -20,7 +20,7 @@ export async function SponsorFooter() {
     }
     if (sponsors.length === 0) return null;
     return (
-        <footer aria-label={SPONSORS_LABEL}>
+        <footer aria-label={SPONSORS_LABEL} data-label={SPONSORS_LABEL}>
             <ul style={{ listStyle: 'none', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '1.5rem', padding: 0 }}>
                 {sponsors.map((sponsor) => {
                     const logo = (

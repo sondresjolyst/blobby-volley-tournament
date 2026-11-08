@@ -1,4 +1,4 @@
-import { InfoLabel } from '@/components/InfoButton';
+import { InfoButton, InfoLabel } from '@/components/InfoButton';
 import { CopyJoinLink } from '@/components/player/CopyJoinLink';
 import { FIELD_INFO } from '@/components/player/info';
 import { MatchCard } from '@/components/player/MatchCard';
@@ -7,7 +7,7 @@ import { Pizza } from '@/components/pizza/Pizza';
 import { PlayerShell } from '@/components/player/PlayerShell';
 import styles from '@/components/player/player.module.css';
 import { matchPlayers, matchTitle } from '@/components/matches/describe';
-import { BET_STATUS, challengeErrorMessage, foza, matchSettings, noticeMessage } from '@/components/player/text';
+import { BET_STATUS, challengeErrorMessage, dailyFozaLine, foza, matchSettings, noticeMessage } from '@/components/player/text';
 import { BEST_OF } from '@/lib/bracket';
 import { betErrorMessage } from '@/lib/betting/input';
 import { getPool } from '@/lib/db';
@@ -69,6 +69,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
             {stamp !== null && <LiveRefresh eventId={player.eventId} stamp={stamp} />}
             <div className={styles.column}>
                 <h1 className={styles.h1}>Hei, {player.nickname}!</h1>
+                {event && event.dailyFoza > 0 && <p className={styles.muted}>{dailyFozaLine(event.dailyFoza)}</p>}
                 {betError && (
                     <p role="alert" className={styles.alert}>
                         {betError}
@@ -82,7 +83,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
 
                 {incoming.length > 0 && (
                     <p className={styles.notice}>
-                        <a href="#utfordringa">{incoming.length === 1 ? 'Någen utfordre deg te 1v1. Svar her.' : `${incoming.length} utfordre deg te 1v1. Svar her.`}</a>
+                        <a href="#utfordringa">{incoming.length === 1 ? 'Någen utfordre deg te 1v1. Svar her.' : `${incoming.length} spelara utfordre deg te 1v1. Svar her.`}</a>
                     </p>
                 )}
 
@@ -97,7 +98,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                         </h2>
                         <p className={styles.heroVersus}>
                             {matchPlayers(current, 'player')}
-                            {current.state === 'started' && ` · ${current.score1}-${current.score2}`}
+                            {current.state === 'started' && ` · ${current.score1}–${current.score2}`}
                         </p>
                         {join && code && event?.serverHost && event.serverPort ? (
                             <>
@@ -108,13 +109,18 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                                     <li>Trykk på &quot;join link&quot; øvst i hovudmenyen.</li>
                                     <li>Svar Yes.</li>
                                 </ol>
-                                <p className={styles.heroNote}>
-                                    Lenkjå og koden e bare dine, så ikkje del dei med någen. Mista du sambandet, gjer det same igjen. Har du lenkjåtypen registrert på maskinå, kan du òg{' '}
-                                    <a className={styles.heroLink} href={join}>
-                                        opne lenkjå direkte
-                                    </a>
-                                    .
-                                </p>
+                                <div className={styles.heroNote}>
+                                    Lenkjå og koden e bare dine. Ikkje del dei. Mista du sambandet, gjer det same igjen.{' '}
+                                    <InfoButton label="Kan eg opna lenkjå direkte?">
+                                        <p>
+                                            Ja, har du lenkjåtypen registrert på maskinå.{' '}
+                                            <a className={styles.heroLink} href={join}>
+                                                Opne lenkjå direkte
+                                            </a>
+                                            .
+                                        </p>
+                                    </InfoButton>
+                                </div>
                                 <div className={styles.joinManual}>
                                     <p className={styles.heroNote}>
                                         Vil du heller skriva det inn sjøl? Velg &quot;online game&quot; eller &quot;lan game&quot;, så &quot;direct connect&quot;. Skriv inn serveren, og bruk koden som navn.
@@ -134,7 +140,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                                 </div>
                             </>
                         ) : (
-                            <p className={styles.heroNote}>Serveren e ikkje sett opp enno. Spør ein admin.</p>
+                            <p className={styles.heroNote}>Spelserveren e ikkje klar ennå. Spør ein admin.</p>
                         )}
                     </section>
                 )}
@@ -149,7 +155,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                         </a>
                     </div>
                     {ahead.length === 0 ? (
-                        <p className={styles.empty}>Ingen kampa enno. Ta deg ei øl og någen nædæ.</p>
+                        <p className={styles.empty}>Ingen kampa ennå. Ta deg ei øl og någen nædæ.</p>
                     ) : (
                         <div className={styles.cards}>
                             {ahead.map((m) => (
@@ -164,7 +170,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                         Spelå dine
                     </h2>
                     {bets.length === 0 ? (
-                        <p className={styles.muted}>Du har ikkje satsa någen Foza enno.</p>
+                        <p className={styles.muted}>Du har ikkje satsa någen Foza ennå.</p>
                     ) : (
                         <div className={styles.tableWrap}>
                             <table className={styles.table}>
@@ -174,7 +180,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                                         <th>På</th>
                                         <th>Innsats</th>
                                         <th>Resultat</th>
-                                        <th>Vunne eller tapt</th>
+                                        <th>Foza vunne eller tapt</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -262,7 +268,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                         Utfordra någen te 1v1
                     </h2>
                     {opponents.length === 0 ? (
-                        <p className={styles.muted}>Ingen andre e med enno. Få någen te å bli med på LANet først.</p>
+                        <p className={styles.muted}>Ingen andre e med ennå. Få någen te å bli med på LANet først.</p>
                     ) : (
                         <form method="post" action="/api/player/challenges" className={styles.challengeForm}>
                             <label className={styles.field}>
@@ -301,19 +307,19 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                                     </span>
                                 </div>
                                 <div className={styles.field}>
-                                    <InfoLabel htmlFor="speed" text="Fart i fps" info={FIELD_INFO.speed.label}>
+                                    <InfoLabel htmlFor="speed" text="Fart" info={FIELD_INFO.speed.label}>
                                         <p>{FIELD_INFO.speed.text}</p>
                                     </InfoLabel>
                                     <input id="speed" name="speed" type="number" className={styles.input} min={MIN_GAME_SPEED} max={MAX_GAME_SPEED} step={1} defaultValue={DEFAULT_GAME_SPEED} required aria-describedby="speed-hint speed-help" />
                                     <span id="speed-hint" className={styles.hint}>
-                                        {MIN_GAME_SPEED} te {MAX_GAME_SPEED}, vanleg e {DEFAULT_GAME_SPEED}
+                                        bilde i sekundet, {MIN_GAME_SPEED} te {MAX_GAME_SPEED}, vanleg e {DEFAULT_GAME_SPEED}
                                     </span>
                                 </div>
                             </div>
                             <button type="submit" className={styles.button}>
                                 Send utfordring
                             </button>
-                            <p className={styles.closingNote}>Når motstandaren godtar, kan dåkke spela.</p>
+                            <p className={styles.closingNote}>Når motstandaren godtar, kan dåkke spela med det same, så sant ingen av dåkke e midt i ein kamp.</p>
                         </form>
                     )}
                 </section>
