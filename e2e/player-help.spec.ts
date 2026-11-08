@@ -118,7 +118,7 @@ test('the 1v1 form and the bet form on /me have help, and the leaderboard has th
     await asker.page.goto('/me');
     const form2 = asker.page.getByRole('region', { name: 'Utfordra någen te 1v1' });
     const card = asker.page.locator('article').filter({ hasText: `Ia${tag} vs Ib${tag}` });
-    await checkHelp(card, 'Koss funke potten?', 'Vinne spelaren din, deler dei som satsa på spelaren heile potten');
+    await checkHelp(card, 'Koss funke potten?', 'Vinne spelaren du satsa på, får du ein del av heile potten. Jo meir du satsa, jo større del.');
     await expect(card.getByLabel('Kor mykje Foza tør du?')).toBeVisible();
     await form2.getByRole('button', { name: 'Kor mange sett?' }).click();
     await shoot(asker.page, 'me');

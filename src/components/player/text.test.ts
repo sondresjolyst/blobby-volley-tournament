@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { MatchSummary } from '@/lib/store/matches';
 import { matchPlayers, matchTitle } from '../matches/describe';
-import { challengeErrorMessage, foza, matchSettings, noticeMessage, payout } from './text';
+import { challengeErrorMessage, dailyFozaLine, foza, matchSettings, noticeMessage, payout } from './text';
 
 const oneVsOne: MatchSummary = {
     id: 9,
@@ -31,6 +31,10 @@ describe('player texts', () => {
         expect(foza(15)).toBe('15 Foza');
         expect(payout(1.6)).toBe('betale 1,60×');
         expect(payout(null)).toBe('ingen spel ennå');
+    });
+
+    it('tells the daily Foza in one short line', () => {
+        expect(dailyFozaLine(1250)).toBe('Du får 1 250 Foza kvar dag du e med.');
     });
 
     it('names tournament and 1v1 matches for players and admins', () => {

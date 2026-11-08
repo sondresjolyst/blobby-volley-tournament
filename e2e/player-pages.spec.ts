@@ -27,6 +27,8 @@ test('a player challenges another to a 1v1, the other sees it and accepts withou
     const asked = await signUp(browser, `Ub${tag}`);
     // The asker loads the page again, so the new player is in the list.
     await asker.page.goto('/me');
+    // The E2E event pays 100 Foza a day, and the page says so quietly.
+    await expect(asker.page.getByText('Du får 100 Foza kvar dag du e med.')).toBeVisible();
 
     // Settings out of bounds are refused before anything is stored.
     const refused = await asker.page.request.post('/api/player/challenges', {

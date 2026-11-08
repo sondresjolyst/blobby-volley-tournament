@@ -18,6 +18,9 @@ export function payout(multiplier: number | null): string {
     return multiplier === null ? 'ingen spel ennå' : `betale ${odds(multiplier)}`;
 }
 
+/** The quiet note on /me about the daily Foza, such as `Du får 100 Foza kvar dag du e med.` */
+export const dailyFozaLine = (daily: number) => `Du får ${foza(daily)} kvar dag du e med.`;
+
 /** Such as `Best av 3 · først te 15 · 75 fps`. */
 export function matchSettings(match: Pick<MatchSummary, 'bestOf' | 'scoreToWin' | 'speed'>): string {
     return `Best av ${match.bestOf} · først te ${match.scoreToWin} · ${match.speed} fps`;

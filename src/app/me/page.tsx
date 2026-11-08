@@ -7,7 +7,7 @@ import { Pizza } from '@/components/pizza/Pizza';
 import { PlayerShell } from '@/components/player/PlayerShell';
 import styles from '@/components/player/player.module.css';
 import { matchPlayers, matchTitle } from '@/components/matches/describe';
-import { BET_STATUS, challengeErrorMessage, foza, matchSettings, noticeMessage } from '@/components/player/text';
+import { BET_STATUS, challengeErrorMessage, dailyFozaLine, foza, matchSettings, noticeMessage } from '@/components/player/text';
 import { BEST_OF } from '@/lib/bracket';
 import { betErrorMessage } from '@/lib/betting/input';
 import { getPool } from '@/lib/db';
@@ -69,6 +69,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
             {stamp !== null && <LiveRefresh eventId={player.eventId} stamp={stamp} />}
             <div className={styles.column}>
                 <h1 className={styles.h1}>Hei, {player.nickname}!</h1>
+                {event && event.dailyFoza > 0 && <p className={styles.muted}>{dailyFozaLine(event.dailyFoza)}</p>}
                 {betError && (
                     <p role="alert" className={styles.alert}>
                         {betError}
