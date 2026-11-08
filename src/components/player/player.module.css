@@ -38,7 +38,7 @@
 }
 
 :global(body):has(.shell) > :global(footer)::before {
-    content: 'Stolt sponsa av';
+    content: attr(data-label);
     display: block;
     margin-bottom: 12px;
     font-size: 13px;

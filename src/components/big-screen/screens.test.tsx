@@ -97,7 +97,7 @@ describe('the Foza screen', () => {
 describe('the up next screen', () => {
     it('lists the matches with the live score of the running one', () => {
         const out = html(<UpNextScreen data={full} />);
-        for (const text of ['Neste kampa', 'LIVE', '11–8', 'Sett 2 · 1–0 i sett · best av 3', 'SNART', 'Blobfisk', 'Ingen spel enno']) expect(out).toContain(text);
+        for (const text of ['Snart i ringen', 'LIVE', '11–8', 'Sett 2 · 1–0 i sett · best av 3', 'SNART', 'Blobfisk', 'Ingen spel ennå']) expect(out).toContain(text);
         expect(out.indexOf('Skvett')).toBeLessThan(out.indexOf('Blobfisk'));
     });
 
@@ -175,8 +175,8 @@ describe('the big screen', () => {
 
     it('shows a pinned screen whatever the rotation is', () => {
         expect(page(full, 'sponsors')).toContain('data-screen="sponsors"');
-        expect(page(full, 'sponsors')).not.toContain('aria-label="Sponsora"');
-        expect(page(full, 'bracket')).toContain('aria-label="Sponsora"');
+        expect(page(full, 'sponsors')).not.toContain('aria-label="Stolt sponsa av"');
+        expect(page(full, 'bracket')).toContain('aria-label="Stolt sponsa av"');
     });
 
     it('shows the event code on every screen with the key', () => {

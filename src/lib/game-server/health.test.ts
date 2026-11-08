@@ -16,6 +16,6 @@ describe('healthLine', () => {
 
     it('says the check failed, and asks for a new sign-in when the session is gone', () => {
         expect(healthLine({ kind: 'failed' })).toEqual({ text: 'Health check failed. Trying again.', ok: false });
-        expect(healthLine({ kind: 'signed-out' })).toEqual({ text: 'Health check failed. Sign in again.', ok: false });
+        expect(healthLine({ kind: 'signed-out' })).toEqual({ text: 'Health check failed because you are signed out. Sign in again.', ok: false });
     });
 });

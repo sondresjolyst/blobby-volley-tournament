@@ -93,7 +93,7 @@ export function screenFacts(leaderboard: Leaderboard, series: readonly PlayedSer
     if (long) facts.push({ key: 'longest', label: 'Lengste kamp', value: matchLength(long.seconds!), who: versus(long, long.winnerId!) });
 
     const streak = best(leaderboard.wins, (w) => (w.longestStreak >= 2 ? w.longestStreak : 0));
-    if (streak) facts.push({ key: 'streak', label: 'Lengste rekke', value: `${streak.longestStreak} på rad`, who: name(streak.playerId) });
+    if (streak) facts.push({ key: 'streak', label: 'Lengste rekke', value: `${streak.longestStreak} ${streak.longestStreak === 1 ? 'seier' : 'seira'} på rad`, who: name(streak.playerId) });
 
     const scorer = best(leaderboard.wins, (w) => w.pointsScored);
     if (scorer) facts.push({ key: 'points', label: 'Flest poeng', value: `${whole.format(scorer.pointsScored)} poeng`, who: name(scorer.playerId) });

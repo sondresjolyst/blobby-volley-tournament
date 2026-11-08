@@ -28,7 +28,7 @@ test.afterEach(async ({ page }) => {
     await expect(page).toHaveURL(/\/admin\/events\/\d+$/);
     await page.getByLabel('Game server host').fill('e2e-server.lan');
     await page.getByLabel('Game server port').fill('1234');
-    await page.getByRole('button', { name: 'Save' }).click();
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(page.getByLabel('Game server host')).toHaveValue('e2e-server.lan');
 });
 
@@ -52,7 +52,9 @@ test('an admin moves the game server to another PC and the join link follows at 
 
     await asker.page.goto('/me');
     const hero = asker.page.getByRole('region', { name: 'Kampen din e klar!' });
-    await expect(hero.getByRole('link', { name: 'opne lenkjå direkte' })).toHaveAttribute('href', /^blobby:\/\/join\?server=e2e-server\.lan:1234&code=/);
+    // The direct link sits behind the help button.
+    await hero.getByRole('button', { name: 'Kan eg opna lenkjå direkte?' }).click();
+    await expect(hero.getByRole('link', { name: 'Opne lenkjå direkte' })).toHaveAttribute('href', /^blobby:\/\/join\?server=e2e-server\.lan:1234&code=/);
 
     await page.goto('/admin/events');
     await page.getByRole('row', { name: /E2E LAN/ }).getByRole('link').click();
@@ -66,13 +68,15 @@ test('an admin moves the game server to another PC and the join link follows at 
     await expect(page.getByText('Not localhost or 127.0.0.1')).toBeHidden();
     await expect(info).toBeFocused();
     await page.getByLabel('Game server host').fill('192.168.1.77');
-    await page.getByRole('button', { name: 'Save' }).click();
-    await expect(page.getByRole('status')).toHaveText('Saved.');
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(page.getByRole('status')).toHaveText('Saved the event.');
     await expect(page.getByLabel('Game server host')).toHaveValue('192.168.1.77');
 
     // The next page load shows the new address, without a redeploy.
     await asker.page.goto('/me');
-    await expect(hero.getByRole('link', { name: 'opne lenkjå direkte' })).toHaveAttribute('href', /^blobby:\/\/join\?server=192\.168\.1\.77:1234&code=/);
+    // The direct link sits behind the help button.
+    await hero.getByRole('button', { name: 'Kan eg opna lenkjå direkte?' }).click();
+    await expect(hero.getByRole('link', { name: 'Opne lenkjå direkte' })).toHaveAttribute('href', /^blobby:\/\/join\?server=192\.168\.1\.77:1234&code=/);
     await expect(hero.getByRole('definition').filter({ hasText: '192.168.1.77:1234' })).toBeVisible();
     await page.goto('/admin/game-server');
     const guide = page.getByRole('region', { name: 'Start the game server' });

@@ -48,7 +48,7 @@ test('an admin previews and saves a double elimination tournament', async ({ pag
 
     await page.getByRole('button', { name: 'Save tournament' }).click();
     await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
-    await expect(page.getByRole('status')).toHaveText('Saved.');
+    await expect(page.getByRole('status')).toHaveText('Saved the tournament.');
     await expect(page.getByText('Format: Double elimination')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Grand final, best of 5, rules final.lua' })).toBeVisible();
     await expect(page.getByRole('region', { name: 'Winners round 2' }).getByRole('row', { name: /Match 2/ })).toContainText(`${nicknames[2]}Winner of match 1`);

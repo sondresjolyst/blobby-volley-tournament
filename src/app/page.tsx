@@ -14,7 +14,9 @@ import { listMatchPools, type MatchPool } from '@/lib/store/bets';
 import { getActiveEvent } from '@/lib/store/events';
 import { liveStamp } from '@/lib/store/live';
 import { listMatches, type MatchSummary } from '@/lib/store/matches';
-import { calledText, STATE_TAGS } from '@/lib/tournaments/board';
+import { BETS_OPEN, calledText, STATE_TAGS } from '@/lib/tournaments/board';
+import { AdminWayIn } from '@/components/site/NoEvent';
+import { ADMIN_OPENS_LAN, NO_LAN, NOT_DECIDED } from '@/lib/texts';
 
 /** How many upcoming matches the front page lists. The bracket has the rest. */
 const UPCOMING_SHOWN = 6;
@@ -24,9 +26,9 @@ const isLive = (m: MatchSummary) => m.state === 'started' || m.state === 'called
 const isPending = (m: MatchSummary) => m.tournamentId === null && m.state === 'upcoming' && m.acceptedAt === null;
 
 function PublicMatch({ match, pool, signedIn }: { match: MatchSummary; pool: MatchPool | undefined; signedIn: boolean }) {
-    const name = (slot: 0 | 1) => match.players[slot]?.nickname ?? 'Ikkje klart enno';
+    const name = (slot: 0 | 1) => match.players[slot]?.nickname ?? NOT_DECIDED;
     const live = match.state === 'started';
-    const tag = live ? 'LIVE' : match.state === 'called' ? calledText(match.tournamentId !== null).tag : pool?.open ? 'Spel opent' : STATE_TAGS.upcoming;
+    const tag = live ? 'LIVE' : match.state === 'called' ? calledText(match.tournamentId !== null).tag : pool?.open ? BETS_OPEN : STATE_TAGS.upcoming;
     const sides = pool?.sides ?? [];
     return (
         <article className={p.card}>
@@ -41,7 +43,7 @@ function PublicMatch({ match, pool, signedIn }: { match: MatchSummary; pool: Mat
             </p>
             {live && (
                 <p className={p.meta}>
-                    Stilling {match.score1}-{match.score2}
+                    Stilling {match.score1}–{match.score2}
                 </p>
             )}
             {sides.length === 2 && pool && (
@@ -79,11 +81,11 @@ export default async function Home() {
                 <section className={s.hero} aria-labelledby="tittel">
                     <div className={s.heroText}>
                         <h1 id="tittel" className={s.heroTitle}>
-                            Ingen LAN e i gang
+                            {NO_LAN}
                         </h1>
-                        <p className={s.heroPitch}>Her blir det turnering i Blobby Volley og spel om Foza. Men ein admin må opna eit LAN før någen kan bli med.</p>
+                        <p className={s.heroPitch}>Her blir det turnering i Blobby Volley og spel om Foza. {ADMIN_OPENS_LAN}</p>
                         <p className={s.heroNote}>
-                            E du admin? <Link href="/admin">Gå te admin</Link> og opne eit LAN. Gamle LAN finn du på <Link href="/leaderboard">topplistå</Link>.
+                            <AdminWayIn /> Gamle LAN finn du på <Link href="/leaderboard">topplistå</Link>.
                         </p>
                     </div>
                     <Pizza size={260} className={s.heroPizza} />
@@ -110,7 +112,7 @@ export default async function Home() {
                     {shellPlayer ? (
                         <>
                             <p className={s.heroPitch}>
-                                Hei, {shellPlayer.nickname}! Du har {foza(shellPlayer.balance)} å spela for. Sjå kampane dine, sats på dei andre og utfordra någen te 1v1.
+                                Hei, {shellPlayer.nickname}! Du har {foza(shellPlayer.balance)} å satsa. Sjå kampane dine, sats på dei andre og utfordra någen te 1v1.
                             </p>
                             <div className={s.heroActions}>
                                 <Link href="/me" className={p.joinButton}>
@@ -165,7 +167,7 @@ export default async function Home() {
                         )}
                     </div>
                     {upcoming.length === 0 ? (
-                        <p className={p.empty}>Ingen kampa enno. Ta deg ei øl og någen nædæ.</p>
+                        <p className={p.empty}>Ingen kampa spelt ennå.</p>
                     ) : (
                         <div className={p.cards}>
                             {upcoming.slice(0, UPCOMING_SHOWN).map((m) => (
@@ -185,19 +187,19 @@ export default async function Home() {
                         <li>
                             <Link href="/bracket" className={s.linkCard}>
                                 <span className={s.linkTitle}>Kampoppsett</span>
-                                <span className={s.linkText}>Heile turneringå, runde for runde.</span>
+                                <span className={s.linkText}>Alle turneringa, runde for runde.</span>
                             </Link>
                         </li>
                         <li>
                             <Link href="/leaderboard" className={s.linkCard}>
                                 <span className={s.linkTitle}>Toppliste</span>
-                                <span className={s.linkText}>Kem som treff best med Foza, kem som vinne mest, og Elo.</span>
+                                <span className={s.linkText}>Kem som vinne mest Foza, kem som vinne flest kampa, og Elo.</span>
                             </Link>
                         </li>
                         <li>
                             <Link href="/big" className={s.linkCard}>
                                 <span className={s.linkTitle}>Storskjermen</span>
-                                <span className={s.linkText}>Live-stilling og kampoppsett.</span>
+                                <span className={s.linkText}>Stillinga, kampoppsettet og topplistå, slik TV-en viser dei.</span>
                             </Link>
                         </li>
                     </ul>
@@ -207,9 +209,9 @@ export default async function Home() {
                         Sånn funke det
                     </h2>
                     <ol className={s.steps}>
-                        <li>Bli med med LAN-koden, eit kallenavn og ein PIN-kode.</li>
+                        <li>Bli med: skriv LAN-koden, eit kallenavn og ein PIN-kode.</li>
                         <li>Sats Foza på kampane du trur du kan lesa.</li>
-                        <li>Når kampen din e klar, kopiere du lenkjå på sidå di og hoppe inn i spelet.</li>
+                        <li>Når kampen din e klar, kopiere du lenkjå på sidå di og hoppe inn i Blobby Volley.</li>
                     </ol>
                 </section>
             </aside>

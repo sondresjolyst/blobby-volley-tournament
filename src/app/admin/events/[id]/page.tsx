@@ -1,6 +1,7 @@
 import { AdminShell } from '@/components/admin/AdminShell';
 import { adminTime } from '@/components/admin/time';
 import { notFound } from 'next/navigation';
+import { InfoButton } from '@/components/InfoButton';
 import { BigScreenSection, bigScreenErrorMessage } from '@/components/events/BigScreenSection';
 import { EventForm, eventErrorMessage } from '@/components/events/EventForm';
 import { SponsorSection, sponsorErrorMessage } from '@/components/sponsors/SponsorSection';
@@ -58,7 +59,7 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
     const sponsorStatus = savedSponsor
         ? `Saved the sponsor ${savedSponsor.name}.`
         : search.sponsorDeleted === '1'
-          ? 'The sponsor is removed from this event. It stays in the sponsor library.'
+          ? 'Removed the sponsor from this event. It is still in the sponsor library.'
           : search.boardSaved === '1'
             ? 'Saved the sponsor board.'
             : null;
@@ -72,13 +73,13 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
                 </form>
             )}
             {message && <p role="alert">{message}</p>}
-            {search.saved === '1' && <p role="status">Saved.</p>}
-            {resetPlayer && <p role="status">The PIN for {resetPlayer.nickname} is reset.</p>}
-            {rotatedPlayer && <p role="status">{rotatedPlayer.nickname} has a new join code. The old code stops working.</p>}
+            {search.saved === '1' && <p role="status">Saved the event.</p>}
+            {resetPlayer && <p role="status">Reset the PIN for {resetPlayer.nickname}.</p>}
+            {rotatedPlayer && <p role="status">{rotatedPlayer.nickname} has a new join code. The old join link stops working.</p>}
             {unlockedPlayer && <p role="status">{unlockedPlayer.nickname} is unlocked and can sign in again.</p>}
-            {search.pinLimit === 'reset' && <p role="status">The network PIN limit is reset. Every network can try PINs again.</p>}
-            {search.bigScreenKey === 'new' && <p role="status">The big screen has a new key. The old address stops showing the join card.</p>}
-            {search.rotationSaved === '1' && <p role="status">Saved the big screen screens.</p>}
+            {search.pinLimit === 'reset' && <p role="status">Reset the network PIN limit. Every network can try PINs again.</p>}
+            {search.bigScreenKey === 'new' && <p role="status">Made a new big screen key. Open the new address on the TV, since the old one no longer shows the join card.</p>}
+            {search.rotationSaved === '1' && <p role="status">Saved the screens.</p>}
             {adjustedPlayer && (
                 <p role="status">
                     The Foza of {adjustedPlayer.nickname} is now {adjustedPlayer.fozaBalance}.
@@ -124,7 +125,7 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
                                         <form method="post" action={`/api/admin/players/${player.id}/foza`}>
                                             <input type="hidden" name="eventId" value={event.id} />
                                             <label>
-                                                Foza change for {player.nickname}{' '}
+                                                Foza change for {player.nickname}, such as 50 or -50{' '}
                                                 <input name="amount" type="text" required inputMode="numeric" pattern="[+\-]?[1-9][0-9]{0,6}" autoComplete="off" />
                                             </label>{' '}
                                             <label>
@@ -148,10 +149,17 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
             )}
 
             <h3>Network PIN limit</h3>
-            <p>
-                One network can give {CLIENT_WRONG_PINS_PER_HOUR} wrong PINs in an hour, across all players. After that nobody on it can sign in until the hour is over. Most players at the LAN
-                share one network. The busiest network has {pinPeak} of {CLIENT_WRONG_PINS_PER_HOUR} wrong PINs this hour.
-            </p>
+            <div className="admin-field-label">
+                <p>
+                    The busiest network has {pinPeak} of {CLIENT_WRONG_PINS_PER_HOUR} wrong PINs this hour.
+                </p>
+                <InfoButton label="About the network PIN limit">
+                    <p>
+                        One network can give {CLIENT_WRONG_PINS_PER_HOUR} wrong PINs in an hour, across all players. After that nobody on it can sign in until the hour is over. Most
+                        players at the LAN share one network.
+                    </p>
+                </InfoButton>
+            </div>
             <form method="post" action="/api/admin/players/pin-limit">
                 <input type="hidden" name="eventId" value={event.id} />
                 <button type="submit">Reset network PIN limit</button>

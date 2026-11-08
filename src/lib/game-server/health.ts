@@ -11,7 +11,7 @@ export type HealthState = { kind: 'age'; ageSeconds: number | null } | { kind: '
 /** The line on the admin page, and whether it shows green. */
 export function healthLine(state: HealthState): { text: string; ok: boolean } {
     if (state.kind === 'failed') return { text: 'Health check failed. Trying again.', ok: false };
-    if (state.kind === 'signed-out') return { text: 'Health check failed. Sign in again.', ok: false };
+    if (state.kind === 'signed-out') return { text: 'Health check failed because you are signed out. Sign in again.', ok: false };
     if (state.ageSeconds === null) return { text: 'Last report: never', ok: false };
     return { text: `Last report: ${state.ageSeconds} s ago`, ok: state.ageSeconds * 1000 < HEALTHY_MS };
 }

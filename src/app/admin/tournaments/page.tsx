@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { AdminShell } from '@/components/admin/AdminShell';
 import { FORMATS } from '@/lib/bracket';
+import { NO_ACTIVE_EVENT } from '@/lib/admin-texts';
 import { requireAdmin } from '@/lib/auth/options';
 import { getPool } from '@/lib/db';
 import { getActiveEvent } from '@/lib/store/events';
@@ -22,7 +23,7 @@ export default async function AdminTournaments() {
                 </p>
             )}
             {!event ? (
-                <p>There is no active event. Set an event active to add tournaments.</p>
+                <p>{NO_ACTIVE_EVENT}</p>
             ) : (
                 <>
                     <p>Event: {event.name}</p>

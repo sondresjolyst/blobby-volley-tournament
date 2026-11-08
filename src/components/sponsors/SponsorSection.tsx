@@ -10,14 +10,14 @@ const SPONSOR_ERRORS: Record<string, string> = {
     'sponsor-link': `The link must be an http or https address of at most ${MAX_LINK_LENGTH} characters, or empty.`,
     'sponsor-background': 'The background colour must be a colour such as #ffffff.',
     'sponsor-limit': `An event can have at most ${MAX_SPONSORS} sponsors.`,
-    'logo-missing': 'Pick a logo file.',
+    'logo-missing': 'Select a logo file.',
     'logo-size': `The logo file must be at most ${MAX_LOGO_MB} MB.`,
     'logo-type': `The logo must be a ${LOGO_TYPE_LIST} file. SVG is not allowed.`,
     'logo-image': `The logo file could not be read. Save it again as ${LOGO_TYPE_LIST} and try again.`,
     'logo-dimensions': `The logo can be at most ${MAX_LOGO_SIDE} pixels wide and high.`,
     'sponsor-taken': 'This event already has that sponsor.',
-    'library-pick': 'Pick a sponsor from the library.',
-    'library-limit': `The sponsor library is full. A new sponsor can be added while it holds fewer than ${MAX_LIBRARY_SPONSORS}. Delete sponsors that no event uses in the sponsor library first, or add one from the library.`,
+    'library-pick': 'Select a sponsor from the library.',
+    'library-limit': `The sponsor library is full at ${MAX_LIBRARY_SPONSORS} sponsors. Go to Sponsor library. Delete a sponsor that no event uses, then add the new one.`,
     'library-in-use': 'An event still uses this sponsor. Remove it from those events first.',
 };
 
@@ -63,12 +63,12 @@ export function SponsorSection({
         <section aria-labelledby="sponsors">
             <h2 id="sponsors">Sponsors</h2>
             <div className="admin-field-label">
-                <p>The footer and the game show the sponsors that are shown, in this order.</p>
+                <p>The footer, the big screen and the game show the sponsors marked Shown, in this order.</p>
                 <InfoButton label="About sponsor logos">
                     <p>
-                        The game gets a copy of each logo {GAME_LOGO_HEIGHT} pixels high and at most {GAME_LOGO_MAX_WIDTH} pixels wide. Change the order with Up and Down.
+                        The game gets a copy of each logo {GAME_LOGO_HEIGHT} pixels high and at most {GAME_LOGO_MAX_WIDTH} pixels wide. Select Up or Down to change the order.
                     </p>
-                    <p>Hidden sponsors stay here, but the footer and the game leave them out.</p>
+                    <p>Hidden sponsors stay here, but the footer, the big screen and the game leave them out.</p>
                 </InfoButton>
             </div>
             <form method="post" action={`/api/admin/events/${eventId}/game-board`} className="admin-panel">
@@ -88,7 +88,7 @@ export function SponsorSection({
                         ))}
                     </select>
                 </div>
-                <button type="submit">Change board</button>
+                <button type="submit">Save board</button>
             </form>
             {error && <p role="alert">{error}</p>}
             {status && <p role="status">{status}</p>}
@@ -100,7 +100,7 @@ export function SponsorSection({
                             Add from the library{' '}
                             <select name="libraryId" required defaultValue="">
                                 <option value="" disabled>
-                                    Pick a sponsor
+                                    Select a sponsor
                                 </option>
                                 {available.map((sponsor) => (
                                     <option key={sponsor.id} value={sponsor.id}>

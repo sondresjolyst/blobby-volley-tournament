@@ -18,7 +18,7 @@ const DONE: Record<string, string> = {
     score: 'The series score is saved.',
     'no-show': 'The no-show is recorded.',
     cancel: 'The match is cancelled.',
-    reset: 'The match is back to upcoming. Its games are cleared.',
+    reset: 'The match is back to upcoming. Its games are cleared and its bets are refunded.',
 };
 
 export default async function AdminMatch({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Search> }) {
@@ -50,7 +50,7 @@ export default async function AdminMatch({ params, searchParams }: { params: Pro
                     {blocked !== null && (
                         <>
                             {' '}
-                            It is <Link href={`/admin/matches/${blocked}`}>match {blocked}</Link>. Reset it there and come back.
+                            Go to <Link href={`/admin/matches/${blocked}`}>match {blocked}</Link>, reset it to upcoming, then come back.
                         </>
                     )}
                 </p>
@@ -60,7 +60,7 @@ export default async function AdminMatch({ params, searchParams }: { params: Pro
             <p>{matchPlayers(match, 'admin')}</p>
             <p>State: {STATE_LABELS[match.state]}</p>
             <p>
-                Best of {match.bestOf}, first to {winsNeeded(match.bestOf)}. Rules: {match.ruleFile}
+                Best of {match.bestOf}, first to win {winsNeeded(match.bestOf)} games. Rules: {match.ruleFile}
             </p>
             <p>
                 Games to {match.scoreToWin} points at {match.speed} frames per second.
@@ -71,8 +71,8 @@ export default async function AdminMatch({ params, searchParams }: { params: Pro
                     The series score was set by hand to {match.manualScore.score1}-{match.manualScore.score2} after game {match.manualScore.afterGame}.
                 </p>
             )}
-            {match.tournamentId === null && match.state === 'upcoming' && <p>{match.acceptedAt ? 'Accepted by the other player. It is called by itself as soon as both players are free.' : 'Waiting for the other player to accept.'}</p>}
-            {match.awaitingDecision && <p role="alert">The last game was abandoned. {stoppedGame(match, match.games.at(-1)!)} Restart it from 0-0 or award it.</p>}
+            {match.tournamentId === null && match.state === 'upcoming' && <p>{match.acceptedAt ? 'Accepted by the other player. The site calls it as soon as both players are free.' : 'Waiting for the other player to accept.'}</p>}
+            {match.awaitingDecision && <p role="alert">The last game was abandoned. {stoppedGame(match, match.games.at(-1)!)} Select Restart current game, or enter the result under Enter or correct a game result.</p>}
 
             <h2>Games</h2>
             {match.games.length === 0 ? (
@@ -181,10 +181,14 @@ export default async function AdminMatch({ params, searchParams }: { params: Pro
                 </>
             )}
             {open && match.tournamentId === null && (
-                <form method="post" action={action}>
-                    <input type="hidden" name="action" value="cancel" />
-                    <button type="submit">Cancel match</button>
-                </form>
+                <>
+                    <h3>Cancel the match</h3>
+                    <p>This cancels the 1v1 match and refunds its bets.</p>
+                    <form method="post" action={action}>
+                        <input type="hidden" name="action" value="cancel" />
+                        <button type="submit">Cancel match</button>
+                    </form>
+                </>
             )}
         </AdminShell>
     );

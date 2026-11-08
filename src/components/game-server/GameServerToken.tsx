@@ -40,7 +40,7 @@ export function GameServerToken({
             const res = await fetch('/api/admin/game-server-token', { method: 'POST', body: new FormData(form), cache: 'no-store' });
             const body = (await res.json().catch(() => null)) as { token?: string; error?: string } | null;
             if (!res.ok || typeof body?.token !== 'string') {
-                setError(body?.error === 'confirm' ? 'Check the box to confirm the new token.' : 'Could not make a token. Try again.');
+                setError(body?.error === 'confirm' ? 'Select the check box, then select Make a new token.' : 'Could not make a token. Try again.');
                 return;
             }
             form.reset();
@@ -61,7 +61,7 @@ export function GameServerToken({
             <form onSubmit={submit}>
                 {hasToken && (
                     <label>
-                        <input type="checkbox" name="confirm" value="yes" required /> The old token stops working at once
+                        <input type="checkbox" name="confirm" value="yes" required /> I understand the old token stops working at once
                     </label>
                 )}{' '}
                 <button type="submit" disabled={busy}>
@@ -85,7 +85,7 @@ export function GameServerToken({
                     </p>
                     <p>
                         The first start downloads the server, which can take a minute. Then watch the health line at the top turn green. Players can then join with the join link. They
-                        need the game, the Windows download is in the <a href={RELEASES}>latest release</a>.
+                        need the game. The Windows download is in the <a href={RELEASES}>latest release</a>.
                     </p>
                 </section>
             )}

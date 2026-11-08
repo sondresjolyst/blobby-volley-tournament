@@ -9,6 +9,7 @@ import { currentBoard, nextBoard, REFRESH_MS, ROTATION_MS, screenMs, shownScreen
 import type { ScreenType } from '@/lib/big-screen/screens';
 import { BOARD_ROWS, type BigScreenData, type BoardKey, type ScreenBracket, type ScreenMatch, type ScreenSponsor } from '@/lib/big-screen/view';
 import { BoardPanel, BracketPanel, RankRows, ScreenTop, SponsorLogo } from './parts';
+import { SiteContext, useSite } from './site';
 import { SPONSORS_LABEL } from '@/components/site/text';
 import { OtherScreen } from './screens';
 import { BOARD_TEXT, joinLine, livePoints, matchOdds, matchPill, SIDE_NAMES, NO_EVENT, NO_MATCH, poolLine, SPONSOR_LABEL } from './text';
@@ -21,6 +22,7 @@ export interface JoinQr {
 }
 
 function Hero({ match }: { match: ScreenMatch | null }) {
+    const site = useSite();
     if (!match) {
         return (
             <section className={`${styles.card} ${styles.heroEmpty}`} aria-label="Kampen nå">
@@ -60,7 +62,7 @@ function Hero({ match }: { match: ScreenMatch | null }) {
                 </div>
             </div>
             <p className={styles.heroCaption}>
-                {match.live ? `Sett ${match.live.game} · best av ${match.bestOf}` : match.state === 'started' ? `Stillingen i sett · best av ${match.bestOf}` : `Best av ${match.bestOf}`}
+                {match.live ? `Sett ${match.live.game} · best av ${match.bestOf}` : match.state === 'started' ? `Sett vunne · best av ${match.bestOf}` : `Best av ${match.bestOf}`}
                 {match.tournamentName ? ` · ${match.tournamentName}` : ''}
             </p>
             <div className={styles.pool}>
@@ -69,7 +71,7 @@ function Hero({ match }: { match: ScreenMatch | null }) {
                 </div>
                 <div className={styles.poolText}>
                     {share === null ? (
-                        <span>{poolLine(match)}</span>
+                        <span>{poolLine(match, site)}</span>
                     ) : (
                         <>
                             <span>
@@ -128,6 +130,7 @@ function Boards({ data, boardKey }: { data: BigScreenData; boardKey: BoardKey | 
 
 /** The sign-up card. It only shows with the big screen key, since it holds the event code. */
 function Join({ code, qr }: { code: string; qr: JoinQr | null }) {
+    const site = useSite();
     return (
         <section className={`${styles.card} ${styles.join}`} aria-label="Bli med">
             {qr && (
@@ -138,7 +141,7 @@ function Join({ code, qr }: { code: string; qr: JoinQr | null }) {
             )}
             <div className={styles.joinText}>
                 <span className={styles.joinTitle}>Bli med og spel</span>
-                <span className={styles.muted}>{joinLine(qr !== null)}</span>
+                <span className={styles.muted}>{joinLine(qr !== null, site)}</span>
                 <span className={styles.joinCode}>{code}</span>
             </div>
         </section>
@@ -188,12 +191,15 @@ export function BigScreen({
     screenKey,
     qr,
     pinned = null,
+    site = null,
 }: {
     initial: BigScreenData;
     tournament: number | null;
     screenKey: string | null;
     qr: JoinQr | null;
     pinned?: ScreenType | null;
+    /** The host of the site for the addresses on the screen, such as `julalan.no`. */
+    site?: string | null;
 }) {
     const [data, setData] = useState(initial);
     const [boardKey, setBoardKey] = useState<BoardKey | null>(null);
@@ -240,26 +246,28 @@ export function BigScreen({
     const shown = shownScreen(data, turn, pinned);
     const pill = data.featured ? matchPill(data.featured) : null;
     return (
-        <main className={styles.screen} lang="nn" data-screen={shown}>
-            {shown === 'overview' ? (
-                <div className={styles.grid}>
-                    <div className={styles.left}>
-                        <ScreenTop name={data.eventName}>
-                            {pill && <span className={`${styles.pill} ${data.featured?.state === 'started' ? styles.pillLive : ''}`}>{`${pill.state} · ${pill.label}`}</span>}
-                        </ScreenTop>
-                        <Hero match={data.featured} />
-                        <Others matches={data.others} />
-                        <Bracket bracket={data.bracket} />
+        <SiteContext.Provider value={site}>
+            <main className={styles.screen} lang="nn" data-screen={shown}>
+                {shown === 'overview' ? (
+                    <div className={styles.grid}>
+                        <div className={styles.left}>
+                            <ScreenTop name={data.eventName}>
+                                {pill && <span className={`${styles.pill} ${data.featured?.state === 'started' ? styles.pillLive : ''}`}>{`${pill.state} · ${pill.label}`}</span>}
+                            </ScreenTop>
+                            <Hero match={data.featured} />
+                            <Others matches={data.others} />
+                            <Bracket bracket={data.bracket} />
+                        </div>
+                        <aside className={styles.right}>
+                            <Boards data={data} boardKey={boardKey} />
+                            {data.eventCode !== null && <Join code={data.eventCode} qr={qr} />}
+                        </aside>
                     </div>
-                    <aside className={styles.right}>
-                        <Boards data={data} boardKey={boardKey} />
-                        {data.eventCode !== null && <Join code={data.eventCode} qr={qr} />}
-                    </aside>
-                </div>
-            ) : (
-                <OtherScreen type={shown} data={data} />
-            )}
-            {shown !== 'sponsors' && <SponsorStrip sponsors={data.sponsors} />}
-        </main>
+                ) : (
+                    <OtherScreen type={shown} data={data} />
+                )}
+                {shown !== 'sponsors' && <SponsorStrip sponsors={data.sponsors} />}
+            </main>
+        </SiteContext.Provider>
     );
 }

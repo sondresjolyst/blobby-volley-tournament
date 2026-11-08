@@ -6,6 +6,7 @@ import { signed } from '@/components/stats/format';
 import type { ScreenType } from '@/lib/big-screen/screens';
 import { FOZA_ROWS, FOZA_WINS, type BigScreenData } from '@/lib/big-screen/view';
 import { BoardPanel, BracketPanel, RankRows, ScreenTop, SponsorLogo } from './parts';
+import { useSite } from './site';
 import {
     correctLine,
     FOZA_TEXT,
@@ -32,9 +33,10 @@ import own from './screens.module.css';
  * in the top line with the big screen key, since the store leaves it out otherwise.
  */
 function Frame({ data, label, title, children }: { data: BigScreenData; label: string; title: string; children: ReactNode }) {
+    const site = useSite();
     return (
         <div className={own.frame}>
-            <ScreenTop name={data.eventName}>{data.eventCode !== null && <span className={styles.pill}>{joinChip(data.eventCode)}</span>}</ScreenTop>
+            <ScreenTop name={data.eventName}>{data.eventCode !== null && <span className={styles.pill}>{joinChip(data.eventCode, site)}</span>}</ScreenTop>
             <section className={own.body} aria-label={label}>
                 <h2 className={own.title}>{title}</h2>
                 {children}

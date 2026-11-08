@@ -46,7 +46,7 @@ test('an admin creates an event with a generated code and edits it', async ({ pa
 
     await page.getByRole('button', { name: 'Create event' }).click();
     await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
-    await expect(page.getByRole('status')).toHaveText('Saved.');
+    await expect(page.getByRole('status')).toHaveText('Saved the event.');
     await expect(page.getByLabel('Event code')).toHaveValue(code);
     await expect(page.getByText('This event is not active.')).toBeVisible();
 
@@ -55,7 +55,7 @@ test('an admin creates an event with a generated code and edits it', async ({ pa
     await page.getByLabel('Daily Foza').fill('250');
     await page.getByLabel('Game server host').fill('LAN-PC.local');
     await page.getByLabel('Game server port').fill('1240');
-    await page.getByRole('button', { name: 'Save' }).click();
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(page.getByLabel('Event code')).toHaveValue(`LAN-${tag.toUpperCase()}`);
     await expect(page.getByLabel('Daily Foza')).toHaveValue('250');
     await expect(page.getByLabel('Game server host')).toHaveValue('lan-pc.local');
@@ -63,20 +63,20 @@ test('an admin creates an event with a generated code and edits it', async ({ pa
 
     // An empty port is the default port.
     await page.getByLabel('Game server port').fill('');
-    await page.getByRole('button', { name: 'Save' }).click();
-    await expect(page.getByRole('status')).toHaveText('Saved.');
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(page.getByRole('status')).toHaveText('Saved the event.');
     await expect(page.getByLabel('Game server port')).toHaveValue('1234');
 
     for (const host of ['localhost', '127.0.0.1', 'http://192.168.1.50', '999.1.1.1']) {
         await page.getByLabel('Game server host').fill(host);
-        await page.getByRole('button', { name: 'Save' }).click();
+        await page.getByRole('button', { name: 'Save', exact: true }).click();
         await expect(page.getByRole('alert').filter({ hasText: 'It cannot be localhost, 127.0.0.1 or a web address' })).toBeVisible();
     }
     await expect(page.getByLabel('Game server host')).toHaveValue('lan-pc.local');
 
     // Two events cannot share a code.
     await page.getByLabel('Event code').fill(process.env.E2E_EVENT_CODE ?? '');
-    await page.getByRole('button', { name: 'Save' }).click();
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(page.getByRole('alert').filter({ hasText: 'Another event already has this event code.' })).toBeVisible();
     await expect(page.getByLabel('Event code')).toHaveValue(`LAN-${tag.toUpperCase()}`);
 
@@ -101,7 +101,7 @@ test('an admin resets the PIN of a player', async ({ page, browser }) => {
     await expect(row).toContainText('1000');
     await row.getByLabel(`New PIN for ${nickname}`).fill('5678');
     await row.getByRole('button', { name: 'Reset PIN' }).click();
-    await expect(page.getByRole('status')).toHaveText(`The PIN for ${nickname} is reset.`);
+    await expect(page.getByRole('status')).toHaveText(`Reset the PIN for ${nickname}.`);
 
     // The reset signs the player out on every device.
     await playerPage.goto('/me');
@@ -158,6 +158,6 @@ test('an admin sees the wrong PINs of a player and unlocks a locked player', asy
     await player.close();
 
     await page.getByRole('button', { name: 'Reset network PIN limit' }).click();
-    await expect(page.getByRole('status')).toHaveText('The network PIN limit is reset. Every network can try PINs again.');
+    await expect(page.getByRole('status')).toHaveText('Reset the network PIN limit. Every network can try PINs again.');
     await expect(page.getByText(/The busiest network has \d+ of 40 wrong PINs this hour\./)).toBeVisible();
 });

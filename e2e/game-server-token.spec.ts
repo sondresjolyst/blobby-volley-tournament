@@ -40,7 +40,7 @@ test('an admin makes a new game server token, sees it once with the start comman
     // The box must be checked first.
     await page.getByRole('button', { name: 'Make a new token' }).click();
     await expect(page.getByLabel('Game server token')).toHaveCount(0);
-    await page.getByLabel('The old token stops working at once').check();
+    await page.getByLabel('I understand the old token stops working at once').check();
     await page.getByRole('button', { name: 'Make a new token' }).click();
     await expect(page.getByRole('status')).toHaveText(/only time the token shows/);
     const token = await page.getByLabel('Game server token').inputValue();
