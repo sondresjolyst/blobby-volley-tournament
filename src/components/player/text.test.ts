@@ -52,10 +52,12 @@ describe('player texts', () => {
     });
 
     it('has a text for known codes only', () => {
-        expect(challengeErrorMessage('taken')).toBe('Dåkke har allerede ein open 1v1. Spel han ferdig først.');
+        expect(challengeErrorMessage('taken')).toBe('Dåkke har allerede ein open 1v1. Spel ferdig den kampen først.');
         expect(challengeErrorMessage('constructor')).toBeNull();
         expect(challengeErrorMessage(['taken'])).toBeNull();
         expect(noticeMessage('sent')).toBe('Utfordringå e sendt. Nå e det opp te motstandaren.');
+        expect(noticeMessage('accepted')).toBe('Du godtok kampen. Dåkke kan spela med ein gang.');
+        expect(noticeMessage('queued')).toBe('Du godtok kampen. Dåkke kan spela så fort begge e klare.');
         expect(noticeMessage('toString')).toBeNull();
     });
 });

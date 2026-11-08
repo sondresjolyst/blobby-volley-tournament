@@ -50,7 +50,7 @@ test('a player challenges another to a 1v1, the other sees it and accepts withou
     // The same pair cannot have two open 1v1 matches.
     await form.getByLabel('Motstandar').selectOption({ label: `Ub${tag}` });
     await form.getByRole('button', { name: 'Send utfordring' }).click();
-    await expect(asker.page.getByRole('alert').filter({ hasText: 'Dåkke har allerede ein open 1v1. Spel han ferdig først.' })).toBeVisible();
+    await expect(asker.page.getByRole('alert').filter({ hasText: 'Dåkke har allerede ein open 1v1. Spel ferdig den kampen først.' })).toBeVisible();
 
     // The asked player still has /me open from the sign-up, and the challenge shows up without a reload.
     const incoming = asked.page.getByRole('list', { name: 'Utfordringa te deg' }).getByRole('listitem').filter({ hasText: `Ua${tag} utfordre deg!` });
@@ -58,7 +58,7 @@ test('a player challenges another to a 1v1, the other sees it and accepts withou
     await expect(asker.page.getByRole('button', { name: 'Kopier lenkjå' })).toHaveCount(0);
     await incoming.getByRole('button', { name: 'Godta' }).click();
     // Both players are free, so the match is called at once without an admin.
-    await expect(asked.page.getByRole('status')).toHaveText('Du sa ja. Dåkke kan spela med det same.');
+    await expect(asked.page.getByRole('status')).toHaveText('Du godtok kampen. Dåkke kan spela med ein gang.');
     await expect(asked.page.getByRole('heading', { name: 'Kampen din e klar!' })).toBeVisible();
     // The asker sees the called match without a reload.
     await expect(asker.page.getByRole('heading', { name: 'Kampen din e klar!' })).toBeVisible({ timeout: 15_000 });

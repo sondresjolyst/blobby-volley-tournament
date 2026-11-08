@@ -305,7 +305,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                             <button type="submit" className={styles.button}>
                                 Send utfordring
                             </button>
-                            <p className={styles.closingNote}>Når motstandaren godtar, kan dåkke spela med det same.</p>
+                            <p className={styles.closingNote}>Når motstandaren godtar, kan dåkke spela.</p>
                         </form>
                     )}
                 </section>
