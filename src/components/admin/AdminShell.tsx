@@ -52,7 +52,7 @@ export async function AdminShell({ section, children }: { section: AdminSection;
                 <div className={styles.sideFoot}>
                     <p className={styles.who}>Signed in as {session?.user?.name ?? 'admin'}</p>
                     <Link href="/" className={styles.siteLink}>
-                        To the site
+                        Go to the site
                     </Link>
                     <SignOutButton className={styles.signOut} />
                 </div>

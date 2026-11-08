@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { joinUrl, qrCode } from './qr';
+import { joinUrl, qrCode, siteHost } from './qr';
 
 describe('qrCode', () => {
     it('draws the code as one path of squares in a view box of its size', () => {
@@ -23,5 +23,14 @@ describe('joinUrl', () => {
     it('is null without a valid NEXTAUTH_URL', () => {
         expect(joinUrl({})).toBeNull();
         expect(joinUrl({ NEXTAUTH_URL: 'not a url' })).toBeNull();
+    });
+});
+
+describe('siteHost', () => {
+    it('reads the host of the site, or null when it is not set or not valid', () => {
+        expect(siteHost({ NEXTAUTH_URL: 'https://julalan.no' })).toBe('julalan.no');
+        expect(siteHost({ NEXTAUTH_URL: 'https://lan.example:8443/' })).toBe('lan.example:8443');
+        expect(siteHost({})).toBeNull();
+        expect(siteHost({ NEXTAUTH_URL: 'not a url' })).toBeNull();
     });
 });

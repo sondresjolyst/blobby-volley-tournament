@@ -38,11 +38,11 @@ test('a player challenges another to a 1v1, the other sees it and accepts withou
 
     const form = asker.page.getByRole('region', { name: 'Utfordra någen te 1v1' });
     await expect(form.getByLabel('Først te')).toHaveValue('15');
-    await expect(form.getByLabel('Fart i fps')).toHaveValue('75');
+    await expect(form.getByLabel('Fart', { exact: true })).toHaveValue('75');
     await form.getByLabel('Motstandar').selectOption({ label: `Ub${tag}` });
     await form.getByLabel('Best av').selectOption('3');
     await form.getByLabel('Først te').fill('21');
-    await form.getByLabel('Fart i fps').fill('90');
+    await form.getByLabel('Fart', { exact: true }).fill('90');
     await form.getByRole('button', { name: 'Send utfordring' }).click();
     await expect(asker.page.getByRole('status')).toHaveText('Utfordringå e sendt. Nå e det opp te motstandaren.');
     await expect(asker.page.getByRole('list', { name: 'Utfordringa frå deg' })).toContainText(`Du vente på svar frå Ub${tag}`);
@@ -50,7 +50,7 @@ test('a player challenges another to a 1v1, the other sees it and accepts withou
     // The same pair cannot have two open 1v1 matches.
     await form.getByLabel('Motstandar').selectOption({ label: `Ub${tag}` });
     await form.getByRole('button', { name: 'Send utfordring' }).click();
-    await expect(asker.page.getByRole('alert').filter({ hasText: 'Dåkke har allerede ein open 1v1. Spel ferdig den kampen først.' })).toBeVisible();
+    await expect(asker.page.getByRole('alert').filter({ hasText: 'Dåkke to har allerede ein 1v1 som ikkje e ferdig. Svar på han, eller spel han ferdig først.' })).toBeVisible();
 
     // The asked player still has /me open from the sign-up, and the challenge shows up without a reload.
     const incoming = asked.page.getByRole('list', { name: 'Utfordringa te deg' }).getByRole('listitem').filter({ hasText: `Ua${tag} utfordre deg!` });
@@ -82,7 +82,9 @@ test('a player challenges another to a 1v1, the other sees it and accepts withou
         await expect(hero.getByText('Kopiert!')).toBeVisible();
         expect(await player.page.evaluate(() => navigator.clipboard.readText())).toBe(link);
         // The link still opens the game where the link type is registered.
-        await expect(hero.getByRole('link', { name: 'opne lenkjå direkte' })).toHaveAttribute('href', link);
+        // The direct link sits behind the help button.
+        await hero.getByRole('button', { name: 'Kan eg opna lenkjå direkte?' }).click();
+        await expect(hero.getByRole('link', { name: 'Opne lenkjå direkte' })).toHaveAttribute('href', link);
         await expect(hero.getByRole('list', { name: 'Sånn kjem du inn' }).getByRole('listitem')).toHaveText([
             'Kopier lenkjå med knappen.',
             'Opne Blobby Volley.',
@@ -159,7 +161,7 @@ test('a player sees the bracket of a tournament with the own match marked', asyn
     const { page } = players[0];
     await page.goto(`/bracket?t=${tournamentId}`);
     await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
-    await expect(page.getByText('3 spelara · enkel utslag · tilfeldig oppsett · først te 15 · 75 fps')).toBeVisible();
+    await expect(page.getByText('3 spelara · enkelt utslag · tilfeldig oppsett · først te 15 · 75 fps')).toBeVisible();
     // Three players: one first round match, and the top seed waits in the final.
     await expect(page.getByRole('region', { name: 'Semifinala' }).getByRole('article')).toHaveCount(1);
     const final = page.getByRole('region', { name: 'Finale' }).getByRole('article');

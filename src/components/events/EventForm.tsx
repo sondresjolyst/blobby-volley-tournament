@@ -1,17 +1,18 @@
 import { InfoButton } from '@/components/InfoButton';
+import { NAME_LENGTH_ERROR } from '@/lib/admin-texts';
 import type { EventInput } from '@/lib/events/input';
 import { MAX_FOZA } from '@/lib/foza';
 import { CONTAINER_PORT } from '@/lib/game-server/commands';
 import { EventCodeField } from './EventCodeField';
 
 const EVENT_ERRORS: Record<string, string> = {
-    name: 'The name must be 1 to 100 characters.',
-    dates: 'Give a valid start and end date. The end cannot be before the start.',
+    name: NAME_LENGTH_ERROR,
+    dates: 'Enter a start date and an end date. The end date cannot be before the start date.',
     code: 'The event code must be 8 to 32 letters A to Z, digits or hyphens.',
-    'code-taken': 'Another event already has this event code. Press Generate for a new one.',
+    'code-taken': 'Another event already has this event code. Select Generate for a new one.',
     foza: `Foza amounts must be whole numbers from 0 to ${MAX_FOZA}.`,
-    pin: 'The PIN must be 4 digits.',
-    server: 'Give a game server host, or leave the host and the port empty. The port is from 1 to 65535. The host is a name or an IPv4 address.',
+    pin: 'The new PIN must be 4 digits.',
+    server: 'Enter a game server host and port, or leave both empty. The port must be from 1 to 65535.',
     'server-host':
         'The game server host must be the LAN address of the PC that runs the game server, as four numbers such as 192.168.1.50 or as a name on the LAN. It cannot be localhost, 127.0.0.1 or a web address with http://.',
 };
@@ -44,7 +45,7 @@ export function EventForm({ action, event, submitLabel, suggestedCode = '' }: { 
                 </label>
             </p>
             <EventCodeField initial={event?.code ?? suggestedCode} followName={!event} />
-            <p>Players type this code to join. The big screen shows it next to the QR code.</p>
+            <p>Players enter this code to join. The big screen shows it next to the QR code.</p>
             <p>
                 <label>
                     Starting Foza <input name="startingFoza" type="number" min={0} max={MAX_FOZA} step={1} required defaultValue={event?.startingFoza} />
@@ -55,6 +56,7 @@ export function EventForm({ action, event, submitLabel, suggestedCode = '' }: { 
                     Daily Foza <input name="dailyFoza" type="number" min={0} max={MAX_FOZA} step={1} required defaultValue={event?.dailyFoza} />
                 </label>
             </p>
+            <p className="admin-hint">Each player gets this once a day, from the day after they join.</p>
             <div className="admin-field">
                 <div className="admin-field-label">
                     <label htmlFor="serverHost">Game server host</label>

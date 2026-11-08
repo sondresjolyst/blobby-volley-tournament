@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { connection } from 'next/server';
 import { BigScreen } from '@/components/big-screen/BigScreen';
-import { joinUrl, qrCode } from '@/lib/big-screen/qr';
+import { joinUrl, qrCode, siteHost } from '@/lib/big-screen/qr';
 import { parseScreenType } from '@/lib/big-screen/screens';
 import { getPool } from '@/lib/db';
 import { parseId } from '@/lib/http';
@@ -27,5 +27,5 @@ export default async function BigScreenPage({ searchParams }: { searchParams: Pr
     const keyed = data.eventCode !== null;
     const url = keyed ? joinUrl(process.env) : null;
     const qr = url ? { url, ...qrCode(url) } : null;
-    return <BigScreen initial={data} tournament={tournament} screenKey={keyed && typeof key === 'string' ? key : null} qr={qr} pinned={parseScreenType(screen)} />;
+    return <BigScreen initial={data} tournament={tournament} screenKey={keyed && typeof key === 'string' ? key : null} qr={qr} pinned={parseScreenType(screen)} site={siteHost(process.env)} />;
 }

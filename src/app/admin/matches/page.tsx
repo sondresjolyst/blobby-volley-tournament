@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { AdminShell } from '@/components/admin/AdminShell';
 import { matchOutcome, matchPlayers, matchTitle } from '@/components/matches/describe';
+import { NO_ACTIVE_EVENT } from '@/lib/admin-texts';
 import { requireAdmin } from '@/lib/auth/options';
 import { getPool } from '@/lib/db';
 import { matchErrorMessage, STATE_LABELS } from '@/lib/matches/input';
@@ -26,7 +27,7 @@ export default async function AdminMatches({ searchParams }: { searchParams: Pro
     const called = search.getAll('called');
     const failed = search.getAll('failed').map((value) => {
         const [id, code] = value.split(':');
-        return { id, message: matchErrorMessage(code) ?? 'It could not be called.' };
+        return { id, message: matchErrorMessage(code) ?? 'Could not call this match. Try again.' };
     });
     const formError = matchErrorMessage(search.get('error') ?? undefined);
     return (
@@ -40,7 +41,7 @@ export default async function AdminMatches({ searchParams }: { searchParams: Pro
                 </p>
             ))}
             {!event ? (
-                <p>There is no active event.</p>
+                <p>{NO_ACTIVE_EVENT}</p>
             ) : (
                 <>
                     <p>Event: {event.name}</p>
@@ -87,12 +88,13 @@ export default async function AdminMatches({ searchParams }: { searchParams: Pro
                                 <h2>
                                     {STATE_LABELS[state]} ({inState.length})
                                 </h2>
+                                {state === 'upcoming' && <p>An accepted 1v1 match is called by the site as soon as both players are free.</p>}
                                 {inState.length === 0 ? (
-                                    <p>None.</p>
+                                    <p>No matches.</p>
                                 ) : state === 'upcoming' ? (
                                     <form method="post" action="/api/admin/matches/call">
                                         {table}
-                                        <button type="submit">Call the picked matches</button>
+                                        <button type="submit">Call selected matches</button>
                                     </form>
                                 ) : (
                                     table

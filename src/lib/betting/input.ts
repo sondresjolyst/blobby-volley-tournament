@@ -33,7 +33,7 @@ export function parseAdjustmentForm(form: Record<string, string>): { amount: num
 // Players read these on their own page, which is written in the dialect of the LAN.
 const BET_MESSAGES: Record<string, string> = {
     'not-found': MATCH_NOT_FOUND,
-    closed: 'Spelå på den kampen e stengt.',
+    closed: 'Spelå på den kampen e stengt. Kampen har starta eller e ferdig.',
     event: 'Du kan bare satsa på kampa på LANet du e med på.',
     side: 'Velg ein av dei to spelarane i kampen.',
     switch: 'Du har allerede satsa på den andre. Du kan høgna spelet, men ikkje bytta side.',
@@ -49,8 +49,8 @@ export function betErrorMessage(code: string | string[] | undefined): string | n
 }
 
 const ADJUST_MESSAGES: Record<string, string> = {
-    'foza-form': 'The Foza change must be a whole number other than 0, and the reason 1 to 200 characters.',
-    'foza-balance': 'That would take the balance below 0.',
+    'foza-form': 'Enter a Foza change that is a whole number other than 0, such as 50 or -50, and a reason of up to 200 characters.',
+    'foza-balance': 'The change would take the balance below 0. Enter a smaller amount.',
 };
 
 /** The text for an adjustment error code in the address. Unknown codes show nothing. */

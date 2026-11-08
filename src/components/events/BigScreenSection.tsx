@@ -1,11 +1,12 @@
 import { MAX_SCREEN_SECONDS, MIN_SCREEN_SECONDS, SCREEN_TYPES, type ScreenRotation, type ScreenType } from '@/lib/big-screen/screens';
 import { CopyButton } from '../CopyButton';
+import { InfoButton } from '../InfoButton';
 
 /** Messages for the `?error=` codes of the big screen forms. */
 export function bigScreenErrorMessage(code: string | string[] | undefined): string | null {
     switch (code) {
         case 'bigScreenConfirm':
-            return 'Check the box to confirm the new big screen key.';
+            return 'Select the check box, then select Make a new key.';
         case 'bigScreenNone':
             return 'Turn on at least one screen for the big screen.';
         case 'bigScreenSeconds':
@@ -21,7 +22,7 @@ export const SCREEN_INFO: Record<ScreenType, { name: string; shows: string }> = 
     bracket: { name: 'Bracket', shows: 'Every round of the bracket, large.' },
     foza: { name: 'Foza', shows: 'The bettors with the most Foza won and the biggest single wins.' },
     next: { name: 'Up next', shows: 'The matches on the floor with their live score, then the next ones in order.' },
-    stats: { name: 'Stats', shows: 'Records such as the most wins, the biggest win and the longest match. Records with nothing to show are left out.' },
+    stats: { name: 'Stats', shows: 'Records such as the most wins, the biggest game win and the longest match. Records with nothing to show are left out.' },
     sponsors: { name: 'Sponsors', shows: 'Every sponsor logo, full screen.' },
     winner: { name: 'Winner', shows: 'The champion and the final. Only once a tournament has a winner.' },
 };
@@ -37,11 +38,15 @@ function RotationForm({ eventId, rotation }: { eventId: number; rotation: Screen
     return (
         <>
             <h3 id="big-screen-rotation">Screens</h3>
-            <p>
-                The big screen takes turns on the screens that are on, in order. With one screen on, it stays there. A screen with nothing to show yet is skipped. Changes reach an
-                open big screen within a few seconds, without a reload. To keep one TV on one screen whatever the turns are, add <code>&amp;screen=</code> and the code of the screen to its
-                address, such as <code>&amp;screen=bracket</code>.
-            </p>
+            <div className="admin-field-label">
+                <p>The big screen shows the screens you use, in order. A screen with nothing to show is skipped.</p>
+                <InfoButton label="Keep a TV on one screen">
+                    <p>
+                        To keep one TV on one screen, add <code>&amp;screen=</code> and the code of the screen to its address, such as <code>&amp;screen=bracket</code>.
+                    </p>
+                    <p>With one screen in use, the big screen stays there. Changes reach an open big screen within a few seconds, without a reload.</p>
+                </InfoButton>
+            </div>
             <form method="post" action={`/api/admin/events/${eventId}/big-screen-rotation`}>
                 <div className="admin-table">
                     <table>
@@ -81,7 +86,7 @@ function RotationForm({ eventId, rotation }: { eventId: number; rotation: Screen
                         Seconds on each screen{' '}
                         <input type="number" name="seconds" min={MIN_SCREEN_SECONDS} max={MAX_SCREEN_SECONDS} step={1} defaultValue={rotation.seconds} required />
                     </label>{' '}
-                    <button type="submit">Set screens</button>
+                    <button type="submit">Save screens</button>
                 </p>
             </form>
         </>
@@ -108,9 +113,9 @@ export function BigScreenSection({ eventId, address, isActive, rotation }: { eve
             </p>
             <form method="post" action={`/api/admin/events/${eventId}/big-screen-key`}>
                 <label>
-                    <input type="checkbox" name="confirm" value="yes" required /> The old address stops showing the join card
+                    <input type="checkbox" name="confirm" value="yes" required /> I understand the old address stops showing the join card
                 </label>{' '}
-                <button type="submit">New key</button>
+                <button type="submit">Make a new key</button>
             </form>
             <RotationForm eventId={eventId} rotation={rotation} />
         </section>

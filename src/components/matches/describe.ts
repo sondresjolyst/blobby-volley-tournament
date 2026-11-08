@@ -1,18 +1,19 @@
 import { roundName } from '@/lib/bracket';
 import type { MatchGame, MatchSummary } from '@/lib/store/matches';
 import { boardRoundName } from '@/lib/tournaments/board';
+import { NOT_DECIDED } from '@/lib/texts';
 
 /** Who reads the text: admins in English, or players in the Rogaland dialect of the LAN. */
 export type Reader = 'admin' | 'player';
 
 const WORDS = {
     admin: { oneVsOne: '1v1', separator: ', ', match: 'match', open: 'To be decided', round: roundName },
-    player: { oneVsOne: '1v1-utfordring', separator: ' · ', match: 'kamp', open: 'Ikkje klart enno', round: boardRoundName },
+    player: { oneVsOne: '1v1', separator: ' · ', match: 'kamp', open: NOT_DECIDED, round: boardRoundName },
 } as const;
 
 /**
  * Such as `Friday cup, Final, match 1` for an admin or `Hovedcupen · Semifinala, kamp 1` for a
- * player. A standalone match is `1v1` or `1v1-utfordring`.
+ * player. A standalone match is `1v1` for both.
  */
 export function matchTitle(match: Pick<MatchSummary, 'tournamentName' | 'bracketRound'>, reader: Reader): string {
     const words = WORDS[reader];

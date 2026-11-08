@@ -39,7 +39,7 @@ test('an admin adds, orders, turns off and deletes sponsors, and the footer and 
     await expect(board).toHaveValue('off');
     expect((await readSponsors(request)).gameBoard).toBe('off');
     await board.selectOption({ label: 'Dark LED with metal frame' });
-    await page.getByRole('button', { name: 'Change board' }).click();
+    await page.getByRole('button', { name: 'Save board' }).click();
     await expect(page.getByRole('status')).toHaveText('Saved the sponsor board.');
     await expect(board).toHaveValue('led');
 
@@ -80,7 +80,7 @@ test('an admin adds, orders, turns off and deletes sponsors, and the footer and 
     const home = await page.context().browser()!.newContext({ baseURL: process.env.E2E_BASE_URL });
     const homePage = await home.newPage();
     await homePage.goto('/');
-    const footer = homePage.getByRole('contentinfo', { name: 'Sponsora' });
+    const footer = homePage.getByRole('contentinfo', { name: 'Stolt sponsa av' });
     await expect(footer.getByRole('link', { name: first })).toHaveAttribute('href', `https://${tag}.example.test/acme`);
     await expect.poll(() => footer.getByRole('img', { name: first }).evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(300);
     const alts = await footer.getByRole('img').evaluateAll((imgs) => imgs.map((img) => img.getAttribute('alt')));
@@ -109,7 +109,7 @@ test('an admin adds, orders, turns off and deletes sponsors, and the footer and 
     // With the board off the game gets no sponsors and a new version, but the footer keeps them.
     const onVersion = sync.sponsorsVersion;
     await board.selectOption('off');
-    await page.getByRole('button', { name: 'Change board' }).click();
+    await page.getByRole('button', { name: 'Save board' }).click();
     await expect(page.getByRole('status')).toHaveText('Saved the sponsor board.');
     sync = await readSponsors(request);
     expect(sync).toMatchObject({ eventId: expect.any(Number), gameBoard: 'off', sponsors: [] });
@@ -117,7 +117,7 @@ test('an admin adds, orders, turns off and deletes sponsors, and the footer and 
     await homePage.goto('/');
     await expect(footer.getByRole('img', { name: first })).toBeVisible();
     await board.selectOption({ label: 'Wooden beach bar' });
-    await page.getByRole('button', { name: 'Change board' }).click();
+    await page.getByRole('button', { name: 'Save board' }).click();
     await expect(page.getByRole('status')).toHaveText('Saved the sponsor board.');
     sync = await readSponsors(request);
     expect(sync.gameBoard).toBe('wood');
@@ -149,7 +149,7 @@ test('an admin adds, orders, turns off and deletes sponsors, and the footer and 
     await editForm.getByLabel('Link').fill('');
     await editForm.getByRole('radio', { name: 'Colour' }).check();
     await editForm.getByLabel('Colour of the background').fill('#ffe9b0');
-    await editForm.getByRole('button', { name: 'Save' }).click();
+    await editForm.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(page.getByRole('status')).toHaveText(`Saved the sponsor ${second}.`);
     await page.getByRole('button', { name: `Edit ${second}` }).click();
     await expect(editForm.getByRole('radio', { name: 'Colour' })).toBeChecked();
@@ -173,7 +173,7 @@ test('an admin adds, orders, turns off and deletes sponsors, and the footer and 
     for (const name of [first, second]) {
         await page.getByRole('button', { name: `Remove ${name}` }).click();
         await page.getByRole('group', { name: `Remove ${name}?` }).getByRole('button', { name: 'Yes, remove' }).click();
-        await expect(page.getByRole('status')).toHaveText('The sponsor is removed from this event. It stays in the sponsor library.');
+        await expect(page.getByRole('status')).toHaveText('Removed the sponsor from this event. It is still in the sponsor library.');
     }
     await expect(page).toHaveURL(/\/admin\/events\/\d+\?sponsorDeleted=1#sponsors$/);
     sync = await readSponsors(request);
@@ -191,7 +191,7 @@ test('an admin adds a sponsor to the library, puts it on the event, and it shows
     await page.getByRole('button', { name: 'Add sponsor' }).click();
     const form = page.getByRole('form', { name: 'Add a sponsor' });
     // The library has no Shown box. That belongs to each event.
-    await expect(form.getByLabel('Shown on the site and in the game')).toHaveCount(0);
+    await expect(form.getByLabel('Shown on the site, on the big screen and in the game')).toHaveCount(0);
     await form.getByLabel('Name').fill(name);
     await form.getByLabel('Link').fill(`https://${tag}.example.test/`);
     await form.getByLabel('Logo').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: await png(300, 100, '#2a6fdb') });
@@ -215,7 +215,7 @@ test('an admin adds a sponsor to the library, puts it on the event, and it shows
     const home = await page.context().browser()!.newContext({ baseURL: process.env.E2E_BASE_URL });
     const homePage = await home.newPage();
     await homePage.goto('/');
-    const footer = homePage.getByRole('contentinfo', { name: 'Sponsora' });
+    const footer = homePage.getByRole('contentinfo', { name: 'Stolt sponsa av' });
     await expect(footer.getByRole('link', { name })).toHaveAttribute('href', `https://${tag}.example.test/`);
 
     // The library cannot delete it while the event uses it. Removing it from the event keeps it in the library.

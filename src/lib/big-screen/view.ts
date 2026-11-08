@@ -46,7 +46,7 @@ export interface ScreenSide {
 export interface ScreenMatch {
     matchId: number;
     state: MatchState;
-    /** Such as `Semifinala, kamp 1`, or `1v1-utfordring`. */
+    /** Such as `Semifinala, kamp 1`, or `1v1`. */
     label: string;
     tournamentName: string | null;
     bestOf: number;
@@ -231,7 +231,7 @@ export function pickTournament(tournamentIds: readonly number[], matches: readon
 
 function label(match: MatchSummary): string {
     const round = match.bracketRound;
-    if (round === null) return '1v1-utfordring';
+    if (round === null) return '1v1';
     return `${boardRoundName(round.format, round.section, round.round, round.lastRound)}, kamp ${round.position}`;
 }
 

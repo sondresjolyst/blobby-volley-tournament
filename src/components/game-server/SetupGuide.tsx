@@ -37,7 +37,7 @@ export function FirstTimeSetup({ port }: { port: number }) {
                     Linux, install <a href={DOCKER_ENGINE}>Docker Engine</a>. Check that <code>docker info</code> works.
                 </li>
                 <li>
-                    On Windows, open UDP port {port} in the Windows firewall. Run this in PowerShell as administrator. This holds with WSL too, since Docker Desktop opens the port on
+                    On Windows, open UDP port {port} in the Windows firewall. Run this in PowerShell as administrator. This also applies with WSL, since Docker Desktop opens the port on
                     Windows. On Linux, Docker opens the port itself.
                     <p className="admin-command">
                         <code>{firewall}</code> <CopyButton text={firewall} label="Copy firewall command" noun="command" />
@@ -65,7 +65,7 @@ export function OtherWays({ token, siteUrl, port, image }: { token: string | nul
                         <a href={script.href}>Start script for {script.system}</a>
                         {[
                             { label: 'Download', key: 'download', command: script.download },
-                            ...(script.image ? [{ label: 'Then, in the same window, pick the server of this site', key: 'image', command: script.image }] : []),
+                            ...(script.image ? [{ label: 'Then, in the same window, set the server image of this site', key: 'image', command: script.image }] : []),
                             { label: 'Start', key: 'start', command: script.command },
                             { label: 'Update', key: 'update', command: script.update },
                             { label: 'New token', key: 'new token', command: script.setToken },

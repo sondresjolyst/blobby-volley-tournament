@@ -17,7 +17,7 @@ import { getPlacings, listMatches } from '@/lib/store/matches';
 import { getTournament, listTournaments } from '@/lib/store/tournaments';
 import { buildBoard } from '@/lib/tournaments/board';
 
-const FORMAT_NAMES: Record<FormatId, string> = { single_elimination: 'enkel utslag', double_elimination: 'dobbel utslag' };
+const FORMAT_NAMES: Record<FormatId, string> = { single_elimination: 'enkelt utslag', double_elimination: 'dobbelt utslag' };
 const SEEDING_NAMES: Record<SeedingMethod, string> = { random: 'tilfeldig oppsett', manual: 'handplukka oppsett', elo: 'oppsett etter Elo' };
 
 export default async function BracketPage({ searchParams }: { searchParams: Promise<{ t?: string | string[] }> }) {

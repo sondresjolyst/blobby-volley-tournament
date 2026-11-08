@@ -1,5 +1,7 @@
 import { AdminShell } from '@/components/admin/AdminShell';
 import { BracketView } from '@/components/tournaments/BracketView';
+import { NO_ACTIVE_EVENT } from '@/lib/admin-texts';
+import { InfoButton } from '@/components/InfoButton';
 import { requireAdmin } from '@/lib/auth/options';
 import { BEST_OF, FORMATS, type PlannedBracket } from '@/lib/bracket';
 import { getPool } from '@/lib/db';
@@ -37,7 +39,7 @@ export default async function NewTournament({ searchParams }: { searchParams: Pr
         return (
             <AdminShell section="tournaments">
                 <h1>New tournament</h1>
-                <p>There is no active event. Set an event active first.</p>
+                <p>{NO_ACTIVE_EVENT}</p>
             </AdminShell>
         );
     }
@@ -91,7 +93,7 @@ export default async function NewTournament({ searchParams }: { searchParams: Pr
                     </label>
                 </p>
                 <p>Without a third place match, both semifinal losers share 3rd place.</p>
-                <p>
+                <div className="admin-field-label">
                     <label>
                         Seeding{' '}
                         <select name="seeding" defaultValue={value('seeding') || 'random'}>
@@ -102,10 +104,16 @@ export default async function NewTournament({ searchParams }: { searchParams: Pr
                             ))}
                         </select>
                     </label>
-                </p>
+                    <InfoButton label="How By Elo rating works">
+                        <p>
+                            Seeding by Elo rating puts the highest rating first. It uses the ratings when you save, so a match that ends after the preview can change the seeds. Equal
+                            ratings go in the order the players signed up in.
+                        </p>
+                    </InfoButton>
+                </div>
                 <p>
                     <label>
-                        Random seed <input name="randomSeed" inputMode="numeric" pattern="[0-9]{1,10}" required defaultValue={randomSeed} />
+                        Random seed (for Random only) <input name="randomSeed" inputMode="numeric" pattern="[0-9]{1,10}" required defaultValue={randomSeed} />
                     </label>
                 </p>
                 <p>
@@ -119,7 +127,6 @@ export default async function NewTournament({ searchParams }: { searchParams: Pr
                     </label>
                 </p>
                 <p>75 frames per second is the normal speed of the game.</p>
-                <p>Seeding by Elo rating puts the highest rating first. It uses the ratings when you save, so a match that ends after the preview can change the seeds. Equal ratings go in the order the players signed up in.</p>
 
                 <fieldset>
                     <legend>Players</legend>
@@ -130,8 +137,8 @@ export default async function NewTournament({ searchParams }: { searchParams: Pr
                             <table>
                                 <thead>
                                     <tr>
-                                        <th>Play</th>
-                                        <th>Seed when seeding by hand</th>
+                                        <th>In the tournament</th>
+                                        <th>Seed (by hand only)</th>
                                         <th>Elo rating</th>
                                     </tr>
                                 </thead>
@@ -213,7 +220,7 @@ export default async function NewTournament({ searchParams }: { searchParams: Pr
             {plan && draft && (
                 <>
                     <h2>Preview</h2>
-                    <p>After a change, press Preview again to see the bracket that Save stores.</p>
+                    <p>After a change, select Preview again. Save tournament stores the bracket shown here.</p>
                     <h3>Seeds</h3>
                     <ol>
                         {plan.seeds.map((id) => (

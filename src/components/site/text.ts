@@ -1,7 +1,7 @@
 // The words of the front page and the parts every page shares, in the jokey Rogaland dialect of the LAN.
 
 /** The label of every sponsor strip, on the big screen and under the pages. */
-export const SPONSORS_LABEL = 'Sponsora';
+export const SPONSORS_LABEL = 'Stolt sponsa av';
 
 const DAY = new Intl.DateTimeFormat('nb-NO', { day: 'numeric', timeZone: 'UTC' });
 const DAY_MONTH = new Intl.DateTimeFormat('nb-NO', { day: 'numeric', month: 'long', timeZone: 'UTC' });

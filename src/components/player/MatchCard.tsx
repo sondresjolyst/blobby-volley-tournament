@@ -4,7 +4,8 @@ import { nicknameOf } from '@/lib/stats/players';
 import { InfoLabel } from '../InfoButton';
 import { FIELD_INFO } from './info';
 import styles from './player.module.css';
-import { calledText, STATE_TAGS } from '@/lib/tournaments/board';
+import { BETS_OPEN, calledText, STATE_TAGS } from '@/lib/tournaments/board';
+import { NOT_DECIDED } from '@/lib/texts';
 import { matchTitle } from '../matches/describe';
 import { foza, matchSettings, payout } from './text';
 
@@ -22,9 +23,9 @@ function tagOf(match: MatchSummary, open: boolean): { text: string; live: boolea
     if (match.state === 'started') return { text: 'LIVE · spelå e stengt', live: true };
     if (match.state === 'called') {
         const called = calledText(match.tournamentId !== null).tag;
-        return { text: open ? `${called} · spel opent` : called, live: true };
+        return { text: open ? `${called} · ${BETS_OPEN.toLowerCase()}` : called, live: true };
     }
-    return { text: open ? 'Spel opent' : STATE_TAGS.upcoming, live: false };
+    return { text: open ? BETS_OPEN : STATE_TAGS.upcoming, live: false };
 }
 
 const percent = (part: number, total: number) => (total === 0 ? 50 : Math.round((part / total) * 100));
@@ -34,7 +35,7 @@ export function MatchCard({ match, pool, viewerId, balance, bet }: CardProps) {
     const open = pool?.open ?? false;
     const mine = match.players.some((p) => p?.id === viewerId);
     const tag = tagOf(match, open);
-    const name = (slot: 0 | 1) => match.players[slot]?.nickname ?? 'Ikkje klart enno';
+    const name = (slot: 0 | 1) => match.players[slot]?.nickname ?? NOT_DECIDED;
     const sides = pool?.sides ?? [];
     const nickname = nicknameOf(new Map(match.players.flatMap((p) => (p ? [[p.id, p.nickname] as const] : []))));
     return (
@@ -51,7 +52,7 @@ export function MatchCard({ match, pool, viewerId, balance, bet }: CardProps) {
             </p>
             {match.state === 'started' && (
                 <p className={styles.meta}>
-                    Stilling {match.score1}-{match.score2}
+                    Stilling {match.score1}–{match.score2}
                 </p>
             )}
             {sides.length === 2 && (
@@ -61,7 +62,7 @@ export function MatchCard({ match, pool, viewerId, balance, bet }: CardProps) {
                     </div>
                     <div className={styles.poolText}>
                         <span>
-                            {pool!.total === 0 ? 'Ingen har satsa enno' : `${percent(sides[0].stake, pool!.total)} % av ${foza(pool!.total)}`}
+                            {pool!.total === 0 ? 'Ingen har satsa ennå' : `${percent(sides[0].stake, pool!.total)} % av ${foza(pool!.total)}`}
                         </span>
                         {pool!.total > 0 && <span>{percent(sides[1].stake, pool!.total)} %</span>}
                     </div>
@@ -71,7 +72,7 @@ export function MatchCard({ match, pool, viewerId, balance, bet }: CardProps) {
                 <form method="post" action="/api/player/bets" className={styles.betForm}>
                     <fieldset>
                         <legend className={styles.srOnly}>
-                            Sats på {name(0)} vs {name(1)}
+                            Sats på {name(0)} mot {name(1)}
                         </legend>
                         {bet && (
                             <p className={styles.meta}>

@@ -5,5 +5,17 @@ export const MATCH_NOT_FOUND = 'Den kampen fins ikkje.';
 
 export const SOMETHING_WENT_WRONG = 'Någe gjekk gale. Prøv igjen.';
 
+/** A player slot that is not filled yet. */
+export const NOT_DECIDED = 'Ikkje klart ennå';
+
+/** The heading when no event is open. */
+export const NO_LAN = 'Ingen LAN e i gang';
+
+/** Who opens an event. */
+export const ADMIN_OPENS_LAN = 'Ein admin må opna eit LAN før någen kan bli med.';
+
+/** Why nobody can sign up while no event is open. */
+export const NO_LAN_OPEN = `Ingen LAN e opent akkurat nå. ${ADMIN_OPENS_LAN}`;
+
 /** The GitHub sign-in of an admin failed. */
 export const GITHUB_SIGN_IN_FAILED = 'Innloggingå med GitHub gjekk ikkje.';

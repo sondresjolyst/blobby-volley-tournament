@@ -20,13 +20,13 @@ export default async function SponsorLibrary({ searchParams }: { searchParams: P
     return (
         <AdminShell section="sponsors">
             <h1>Sponsor library</h1>
-            <p>Add a sponsor here once, then add it to any event from the sponsors of that event.</p>
+            <p>Add a sponsor here once. Then add it to any event under Sponsors on the event page.</p>
             {error && <p role="alert">{error}</p>}
             {saved && <p role="status">Saved the sponsor {saved.name}.</p>}
             {search.deleted === '1' && <p role="status">The sponsor is deleted from the library.</p>}
             {sponsors.length >= MAX_LIBRARY_SPONSORS && (
                 <p role="note">
-                    The library holds {sponsors.length} sponsors. A new sponsor can be added while it holds fewer than {MAX_LIBRARY_SPONSORS}. Delete sponsors that no event uses first.
+                    The library is full at {sponsors.length} sponsors. To add a new one, delete a sponsor that no event uses.
                 </p>
             )}
             {sponsors.length === 0 ? <p>No sponsors yet.</p> : <LibraryCards sponsors={sponsors} />}

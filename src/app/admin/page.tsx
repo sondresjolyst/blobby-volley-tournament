@@ -10,14 +10,14 @@ export default async function Admin() {
     const waiting = await listAwaitingDecision(getPool());
     return (
         <AdminShell section="home">
-            <h1>Admin</h1>
+            <h1>Overview</h1>
             <section aria-labelledby="waiting">
                 <h2 id="waiting">Waiting for a decision</h2>
                 {waiting.length === 0 ? (
-                    <p>No match waits for a decision.</p>
+                    <p>No matches are waiting for a decision.</p>
                 ) : (
                     <>
-                        <p>The game server stopped these games without a winner. Open a match to restart the game from 0-0 or award it.</p>
+                        <p>The game server stopped these games without a winner. Go to the match to restart the game from 0-0 or enter the result.</p>
                         <div className="admin-table">
                             <table>
                                 <thead>

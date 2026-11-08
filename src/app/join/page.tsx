@@ -18,7 +18,7 @@ export default async function Join({ searchParams }: { searchParams: Promise<{ e
     const message = errorMessage(error);
     if (!event) return <NoEvent />;
     return (
-        <AuthPage title={event.name} intro={`Velg deg eit kallenavn, så får du ${foza(event.startingFoza)} å spela for. Finn fram nædæ og ostepoppen!`}>
+        <AuthPage title={event.name} intro={`Velg deg eit kallenavn, så får du ${foza(event.startingFoza)} å satsa. Finn fram nædæ og ostepoppen!`}>
             {message && (
                 <p role="alert" className={s.authAlert}>
                     {message}
@@ -43,7 +43,7 @@ export default async function Join({ searchParams }: { searchParams: Promise<{ e
                     </InfoLabel>
                     <input id="nickname" name="nickname" required maxLength={NICKNAME_MAX_BYTES} autoComplete="nickname" aria-describedby="nickname-hint nickname-help" className={s.authInput} />
                     <span id="nickname-hint" className={s.authHint}>
-                        Vises i spelet og på storskjermen. Maks 15 teikn, og æ, ø og å tel som 2.
+                        Maks 15 teikn. Æ, ø og å tel som 2.
                     </span>
                 </div>
                 <div className={s.authField}>

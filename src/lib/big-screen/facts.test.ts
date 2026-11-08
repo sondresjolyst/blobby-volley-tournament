@@ -80,7 +80,7 @@ describe('screenFacts', () => {
             { key: 'biggestWin', label: 'Største seier i eit sett', value: '15–0', who: 'Ostebit mot Skvett' },
             { key: 'comeback', label: 'Største snuoperasjon', value: '0–1 te 2–1', who: 'Skvett mot Ostebit' },
             { key: 'longest', label: 'Lengste kamp', value: '31 min', who: 'Skvett mot Ostebit' },
-            { key: 'streak', label: 'Lengste rekke', value: '3 på rad', who: 'Skvett' },
+            { key: 'streak', label: 'Lengste rekke', value: '3 seira på rad', who: 'Skvett' },
             { key: 'points', label: 'Flest poeng', value: `${new Intl.NumberFormat('nb-NO').format(1234)} poeng`, who: 'Skvett' },
         ]);
     });
