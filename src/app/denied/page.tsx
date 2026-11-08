@@ -7,7 +7,7 @@ export default function Denied() {
         <AuthPage title="Ikkje tilgang" adminLink={false}>
             <p className={s.authText}>Den GitHub-kontoen har ikkje tilgang te admin. Logg inn med ein annan konto, eller be ein admin om å legga deg te.</p>
             <p className={s.authSwitch}>
-                <Link href="/login">Tebake te innlogginga</Link>
+                <Link href="/login">Tebake te innloggingå</Link>
             </p>
         </AuthPage>
     );

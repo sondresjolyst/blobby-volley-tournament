@@ -31,7 +31,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ id
         <main lang="nn" className={styles.page}>
             {stamp !== null && <LiveRefresh eventId={player.eventId} stamp={stamp} />}
             <p>
-                <Link href={back}>Tebake te topplista</Link>
+                <Link href={back}>Tebake te topplistå</Link>
             </p>
             <h1 className={styles.title}>{player.nickname}</h1>
             <p className={styles.subtitle}>Statistikk frå {player.eventName}</p>
@@ -41,16 +41,16 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ id
                     <dt>Elo</dt>
                     <dd>
                         <span className={styles.factValue}>{shownRating(elo.rating)}</span>
-                        {ratingChange(elo.start, elo.rating)} dette LANet
+                        {ratingChange(elo.start, elo.rating)} på dette LANet
                     </dd>
                 </div>
                 <div className={styles.fact}>
-                    <dt>Kampar</dt>
+                    <dt>Kampa</dt>
                     <dd>
                         <span className={styles.factValue}>
                             {stats?.matchesWon ?? 0}-{stats?.matchesLost ?? 0}
                         </span>
-                        {stats ? `${percent(stats.winRate)} vunne` : 'Ingen kampar enno'}
+                        {stats ? `${percent(stats.winRate)} vunne` : 'Ingen kampa enno'}
                     </dd>
                 </div>
                 <div className={styles.fact}>
@@ -64,21 +64,21 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ id
                     <dt>Lengste rekke</dt>
                     <dd>
                         <span className={styles.factValue}>{stats?.longestStreak ?? 0}</span>
-                        {stats?.longestStreak === 1 ? 'siger på rad' : 'sigra på rad'}
+                        {stats?.longestStreak === 1 ? 'seier på rad' : 'seira på rad'}
                     </dd>
                 </div>
             </dl>
 
             <section aria-labelledby="kampar" className={styles.section}>
                 <h2 id="kampar" className={styles.heading}>
-                    Kampar
+                    Kampa
                 </h2>
                 {stats ? (
                     <div className={styles.tableWrap}>
                         <table className={styles.table}>
                             <tbody>
                                 <tr>
-                                    <th scope="row">Kampar vunne og tapt</th>
+                                    <th scope="row">Kampa vunne og tapt</th>
                                     <td>
                                         {stats.matchesWon} vunne · {stats.matchesLost} tapt
                                     </td>
@@ -107,16 +107,16 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ id
                         </table>
                     </div>
                 ) : (
-                    <p className={styles.empty}>Ingen ferdigspelte kampar enno. Ut på banen!</p>
+                    <p className={styles.empty}>Ingen ferdigspelte kampa enno. Ut på banen!</p>
                 )}
             </section>
 
             <section aria-labelledby="plasseringar" className={styles.section}>
                 <h2 id="plasseringar" className={styles.heading}>
-                    Plasseringar
+                    Plasseringa
                 </h2>
                 {placings.length === 0 ? (
-                    <p className={styles.empty}>Ingen plasseringar enno.</p>
+                    <p className={styles.empty}>Ingen plasseringa enno.</p>
                 ) : (
                     <ul className={styles.plainList}>
                         {placings.map((p) => (
@@ -133,7 +133,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ id
                     Mot kvar motstandar
                 </h2>
                 {!stats || stats.headToHead.length === 0 ? (
-                    <p className={styles.empty}>Ingen motstandarar enno.</p>
+                    <p className={styles.empty}>Ingen motstandara enno.</p>
                 ) : (
                     <div className={styles.tableWrap}>
                         <table className={styles.table}>

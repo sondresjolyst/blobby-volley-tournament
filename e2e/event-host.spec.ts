@@ -37,7 +37,7 @@ test('an admin moves the game server to another PC and the join link follows at 
     const asker = await signUp(browser, `Ha${tag}`);
     const asked = await signUp(browser, `Hb${tag}`);
     await asker.page.goto('/me');
-    const form = asker.page.getByRole('region', { name: 'Utfordra nogen te 1v1' });
+    const form = asker.page.getByRole('region', { name: 'Utfordra någen te 1v1' });
     await form.getByLabel('Motstandar').selectOption({ label: `Hb${tag}` });
     await form.getByRole('button', { name: 'Send utfordring' }).click();
     await asked.page.goto('/me');
@@ -48,10 +48,10 @@ test('an admin moves the game server to another PC and the join link follows at 
         .getByRole('button', { name: 'Godta' })
         .click();
     // Both players are free, so the match is called as soon as it is accepted.
-    await expect(asked.page.getByRole('heading', { name: 'Kampen din e ropt opp!' })).toBeVisible();
+    await expect(asked.page.getByRole('heading', { name: 'Kampen din e klar!' })).toBeVisible();
 
     await asker.page.goto('/me');
-    const hero = asker.page.getByRole('region', { name: 'Kampen din e ropt opp!' });
+    const hero = asker.page.getByRole('region', { name: 'Kampen din e klar!' });
     await expect(hero.getByRole('link', { name: 'opne lenkjå direkte' })).toHaveAttribute('href', /^blobby:\/\/join\?server=e2e-server\.lan:1234&code=/);
 
     await page.goto('/admin/events');

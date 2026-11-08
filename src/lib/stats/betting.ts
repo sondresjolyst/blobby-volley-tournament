@@ -64,6 +64,11 @@ export function bettorStats(bets: readonly SettledBet[]): Map<number, BettorStat
     return all;
 }
 
+/** The most Foza won net first, then the most correct bets. The Foza boards rank by this. */
+export function compareNet(a: BettorStats, b: BettorStats): number {
+    return b.net - a.net || compareCorrect(a, b);
+}
+
 /** Most correct bets first, then the best hit rate, then the most Foza won net. */
 export function compareCorrect(a: BettorStats, b: BettorStats): number {
     return b.correct - a.correct || b.hitRate - a.hitRate || b.net - a.net;

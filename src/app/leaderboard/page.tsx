@@ -11,10 +11,11 @@ import { listEvents, type EventRow } from '@/lib/store/events';
 import { liveStamp } from '@/lib/store/live';
 import { getLeaderboard, type Leaderboard } from '@/lib/store/stats';
 import { listTournaments } from '@/lib/store/tournaments';
+import { BOARD_TEXT } from '@/components/big-screen/text';
 
 type Search = Record<string, string | string[] | undefined>;
 
-const BOARDS = { foza: 'Foza', sigra: 'Sigra', elo: 'Elo' } as const;
+const BOARDS = { foza: 'Foza', sigra: 'Seira', elo: 'Elo' } as const;
 type Board = keyof typeof BOARDS;
 
 const one = (value: string | string[] | undefined) => (typeof value === 'string' ? value : '');
@@ -42,10 +43,10 @@ interface Row {
 }
 
 function rowsFor(board: Board, data: Leaderboard): Row[] {
-    const where = data.tournamentId === null ? 'dette LANet' : 'i denne turneringa';
+    const where = data.tournamentId === null ? 'på dette LANet' : 'i denne turneringå';
     switch (board) {
         case 'foza':
-            return data.bettors.map((b) => ({ playerId: b.playerId, detail: `${b.correct} av ${b.bets} spel rett · ${percent(b.hitRate)}`, value: `${b.correct} rette` }));
+            return data.bettors.map((b) => ({ playerId: b.playerId, detail: `${b.correct} av ${b.bets} spel rett · ${percent(b.hitRate)}`, value: signed(b.net) }));
         case 'sigra':
             return data.wins.map((s) => ({ playerId: s.playerId, detail: `${s.matchesWon} vunne · ${s.matchesLost} tapt · ${percent(s.winRate)}`, value: String(s.matchesWon) }));
         case 'elo':
@@ -58,9 +59,9 @@ function rowsFor(board: Board, data: Leaderboard): Row[] {
 }
 
 const EMPTY: Record<Board, string> = {
-    foza: 'Ingen spel e avgjort enno. Sett nokke Foza på ein kamp, då!',
-    sigra: 'Ingen kampar e ferdigspelt enno. Det tar seg opp, sjå.',
-    elo: 'Ingen spelarar her enno.',
+    foza: BOARD_TEXT.foza.empty,
+    sigra: BOARD_TEXT.sigra.empty,
+    elo: BOARD_TEXT.elo.empty,
 };
 
 /** The leaderboards of the active event, or of a past one, for the whole event or one tournament. */
@@ -101,7 +102,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
     const scorer = [...data.wins].sort((a, b) => b.pointsScored - a.pointsScored)[0];
     const facts = [
         biggest && { label: 'Største gevinst', value: signed(biggest.biggestWin!.value), who: `${name(biggest.playerId)} på ${name(biggest.biggestWin!.onPlayerId)}` },
-        streak && streak.longestStreak > 0 && { label: 'Lengste rekke', value: `${streak.longestStreak} ${streak.longestStreak === 1 ? 'siger' : 'sigra'}`, who: name(streak.playerId) },
+        streak && streak.longestStreak > 0 && { label: 'Lengste rekke', value: `${streak.longestStreak} ${streak.longestStreak === 1 ? 'seier' : 'seira'}`, who: name(streak.playerId) },
         bestOdds && { label: 'Beste odds truffe', value: odds(bestOdds.bestOdds!.value), who: name(bestOdds.playerId) },
         scorer && { label: 'Poeng scora', value: number(scorer.pointsScored), who: name(scorer.playerId) },
     ].filter((f) => !!f);
@@ -147,7 +148,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
 
             <div className={styles.columns}>
                 <section aria-label={`Toppliste ${BOARDS[board]}`}>
-                    {board === 'foza' && <p className={styles.subtitle}>Flest rette spel vinn. Kor mykje Foza du har, bryr me oss ikkje om her.</p>}
+                    {board === 'foza' && <p className={styles.subtitle}>Den som har vunne mest Foza på spel, ligg øvst.</p>}
                     {rows.length === 0 ? (
                         <p className={styles.empty}>{EMPTY[board]}</p>
                     ) : (
@@ -187,7 +188,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
                     )}
                     <section aria-labelledby="fakta" className={podium.length > 0 ? styles.section : undefined}>
                         <h2 id="fakta" className={styles.heading}>
-                            Morosame fakta
+                            Gjæve fakta
                         </h2>
                         {facts.length === 0 ? (
                             <p className={styles.empty}>Ingen fakta enno. Dei kjem når ballen fyk.</p>
@@ -242,12 +243,12 @@ function AllNumbers({ board, data, name }: { board: Board; data: Leaderboard; na
                     <thead>
                         <tr>
                             <th scope="col">Spelar</th>
+                            <th scope="col">Netto</th>
                             <th scope="col">Rette</th>
                             <th scope="col">Spel</th>
                             <th scope="col">Treff</th>
                             <th scope="col">Foza vunne</th>
                             <th scope="col">Foza tapt</th>
-                            <th scope="col">Netto</th>
                             <th scope="col">Største gevinst</th>
                             <th scope="col">Beste odds</th>
                         </tr>
@@ -256,12 +257,12 @@ function AllNumbers({ board, data, name }: { board: Board; data: Leaderboard; na
                         {data.bettors.map((b) => (
                             <tr key={b.playerId}>
                                 <td>{name(b.playerId)}</td>
+                                <td>{signed(b.net)}</td>
                                 <td>{b.correct}</td>
                                 <td>{b.bets}</td>
                                 <td>{percent(b.hitRate)}</td>
                                 <td>{number(b.fozaWon)}</td>
                                 <td>{number(b.fozaLost)}</td>
-                                <td>{signed(b.net)}</td>
                                 <td>{b.biggestWin ? signed(b.biggestWin.value) : ''}</td>
                                 <td>{b.bestOdds ? odds(b.bestOdds.value) : ''}</td>
                             </tr>
@@ -279,8 +280,8 @@ function AllNumbers({ board, data, name }: { board: Board; data: Leaderboard; na
                     <thead>
                         <tr>
                             <th scope="col">Spelar</th>
-                            <th scope="col">Kampar vunne</th>
-                            <th scope="col">Kampar tapt</th>
+                            <th scope="col">Kampa vunne</th>
+                            <th scope="col">Kampa tapt</th>
                             <th scope="col">Vinn %</th>
                             <th scope="col">Sett vunne</th>
                             <th scope="col">Sett tapt</th>
@@ -317,8 +318,8 @@ function AllNumbers({ board, data, name }: { board: Board; data: Leaderboard; na
                         <th scope="col">Spelar</th>
                         <th scope="col">Elo</th>
                         <th scope="col">Inn i LANet</th>
-                        <th scope="col">{data.tournamentId === null ? 'Endring dette LANet' : 'Endring i turneringa'}</th>
-                        <th scope="col">Kampar med Elo</th>
+                        <th scope="col">{data.tournamentId === null ? 'Endring på dette LANet' : 'Endring i turneringå'}</th>
+                        <th scope="col">Kampa med Elo</th>
                     </tr>
                 </thead>
                 <tbody>

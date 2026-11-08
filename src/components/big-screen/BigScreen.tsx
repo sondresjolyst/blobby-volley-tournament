@@ -9,6 +9,7 @@ import { currentBoard, nextBoard, REFRESH_MS, ROTATION_MS, screenMs, shownScreen
 import type { ScreenType } from '@/lib/big-screen/screens';
 import { BOARD_ROWS, type BigScreenData, type BoardKey, type ScreenBracket, type ScreenMatch, type ScreenSponsor } from '@/lib/big-screen/view';
 import { BoardPanel, BracketPanel, RankRows, ScreenTop, SponsorLogo } from './parts';
+import { SPONSORS_LABEL } from '@/components/site/text';
 import { OtherScreen } from './screens';
 import { BOARD_TEXT, joinLine, livePoints, matchOdds, matchPill, SIDE_NAMES, NO_EVENT, NO_MATCH, poolLine, SPONSOR_LABEL } from './text';
 import styles from './big.module.css';
@@ -22,7 +23,7 @@ export interface JoinQr {
 function Hero({ match }: { match: ScreenMatch | null }) {
     if (!match) {
         return (
-            <section className={`${styles.card} ${styles.heroEmpty}`} aria-label="Kampen no">
+            <section className={`${styles.card} ${styles.heroEmpty}`} aria-label="Kampen nå">
                 <Pizza size={120} />
                 <div>
                     <p className={styles.heroEmptyTitle}>{NO_MATCH.title}</p>
@@ -36,7 +37,7 @@ function Hero({ match }: { match: ScreenMatch | null }) {
     const center = match.live ? match.live.points : match.state === 'started' ? [a.sets, b.sets] : null;
     const sub = (sets: number, elo: number) => (match.state === 'upcoming' || match.state === 'called' ? `Elo ${elo}` : `${sets} sett · Elo ${elo}`);
     return (
-        <section className={`${styles.card} ${styles.hero}`} aria-label="Kampen no">
+        <section className={`${styles.card} ${styles.hero}`} aria-label="Kampen nå">
             <div className={styles.heroScore}>
                 <div className={styles.heroSide}>
                     <span className={styles.heroName}>{a.nickname}</span>
@@ -136,7 +137,7 @@ function Join({ code, qr }: { code: string; qr: JoinQr | null }) {
                 </svg>
             )}
             <div className={styles.joinText}>
-                <span className={styles.joinTitle}>Bli med å spel</span>
+                <span className={styles.joinTitle}>Bli med og spel</span>
                 <span className={styles.muted}>{joinLine(qr !== null)}</span>
                 <span className={styles.joinCode}>{code}</span>
             </div>
@@ -158,7 +159,7 @@ function SponsorStrip({ sponsors }: { sponsors: ScreenSponsor[] }) {
     if (sponsors.length === 0) return null;
     const items = (copy: boolean) => sponsors.map((s) => <SponsorLogo key={s.id} sponsor={s} copy={copy} />);
     return (
-        <footer className={styles.sponsors} aria-label="Sponsora">
+        <footer className={styles.sponsors} aria-label={SPONSORS_LABEL}>
             <span className={styles.sponsorLabel}>{SPONSOR_LABEL}</span>
             <div ref={box} className={styles.sponsorBox}>
                 <div className={`${styles.sponsorTrack} ${moving ? styles.sponsorMoving : ''}`} style={{ '--count': sponsors.length } as CSSProperties}>

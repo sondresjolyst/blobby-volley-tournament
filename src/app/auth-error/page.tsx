@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { AuthPage } from '@/components/site/AuthPage';
 import s from '@/components/site/site.module.css';
+import { GITHUB_SIGN_IN_FAILED } from '@/lib/texts';
 
 export default async function AuthError({ searchParams }: { searchParams: Promise<{ error?: string | string[] }> }) {
     const { error } = await searchParams;
@@ -9,7 +10,7 @@ export default async function AuthError({ searchParams }: { searchParams: Promis
     if (error === 'AccessDenied') redirect('/denied');
     return (
         <AuthPage title="Det gjekk ikkje" adminLink={false}>
-            <p className={s.authText}>Innlogginga med GitHub gjekk ikkje.</p>
+            <p className={s.authText}>{GITHUB_SIGN_IN_FAILED}</p>
             <p className={s.authSwitch}>
                 <Link href="/login">Prøv igjen</Link>
             </p>

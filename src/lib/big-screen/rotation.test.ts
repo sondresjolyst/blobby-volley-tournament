@@ -5,38 +5,38 @@ import type { ScreenBoard, ScreenMatch, ScreenWinner } from './view';
 
 const row = { rank: 1, nickname: 'Ostebit', value: '1' };
 const boards = (filled: Record<ScreenBoard['key'], boolean>): ScreenBoard[] =>
-    (['rette', 'sigra', 'elo'] as const).map((key) => ({ key, rows: filled[key] ? [row] : [] }));
+    (['foza', 'sigra', 'elo'] as const).map((key) => ({ key, rows: filled[key] ? [row] : [] }));
 
 describe('rotatingBoards', () => {
     it('skips empty boards, and keeps the first one when all are empty', () => {
-        expect(rotatingBoards(boards({ rette: false, sigra: true, elo: true })).map((b) => b.key)).toEqual(['sigra', 'elo']);
-        expect(rotatingBoards(boards({ rette: false, sigra: false, elo: false })).map((b) => b.key)).toEqual(['rette']);
+        expect(rotatingBoards(boards({ foza: false, sigra: true, elo: true })).map((b) => b.key)).toEqual(['sigra', 'elo']);
+        expect(rotatingBoards(boards({ foza: false, sigra: false, elo: false })).map((b) => b.key)).toEqual(['foza']);
         expect(rotatingBoards([])).toEqual([]);
     });
 });
 
 describe('nextBoard', () => {
-    const all = boards({ rette: true, sigra: true, elo: true });
+    const all = boards({ foza: true, sigra: true, elo: true });
 
     it('goes through the boards in turn and starts over', () => {
-        expect(nextBoard(all, null)).toBe('rette');
-        expect(nextBoard(all, 'rette')).toBe('sigra');
+        expect(nextBoard(all, null)).toBe('foza');
+        expect(nextBoard(all, 'foza')).toBe('sigra');
         expect(nextBoard(all, 'sigra')).toBe('elo');
-        expect(nextBoard(all, 'elo')).toBe('rette');
+        expect(nextBoard(all, 'elo')).toBe('foza');
     });
 
     it('skips a board that went empty and stays put with one board', () => {
-        expect(nextBoard(boards({ rette: true, sigra: false, elo: true }), 'rette')).toBe('elo');
-        expect(nextBoard(boards({ rette: false, sigra: false, elo: true }), 'elo')).toBe('elo');
+        expect(nextBoard(boards({ foza: true, sigra: false, elo: true }), 'foza')).toBe('elo');
+        expect(nextBoard(boards({ foza: false, sigra: false, elo: true }), 'elo')).toBe('elo');
         expect(nextBoard([], 'elo')).toBeNull();
     });
 });
 
 describe('currentBoard', () => {
     it('keeps the current board while it can show, otherwise the first that can', () => {
-        expect(currentBoard(boards({ rette: true, sigra: true, elo: true }), 'sigra')?.key).toBe('sigra');
-        expect(currentBoard(boards({ rette: true, sigra: false, elo: true }), 'sigra')?.key).toBe('rette');
-        expect(currentBoard(boards({ rette: true, sigra: true, elo: true }), null)?.key).toBe('rette');
+        expect(currentBoard(boards({ foza: true, sigra: true, elo: true }), 'sigra')?.key).toBe('sigra');
+        expect(currentBoard(boards({ foza: true, sigra: false, elo: true }), 'sigra')?.key).toBe('foza');
+        expect(currentBoard(boards({ foza: true, sigra: true, elo: true }), null)?.key).toBe('foza');
         expect(currentBoard([], null)).toBeNull();
     });
 });
@@ -46,7 +46,7 @@ describe('the screen rotation', () => {
     const match = { matchId: 1 } as ScreenMatch;
     const winner: ScreenWinner = { tournamentId: 1, tournamentName: 'Hovedcupen', champion: 'Ostebit', podium: [], final: null };
     const sponsor = { id: 1, name: 'Pizzabakeren', src: '/x', width: 3, height: 1, background: null };
-    const fact = { key: 'wins' as const, label: 'Flest sigra', value: '3 sigra', who: 'Ostebit' };
+    const fact = { key: 'wins' as const, label: 'Flest seira', value: '3 seira', who: 'Ostebit' };
     const full = { tournamentId: 1, name: 'Hovedcupen', dense: false, sections: [] };
     /** Every screen has something to show, except those in `empty`. */
     function content(screens: ScreenType[], empty: readonly ScreenType[] = [], seconds = 60): ScreenContent {
@@ -132,7 +132,7 @@ describe('startScreenTurns', () => {
         fullBracket: { tournamentId: 1, name: 'Hovedcupen', dense: false, sections: [] },
         upNext: [],
         foza: { bettors: [], wins: [] },
-        facts: [{ key: 'wins', label: 'Flest sigra', value: '3 sigra', who: 'Ostebit' }],
+        facts: [{ key: 'wins', label: 'Flest seira', value: '3 seira', who: 'Ostebit' }],
         sponsors: [],
         winner: null,
     });

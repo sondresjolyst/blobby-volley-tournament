@@ -30,7 +30,7 @@ describe('errorMessage', () => {
     });
 
     it('explains a failed GitHub sign-in', () => {
-        expect(errorMessage('OAuthCallback')).toBe('Innlogginga med GitHub gjekk ikkje. Prøv igjen.');
+        expect(errorMessage('OAuthCallback')).toBe('Innloggingå med GitHub gjekk ikkje. Prøv igjen.');
     });
 
     it('shows nothing for an unknown code or a list', () => {

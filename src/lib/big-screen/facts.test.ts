@@ -49,7 +49,7 @@ describe('countedGames', () => {
     it('leaves a game after the end out of the records', () => {
         const played = [series(1, [11, 12], 11, [game(1, 15, 9), game(2, 0, 15)], { bestOf: 1 })];
         expect(comeback(played[0])).toBeNull();
-        expect(screenFacts(board(), played)).toEqual([{ key: 'biggestWin', label: 'Største siger i eit sett', value: '15–9', who: 'Blobfisk mot Skvett' }]);
+        expect(screenFacts(board(), played)).toEqual([{ key: 'biggestWin', label: 'Største seier i eit sett', value: '15–9', who: 'Blobfisk mot Skvett' }]);
     });
 });
 
@@ -76,8 +76,8 @@ describe('screenFacts', () => {
         ];
         const wins = [stats(12, { matchesWon: 3, longestStreak: 3, pointsScored: 1234 }), stats(11, { matchesWon: 1, longestStreak: 1, pointsScored: 40 })];
         expect(screenFacts(board(wins), played)).toEqual([
-            { key: 'wins', label: 'Flest sigra', value: '3 sigra', who: 'Skvett' },
-            { key: 'biggestWin', label: 'Største siger i eit sett', value: '15–0', who: 'Ostebit mot Skvett' },
+            { key: 'wins', label: 'Flest seira', value: '3 seira', who: 'Skvett' },
+            { key: 'biggestWin', label: 'Største seier i eit sett', value: '15–0', who: 'Ostebit mot Skvett' },
             { key: 'comeback', label: 'Største snuoperasjon', value: '0–1 te 2–1', who: 'Skvett mot Ostebit' },
             { key: 'longest', label: 'Lengste kamp', value: '31 min', who: 'Skvett mot Ostebit' },
             { key: 'streak', label: 'Lengste rekke', value: '3 på rad', who: 'Skvett' },

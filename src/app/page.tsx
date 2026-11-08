@@ -14,6 +14,7 @@ import { listMatchPools, type MatchPool } from '@/lib/store/bets';
 import { getActiveEvent } from '@/lib/store/events';
 import { liveStamp } from '@/lib/store/live';
 import { listMatches, type MatchSummary } from '@/lib/store/matches';
+import { calledText, STATE_TAGS } from '@/lib/tournaments/board';
 
 /** How many upcoming matches the front page lists. The bracket has the rest. */
 const UPCOMING_SHOWN = 6;
@@ -25,7 +26,7 @@ const isPending = (m: MatchSummary) => m.tournamentId === null && m.state === 'u
 function PublicMatch({ match, pool, signedIn }: { match: MatchSummary; pool: MatchPool | undefined; signedIn: boolean }) {
     const name = (slot: 0 | 1) => match.players[slot]?.nickname ?? 'Ikkje klart enno';
     const live = match.state === 'started';
-    const tag = live ? 'LIVE' : match.state === 'called' ? 'Ropt opp' : pool?.open ? 'Spel opent' : 'Seinare';
+    const tag = live ? 'LIVE' : match.state === 'called' ? calledText(match.tournamentId !== null).tag : pool?.open ? 'Spel opent' : STATE_TAGS.upcoming;
     const sides = pool?.sides ?? [];
     return (
         <article className={p.card}>
@@ -80,9 +81,9 @@ export default async function Home() {
                         <h1 id="tittel" className={s.heroTitle}>
                             Ingen LAN e i gang
                         </h1>
-                        <p className={s.heroPitch}>Her blir det turnering i Blobby Volley og spel om Foza. Men ein admin må opna eit LAN før nogen kan bli med.</p>
+                        <p className={s.heroPitch}>Her blir det turnering i Blobby Volley og spel om Foza. Men ein admin må opna eit LAN før någen kan bli med.</p>
                         <p className={s.heroNote}>
-                            E du admin? <Link href="/admin">Gå te admin</Link> og opne eit LAN. Gamle LAN finn du på <Link href="/leaderboard">topplista</Link>.
+                            E du admin? <Link href="/admin">Gå te admin</Link> og opne eit LAN. Gamle LAN finn du på <Link href="/leaderboard">topplistå</Link>.
                         </p>
                     </div>
                     <Pizza size={260} className={s.heroPizza} />
@@ -109,7 +110,7 @@ export default async function Home() {
                     {shellPlayer ? (
                         <>
                             <p className={s.heroPitch}>
-                                Hei, {shellPlayer.nickname}! Du har {foza(shellPlayer.balance)} å spela for. Sjå kampane dine, sats på dei andre og utfordra nogen te 1v1.
+                                Hei, {shellPlayer.nickname}! Du har {foza(shellPlayer.balance)} å spela for. Sjå kampane dine, sats på dei andre og utfordra någen te 1v1.
                             </p>
                             <div className={s.heroActions}>
                                 <Link href="/me" className={p.joinButton}>
@@ -139,10 +140,10 @@ export default async function Home() {
             <div className={p.column}>
                 <section className={p.section} aria-labelledby="i-ringen">
                     <h2 id="i-ringen" className={p.h2}>
-                        I ringen no
+                        I ringen nå
                     </h2>
                     {live.length === 0 ? (
-                        <p className={p.muted}>Ingen kampar e i gang akkurat no.</p>
+                        <p className={p.muted}>Ingen kampa e i gang akkurat nå.</p>
                     ) : (
                         <div className={p.cards}>
                             {live.map((m) => (
@@ -164,7 +165,7 @@ export default async function Home() {
                         )}
                     </div>
                     {upcoming.length === 0 ? (
-                        <p className={p.empty}>Ingen kampar enno. Ta deg ei øl og nokon nædæ.</p>
+                        <p className={p.empty}>Ingen kampa enno. Ta deg ei øl og någen nædæ.</p>
                     ) : (
                         <div className={p.cards}>
                             {upcoming.slice(0, UPCOMING_SHOWN).map((m) => (
@@ -184,7 +185,7 @@ export default async function Home() {
                         <li>
                             <Link href="/bracket" className={s.linkCard}>
                                 <span className={s.linkTitle}>Kampoppsett</span>
-                                <span className={s.linkText}>Heile turneringa, runde for runde.</span>
+                                <span className={s.linkText}>Heile turneringå, runde for runde.</span>
                             </Link>
                         </li>
                         <li>
@@ -208,7 +209,7 @@ export default async function Home() {
                     <ol className={s.steps}>
                         <li>Bli med med LAN-koden, eit kallenavn og ein PIN-kode.</li>
                         <li>Sats Foza på kampane du trur du kan lesa.</li>
-                        <li>Når kampen din blir ropt opp, kopiere du lenkjå på sidå di og hoppe inn i spelet.</li>
+                        <li>Når kampen din e klar, kopiere du lenkjå på sidå di og hoppe inn i spelet.</li>
                     </ol>
                 </section>
             </aside>

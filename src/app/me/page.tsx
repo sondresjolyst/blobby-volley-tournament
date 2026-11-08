@@ -18,6 +18,7 @@ import { getBalance } from '@/lib/store/foza';
 import { liveStamp } from '@/lib/store/live';
 import { listMatches, type MatchSummary } from '@/lib/store/matches';
 import { getJoinCode, listPlayers } from '@/lib/store/players';
+import { calledText } from '@/lib/tournaments/board';
 
 type Search = { error?: string | string[]; bet?: string | string[]; challenge?: string | string[]; challengeError?: string | string[] };
 
@@ -79,7 +80,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
 
                 {incoming.length > 0 && (
                     <p className={styles.notice}>
-                        <a href="#utfordringa">{incoming.length === 1 ? 'Nogen utfordre deg te 1v1. Svar her.' : `${incoming.length} utfordre deg te 1v1. Svar her.`}</a>
+                        <a href="#utfordringa">{incoming.length === 1 ? 'Någen utfordre deg te 1v1. Svar her.' : `${incoming.length} utfordre deg te 1v1. Svar her.`}</a>
                     </p>
                 )}
 
@@ -90,7 +91,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                             {matchTitle(current, 'player')} · {matchSettings(current)}
                         </p>
                         <h2 id="din-kamp" className={styles.heroTitle}>
-                            {current.state === 'called' ? 'Kampen din e ropt opp!' : 'Kampen din e i gang'}
+                            {current.state === 'called' ? calledText(current.tournamentId !== null).heading : 'Kampen din e i gang'}
                         </h2>
                         <p className={styles.heroVersus}>
                             {matchPlayers(current, 'player')}
@@ -106,7 +107,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                                     <li>Svar Yes.</li>
                                 </ol>
                                 <p className={styles.heroNote}>
-                                    Lenkjå og koden e bare dine, så ikkje del dei med nogen. Mista du sambandet, gjer det same igjen. Har du lenkjåtypen registrert på maskinå, kan du òg{' '}
+                                    Lenkjå og koden e bare dine, så ikkje del dei med någen. Mista du sambandet, gjer det same igjen. Har du lenkjåtypen registrert på maskinå, kan du òg{' '}
                                     <a className={styles.heroLink} href={join}>
                                         opne lenkjå direkte
                                     </a>
@@ -114,7 +115,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                                 </p>
                                 <div className={styles.joinManual}>
                                     <p className={styles.heroNote}>
-                                        Vil du heller skriva det inn sjøl? Velg &quot;online game&quot; eller &quot;lan game&quot;, så &quot;direct connect&quot;. Skriv inn serveren, og bruk koden som namn.
+                                        Vil du heller skriva det inn sjøl? Velg &quot;online game&quot; eller &quot;lan game&quot;, så &quot;direct connect&quot;. Skriv inn serveren, og bruk koden som navn.
                                     </p>
                                     <dl className={styles.joinFacts}>
                                         <div>
@@ -142,11 +143,11 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                             Snart i ringen
                         </h2>
                         <a href="#utfordra" className={styles.buttonQuiet}>
-                            Utfordra nogen te 1v1
+                            Utfordra någen te 1v1
                         </a>
                     </div>
                     {ahead.length === 0 ? (
-                        <p className={styles.empty}>Ingen kampar enno. Ta deg ei øl og nokon nædæ.</p>
+                        <p className={styles.empty}>Ingen kampa enno. Ta deg ei øl og någen nædæ.</p>
                     ) : (
                         <div className={styles.cards}>
                             {ahead.map((m) => (
@@ -161,7 +162,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                         Spelå dine
                     </h2>
                     {bets.length === 0 ? (
-                        <p className={styles.muted}>Du har ikkje satsa nogen Foza enno.</p>
+                        <p className={styles.muted}>Du har ikkje satsa någen Foza enno.</p>
                     ) : (
                         <div className={styles.tableWrap}>
                             <table className={styles.table}>
@@ -240,12 +241,12 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                         <ul className={styles.list} aria-label="Utfordringa frå deg">
                             {outgoing.map((m) => (
                                 <li key={m.id} className={styles.challenge}>
-                                    <strong>Du venta på svar frå {m.players[1]?.nickname}</strong>
+                                    <strong>Du vente på svar frå {m.players[1]?.nickname}</strong>
                                     <span className={styles.meta}>{matchSettings(m)}</span>
                                     <form method="post" action={`/api/player/challenges/${m.id}`}>
                                         <input type="hidden" name="answer" value="withdraw" />
                                         <button type="submit" className={styles.buttonQuiet}>
-                                            Trekk tilbake
+                                            Trekk tebake
                                         </button>
                                     </form>
                                 </li>
@@ -256,17 +257,17 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
 
                 <section id="utfordra" className={styles.panel} aria-labelledby="utfordra-tittel">
                     <h2 id="utfordra-tittel" className={styles.h2}>
-                        Utfordra nogen te 1v1
+                        Utfordra någen te 1v1
                     </h2>
                     {opponents.length === 0 ? (
-                        <p className={styles.muted}>Ingen andre e med enno. Få nogen te å bli med på LANet først.</p>
+                        <p className={styles.muted}>Ingen andre e med enno. Få någen te å bli med på LANet først.</p>
                     ) : (
                         <form method="post" action="/api/player/challenges" className={styles.challengeForm}>
                             <label className={styles.field}>
                                 Motstandar
                                 <select name="opponent" required className={styles.input} defaultValue="">
                                     <option value="" disabled>
-                                        Velg nogen
+                                        Velg någen
                                     </option>
                                     {opponents.map((p) => (
                                         <option key={p.id} value={p.id}>
@@ -304,7 +305,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                             <button type="submit" className={styles.button}>
                                 Send utfordring
                             </button>
-                            <p className={styles.closingNote}>Når motstandaren godtar, kan dåkke spela med det same.</p>
+                            <p className={styles.closingNote}>Når motstandaren godtar, kan dåkke spela.</p>
                         </form>
                     )}
                 </section>
