@@ -42,7 +42,7 @@ describe('parseAdjustmentForm', () => {
 
 describe('betErrorMessage', () => {
     it('has a text for known codes only', () => {
-        expect(betErrorMessage('closed')).toBe('Spelå på den kampen e stengt. Kampen har starta eller e ferdig.');
+        expect(betErrorMessage('closed')).toBe('Spelå på den kampen e stengt.');
         expect(betErrorMessage('constructor')).toBeNull();
         expect(betErrorMessage(undefined)).toBeNull();
     });

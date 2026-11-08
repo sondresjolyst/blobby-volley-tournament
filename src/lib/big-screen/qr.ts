@@ -19,7 +19,7 @@ export function qrCode(text: string): QrCode {
 export function siteHost(env: Record<string, string | undefined>): string | null {
     if (!env.NEXTAUTH_URL) return null;
     try {
-        return new URL(env.NEXTAUTH_URL).host;
+        return new URL(env.NEXTAUTH_URL).host || null;
     } catch {
         return null;
     }

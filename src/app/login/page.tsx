@@ -57,9 +57,12 @@ export default async function Login({ searchParams }: { searchParams: Promise<Se
                                 minLength={4}
                                 maxLength={4}
                                 autoComplete="current-password"
-                                aria-describedby="pin-help"
+                                aria-describedby="pin-hint pin-help"
                                 className={`${s.authInput} ${s.authPin}`}
                             />
+                            <span id="pin-hint" className={s.authHint}>
+                                Glømt PIN-koden? Spør ein admin.
+                            </span>
                         </div>
                         <button type="submit" className={s.authSubmit}>
                             Logg inn

@@ -17,7 +17,7 @@ const SPONSOR_ERRORS: Record<string, string> = {
     'logo-dimensions': `The logo can be at most ${MAX_LOGO_SIDE} pixels wide and high.`,
     'sponsor-taken': 'This event already has that sponsor.',
     'library-pick': 'Select a sponsor from the library.',
-    'library-limit': `The sponsor library is full at ${MAX_LIBRARY_SPONSORS} sponsors. Go to Sponsor library and delete a sponsor that no event uses, or add one that is already in the library.`,
+    'library-limit': `The sponsor library is full at ${MAX_LIBRARY_SPONSORS} sponsors. Go to Sponsor library. Delete a sponsor that no event uses, then add the new one.`,
     'library-in-use': 'An event still uses this sponsor. Remove it from those events first.',
 };
 

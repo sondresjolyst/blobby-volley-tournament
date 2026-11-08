@@ -33,7 +33,7 @@ export function parseAdjustmentForm(form: Record<string, string>): { amount: num
 // Players read these on their own page, which is written in the dialect of the LAN.
 const BET_MESSAGES: Record<string, string> = {
     'not-found': MATCH_NOT_FOUND,
-    closed: 'Spelå på den kampen e stengt. Kampen har starta eller e ferdig.',
+    closed: 'Spelå på den kampen e stengt.',
     event: 'Du kan bare satsa på kampa på LANet du e med på.',
     side: 'Velg ein av dei to spelarane i kampen.',
     switch: 'Du har allerede satsa på den andre. Du kan høgna spelet, men ikkje bytta side.',

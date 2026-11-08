@@ -32,5 +32,6 @@ describe('siteHost', () => {
         expect(siteHost({ NEXTAUTH_URL: 'https://lan.example:8443/' })).toBe('lan.example:8443');
         expect(siteHost({})).toBeNull();
         expect(siteHost({ NEXTAUTH_URL: 'not a url' })).toBeNull();
+        expect(siteHost({ NEXTAUTH_URL: 'mailto:admin@julalan.no' })).toBeNull();
     });
 });

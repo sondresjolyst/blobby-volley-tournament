@@ -12,7 +12,7 @@ const EVENT_ERRORS: Record<string, string> = {
     'code-taken': 'Another event already has this event code. Select Generate for a new one.',
     foza: `Foza amounts must be whole numbers from 0 to ${MAX_FOZA}.`,
     pin: 'The new PIN must be 4 digits.',
-    server: 'Enter a game server host and port, or leave both empty. The port must be from 1 to 65535.',
+    server: `Enter a game server host, or leave the host and the port empty. An empty port uses port ${CONTAINER_PORT}. The port must be from 1 to 65535.`,
     'server-host':
         'The game server host must be the LAN address of the PC that runs the game server, as four numbers such as 192.168.1.50 or as a name on the LAN. It cannot be localhost, 127.0.0.1 or a web address with http://.',
 };

@@ -52,7 +52,7 @@ describe('player texts', () => {
     });
 
     it('has a text for known codes only', () => {
-        expect(challengeErrorMessage('taken')).toBe('Dåkke to har allerede ein 1v1 som ikkje e ferdig. Svar på han, eller spel han ferdig først.');
+        expect(challengeErrorMessage('taken')).toBe('Dåkke to har allerede ein 1v1 som ikkje e ferdig. Svar på utfordringå, eller spel ferdig den kampen først.');
         expect(challengeErrorMessage('constructor')).toBeNull();
         expect(challengeErrorMessage(['taken'])).toBeNull();
         expect(noticeMessage('sent')).toBe('Utfordringå e sendt. Nå e det opp te motstandaren.');

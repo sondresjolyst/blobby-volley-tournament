@@ -4,6 +4,7 @@ import type { MatchState } from '@/lib/matches/state';
 import { calledText, STATE_TAGS } from '@/lib/tournaments/board';
 import { foza, payout } from '@/components/player/text';
 import { SPONSORS_LABEL } from '@/components/site/text';
+import { NO_LAN } from '@/lib/texts';
 
 export const BOARD_TEXT: Record<BoardKey, { tab: string; title: string; empty: string }> = {
     foza: { tab: 'Mest Foza', title: 'Mest Foza vunne', empty: 'Ingen spel e avgjort ennå. Sats någe Foza på ein kamp, då!' },
@@ -53,7 +54,7 @@ export const FREE_PLACE = 'Ledig plass';
 
 export const NO_MATCH = { title: 'Ingen kampa i ringen ennå', text: 'Admin varme opp ovnen. Sjekk topplistå så lenge.' };
 export const NO_BRACKET = 'Ingen turneringa ennå.';
-export const NO_EVENT = { title: 'Ingen LAN i gang ennå', text: 'Finn fram pizzaen og vent litt. Skjermen vakne av seg sjøl.' };
+export const NO_EVENT = { title: NO_LAN, text: 'Finn fram pizzaen og vent litt. Skjermen vakne av seg sjøl.' };
 
 /** The names of the screens, as their regions are labelled. */
 export const SCREEN_LABELS = {

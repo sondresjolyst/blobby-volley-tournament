@@ -107,7 +107,7 @@ export default async function NewTournament({ searchParams }: { searchParams: Pr
                     <InfoButton label="How By Elo rating works">
                         <p>
                             Seeding by Elo rating puts the highest rating first. It uses the ratings when you save, so a match that ends after the preview can change the seeds. Equal
-                            ratings go in the order the players signed up in.
+                            ratings put the lowest player id first.
                         </p>
                     </InfoButton>
                 </div>

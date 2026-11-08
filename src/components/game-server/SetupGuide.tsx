@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { NO_ACTIVE_EVENT } from '@/lib/admin-texts';
 import { firewallCommand, serverHelp, startScripts } from '@/lib/game-server/commands';
 import { CopyButton } from '../CopyButton';
 
@@ -10,7 +11,7 @@ const DOCKER_ENGINE = 'https://docs.docker.com/engine/install/';
  * host the join links use.
  */
 export function EventHost({ port, event }: { port: number; event: { id: number; serverHost?: string | null } | null }) {
-    if (!event) return <p>There is no active event, so the join links have no game server address yet.</p>;
+    if (!event) return <p>{NO_ACTIVE_EVENT} Until then the join links have no game server address.</p>;
     if (!event.serverHost)
         return (
             <p>

@@ -50,7 +50,7 @@ test('a player challenges another to a 1v1, the other sees it and accepts withou
     // The same pair cannot have two open 1v1 matches.
     await form.getByLabel('Motstandar').selectOption({ label: `Ub${tag}` });
     await form.getByRole('button', { name: 'Send utfordring' }).click();
-    await expect(asker.page.getByRole('alert').filter({ hasText: 'Dåkke to har allerede ein 1v1 som ikkje e ferdig. Svar på han, eller spel han ferdig først.' })).toBeVisible();
+    await expect(asker.page.getByRole('alert').filter({ hasText: 'Dåkke to har allerede ein 1v1 som ikkje e ferdig. Svar på utfordringå, eller spel ferdig den kampen først.' })).toBeVisible();
 
     // The asked player still has /me open from the sign-up, and the challenge shows up without a reload.
     const incoming = asked.page.getByRole('list', { name: 'Utfordringa te deg' }).getByRole('listitem').filter({ hasText: `Ua${tag} utfordre deg!` });

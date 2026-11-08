@@ -28,7 +28,7 @@ export const BET_STATUS: Record<BetStatus, string> = {
     won: 'Vunne',
     lost: 'Tapt',
     returned: 'Tebake, ingen satsa på vinnaren',
-    refunded: 'Tebake, kampen blei ikkje spelt ferdig',
+    refunded: 'Tebake, kampen blei avlyst eller nullstilt',
 };
 
 const SETTINGS_LIMITS = `Poeng må vera ${MIN_SCORE_TO_WIN} te ${MAX_SCORE_TO_WIN}, fart ${MIN_GAME_SPEED} te ${MAX_GAME_SPEED} fps, og best av ${BEST_OF.slice(0, -1).join(', ')} eller ${BEST_OF.at(-1)}.`;
@@ -38,7 +38,7 @@ const CHALLENGE_MESSAGES: Record<string, string> = {
     settings: SETTINGS_LIMITS,
     players: 'Du kan ikkje utfordra deg sjøl.',
     'no-event': 'Begge må vera med på LANet som e i gang.',
-    taken: 'Dåkke to har allerede ein 1v1 som ikkje e ferdig. Svar på han, eller spel han ferdig først.',
+    taken: 'Dåkke to har allerede ein 1v1 som ikkje e ferdig. Svar på utfordringå, eller spel ferdig den kampen først.',
     'not-found': MATCH_NOT_FOUND,
     'not-allowed': 'Bare den som e utfordra kan svara, og bare den som utfordra kan trekka tebake.',
     state: 'Den utfordringå e allerede svart på eller trekt tebake.',
