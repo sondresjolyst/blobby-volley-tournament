@@ -208,7 +208,9 @@
     align-items: center;
     justify-content: center;
     padding: calc(32 * var(--u));
-    border-radius: calc(32 * var(--u));
+    /* The frame of every sponsor tile. The colour of the tile comes from the sponsor. */
+    border: max(1px, calc(1 * var(--u))) solid #5a4033;
+    border-radius: calc(12 * var(--u));
     background: var(--cream);
 }
 

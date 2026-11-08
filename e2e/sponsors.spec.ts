@@ -156,6 +156,13 @@ test('an admin adds, orders, turns off and deletes sponsors, and the footer and 
     await expect(editForm.getByLabel('Colour of the background')).toHaveValue('#ffe9b0');
     await expect(editForm.getByLabel('Link')).toHaveValue('');
     await editForm.getByRole('button', { name: 'Cancel' }).click();
+
+    // The footer tile takes the background colour and the frame.
+    await homePage.goto('/');
+    const tile = footer.getByRole('listitem').filter({ has: homePage.getByRole('img', { name: second }) });
+    await expect(tile).toHaveCSS('background-color', 'rgb(255, 233, 176)');
+    await expect(tile).toHaveCSS('border-top-color', 'rgb(90, 64, 51)');
+    await expect(tile).toHaveCSS('border-top-left-radius', '12px');
     sync = await readSponsors(request);
     expect(ours().map((s) => s.name)).toEqual([second]);
 
