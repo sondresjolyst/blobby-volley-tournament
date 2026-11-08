@@ -16,10 +16,13 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ id
     const id = parseId((await params).id);
     if (id === null) notFound();
     const pool = getPool();
-    const [page, active] = await Promise.all([getPlayerStats(pool, id), getActiveEvent(pool)]);
+    const active = await getActiveEvent(pool);
+    // The stamp is read before the stats, so a change that commits during the reads loads the page once more.
+    const activeStamp = active ? await liveStamp(pool, active.id) : null;
+    const page = await getPlayerStats(pool, id);
     if (!page) notFound();
-    // Only the active event changes, so only a player of it gets the stamp.
-    const stamp = active?.id === page.player.eventId ? await liveStamp(pool, active.id) : null;
+    // Only the active event changes, so only a player of it gets the live refresh.
+    const stamp = active?.id === page.player.eventId ? activeStamp : null;
     const { player, stats, betting, elo, placings } = page;
     const name = nicknameOf(page.nicknames);
     const back = active?.id === player.eventId ? '/leaderboard' : `/leaderboard?event=${player.eventId}`;

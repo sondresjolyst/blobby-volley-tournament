@@ -23,8 +23,10 @@ const SEEDING_NAMES: Record<SeedingMethod, string> = { random: 'tilfeldig oppset
 export default async function BracketPage({ searchParams }: { searchParams: Promise<{ t?: string | string[] }> }) {
     const player = await requireActivePlayer();
     const pool = getPool();
+    // The stamp is read before the data, so a change that commits during the reads loads the page once more.
+    const stamp = await liveStamp(pool, player.eventId);
     const balance = (await getBalance(pool, player.id, new Date())) ?? player.fozaBalance;
-    const [tournaments, stamp] = await Promise.all([listTournaments(pool, player.eventId), liveStamp(pool, player.eventId)]);
+    const tournaments = await listTournaments(pool, player.eventId);
     const { t } = await searchParams;
     const wanted = typeof t === 'string' ? parseId(t) : null;
     // Only a tournament of the player's own event is shown. Any other id falls back to the newest.

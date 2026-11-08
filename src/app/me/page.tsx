@@ -30,14 +30,15 @@ const isPending = (m: MatchSummary) => m.tournamentId === null && m.state === 'u
 export default async function Me({ searchParams }: { searchParams: Promise<Search> }) {
     const player = await requireActivePlayer();
     const pool = getPool();
+    // The stamp is read before the data, so a change that commits during the reads loads the page once more.
+    const stamp = await liveStamp(pool, player.eventId);
     const balance = (await getBalance(pool, player.id, new Date())) ?? player.fozaBalance;
-    const [matches, pools, bets, players, event, stamp] = await Promise.all([
+    const [matches, pools, bets, players, event] = await Promise.all([
         listMatches(pool, player.eventId),
         listMatchPools(pool, player.eventId),
         listPlayerBets(pool, player.id),
         listPlayers(pool, player.eventId),
         getEvent(pool, player.eventId),
-        liveStamp(pool, player.eventId),
     ]);
     const plays = (m: MatchSummary) => m.players.some((p) => p?.id === player.id);
     // A player is in at most one called or started match, since calling refuses a busy player.

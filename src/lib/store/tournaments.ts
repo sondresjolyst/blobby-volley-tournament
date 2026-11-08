@@ -84,8 +84,10 @@ export async function saveTournament(pool: Pool, eventId: number, input: NewTour
     if (!seedsMatchPlayers(bracket)) return { ok: false, error: 'players' };
     try {
         const id = await inTransaction(pool, async (client) => {
-            // Locks the event row, so it cannot be closed while the tournament is saved.
-            const event = await client.query('SELECT 1 FROM events WHERE id = $1 AND is_active FOR SHARE', [eventId]);
+            // Locks the event row, so it cannot be closed while the tournament is saved. The save bumps
+            // the live version of the row when it commits, so it takes the update lock now. A share lock
+            // here would let two saves deadlock when both upgrade it at commit.
+            const event = await client.query('SELECT 1 FROM events WHERE id = $1 AND is_active FOR NO KEY UPDATE', [eventId]);
             if (event.rowCount !== 1) throw new Abort('no-event');
             const known = await client.query<{ n: number }>('SELECT count(*)::int AS n FROM players WHERE event_id = $1 AND id = ANY($2::int[])', [eventId, bracket.seeds]);
             if (known.rows[0].n !== bracket.seeds.length) throw new Abort('players');

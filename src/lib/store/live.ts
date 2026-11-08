@@ -15,7 +15,7 @@ export class UnknownEvent extends Error {}
  * A short text that changes when anything the player pages show changes, or when another event
  * goes active. It is the active event and the live version of the event, which every change to its
  * matches, games, players, tournaments, Foza ledger or the event row moves in its own transaction
- * (see migration 0017). One primary key read. Null when the event does not exist.
+ * (see migration 0018). One primary key read. Null when the event does not exist.
  */
 export async function liveStamp(pool: Pool, eventId: number): Promise<string | null> {
     const { rows } = await pool.query<{ live_version: string; active: number | null }>(

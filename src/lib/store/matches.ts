@@ -830,10 +830,12 @@ export async function createChallenge(pool: Pool, challengerId: number, opponent
     if (challengerId === opponentId) return { ok: false, error: 'players' };
     try {
         const matchId = await inTransaction(pool, async (client) => {
-            // Locks the event row, so it cannot be closed while the match is added.
+            // Locks the event row, so it cannot be closed while the match is added. The new match bumps
+            // the live version of the row at commit, so it takes the update lock now. A share lock here
+            // would let two challenges deadlock when both upgrade it at commit.
             const { rows } = await client.query<{ id: number; event_id: number }>(
                 `SELECT p.id, p.event_id FROM players p JOIN events e ON e.id = p.event_id AND e.is_active
-                 WHERE p.id = ANY($1::int[]) FOR SHARE OF e`,
+                 WHERE p.id = ANY($1::int[]) FOR NO KEY UPDATE OF e`,
                 [[challengerId, opponentId]],
             );
             if (rows.length !== 2 || rows[0].event_id !== rows[1].event_id) throw new Refused('no-event');

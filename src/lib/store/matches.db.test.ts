@@ -785,6 +785,13 @@ describe('calling a 1v1 match by itself', () => {
         expect(await liveStamp(pool, 999_999)).toBeNull();
     });
 
+    it('takes challenges at the same time without a deadlock on the live version', async () => {
+        const { players } = await activeEvent(8);
+        const pairs = [0, 2, 4, 6].map((i) => [players[i], players[i + 1]] as const);
+        const results = await Promise.all(pairs.map(([x, y]) => createChallenge(pool, x, y)));
+        expect(results.every((r) => r.ok)).toBe(true);
+    });
+
     it('moves the live version when a change commits, so a slow change is never hidden by a quicker one', async () => {
         const { eventId, players } = await activeEvent(2);
         const [a, b] = players;

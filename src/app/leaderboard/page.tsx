@@ -85,12 +85,10 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
     const boardParam = one(search.board);
     const board: Board = Object.hasOwn(BOARDS, boardParam) ? (boardParam as Board) : 'foza';
 
-    // Only the active event changes, so only its page reads the stamp.
-    const [data, tournaments, stamp] = await Promise.all([
-        getLeaderboard(pool, event.id, tournamentId),
-        listTournaments(pool, event.id),
-        event.isActive ? liveStamp(pool, event.id) : null,
-    ]);
+    // Only the active event changes, so only its page reads the stamp. It is read before the data, so a
+    // change that commits during the reads loads the page once more.
+    const stamp = event.isActive ? await liveStamp(pool, event.id) : null;
+    const [data, tournaments] = await Promise.all([getLeaderboard(pool, event.id, tournamentId), listTournaments(pool, event.id)]);
     if (!data) notFound();
     const view: View = { event, tournamentId, board };
     const name = nicknameOf(data.nicknames);

@@ -67,6 +67,8 @@ export default async function Home() {
     await connection();
     const pool = getPool();
     const event = await getActiveEvent(pool);
+    // The stamp is read before the data, so a change that commits during the reads loads the page once more.
+    const stamp = event ? await liveStamp(pool, event.id) : null;
     const player = event ? await getActivePlayer() : null;
     const shellPlayer = player && player.eventId === event?.id ? { nickname: player.nickname, balance: player.fozaBalance } : null;
 
@@ -89,7 +91,7 @@ export default async function Home() {
         );
     }
 
-    const [matches, pools, stamp] = await Promise.all([listMatches(pool, event.id), listMatchPools(pool, event.id), liveStamp(pool, event.id)]);
+    const [matches, pools] = await Promise.all([listMatches(pool, event.id), listMatchPools(pool, event.id)]);
     const poolOf = new Map(pools.map((x) => [x.matchId, x]));
     const live = matches.filter(isLive).sort((a, b) => (a.state === b.state ? a.id - b.id : a.state === 'started' ? -1 : 1));
     const upcoming = matches.filter((m) => m.state === 'upcoming' && !isPending(m) && m.players.some((x) => x !== null)).sort((a, b) => a.id - b.id);
