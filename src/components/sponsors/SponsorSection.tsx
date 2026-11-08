@@ -1,4 +1,4 @@
-import { InfoButton } from '@/components/admin/InfoButton';
+import { InfoButton } from '@/components/InfoButton';
 import { GAME_BOARDS, MAX_LINK_LENGTH, MAX_NAME_LENGTH, type GameBoard } from '@/lib/sponsors/input';
 import { GAME_LOGO_HEIGHT, GAME_LOGO_MAX_WIDTH, LOGO_TYPE_LIST, MAX_LOGO_MB, MAX_LOGO_SIDE } from '@/lib/sponsors/limits';
 import Link from 'next/link';
@@ -75,12 +75,12 @@ export function SponsorSection({
                 <div className="admin-field">
                     <div className="admin-field-label">
                         <label htmlFor="gameBoard">Sponsor board in the game</label>
-                        <InfoButton label="About the sponsor board">
+                        <InfoButton label="About the sponsor board" textId="gameBoard-help">
                             <p>The style of the board behind the sponsor logos in the game.</p>
                             <p>When the board is off, the game shows no sponsors. The footer of the site is not affected.</p>
                         </InfoButton>
                     </div>
-                    <select id="gameBoard" name="gameBoard" defaultValue={gameBoard}>
+                    <select id="gameBoard" name="gameBoard" aria-describedby="gameBoard-help" defaultValue={gameBoard}>
                         {GAME_BOARDS.map((board) => (
                             <option key={board} value={board}>
                                 {BOARD_LABELS[board]}
