@@ -12,7 +12,7 @@ const MESSAGES: Record<string, string> = {
     busy: 'For mange feilforsøk frå dette nettverket. Prøv igjen seinare.',
     pins: 'For mange feil PIN-koda frå dette nettverket. Vent ein time og prøv igjen.',
     'sign-ups': 'For mange nye spelara frå dette nettverket. Vent ein time og prøv igjen.',
-    form: 'Nokke gjekk gale. Prøv igjen.',
+    form: 'Någe gjekk gale. Prøv igjen.',
 };
 
 // next-auth sends these to the sign-in page when the GitHub sign-in of an admin fails.

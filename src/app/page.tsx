@@ -77,7 +77,7 @@ export default async function Home() {
                         <h1 id="tittel" className={s.heroTitle}>
                             Ingen LAN e i gang
                         </h1>
-                        <p className={s.heroPitch}>Her blir det turnering i Blobby Volley og spel om Foza. Men ein admin må opna eit LAN før nogen kan bli med.</p>
+                        <p className={s.heroPitch}>Her blir det turnering i Blobby Volley og spel om Foza. Men ein admin må opna eit LAN før någen kan bli med.</p>
                         <p className={s.heroNote}>
                             E du admin? <Link href="/admin">Gå te admin</Link> og opne eit LAN. Gamle LAN finn du på <Link href="/leaderboard">topplistå</Link>.
                         </p>
@@ -105,7 +105,7 @@ export default async function Home() {
                     {shellPlayer ? (
                         <>
                             <p className={s.heroPitch}>
-                                Hei, {shellPlayer.nickname}! Du har {foza(shellPlayer.balance)} å spela for. Sjå kampane dine, sats på dei andre og utfordra nogen te 1v1.
+                                Hei, {shellPlayer.nickname}! Du har {foza(shellPlayer.balance)} å spela for. Sjå kampane dine, sats på dei andre og utfordra någen te 1v1.
                             </p>
                             <div className={s.heroActions}>
                                 <Link href="/me" className={p.joinButton}>
@@ -160,7 +160,7 @@ export default async function Home() {
                         )}
                     </div>
                     {upcoming.length === 0 ? (
-                        <p className={p.empty}>Ingen kampa enno. Ta deg ei øl og nogen nædæ.</p>
+                        <p className={p.empty}>Ingen kampa enno. Ta deg ei øl og någen nædæ.</p>
                     ) : (
                         <div className={p.cards}>
                             {upcoming.slice(0, UPCOMING_SHOWN).map((m) => (

@@ -36,7 +36,7 @@ test('a player challenges another to a 1v1, the other accepts, and the called pl
     });
     expect(refused.headers()['location']).toBe('/me?challengeError=form#utfordringa');
 
-    const form = asker.page.getByRole('region', { name: 'Utfordra nogen te 1v1' });
+    const form = asker.page.getByRole('region', { name: 'Utfordra någen te 1v1' });
     await expect(form.getByLabel('Poeng for å vinna')).toHaveValue('15');
     await expect(form.getByLabel('Fart i fps')).toHaveValue('75');
     await form.getByLabel('Motstandar').selectOption({ label: `Ub${tag}` });
@@ -114,7 +114,7 @@ test('the asked player declines a 1v1, the asker withdraws the next one, and the
     const asker = await signUp(browser, `Da${tag}`);
     const asked = await signUp(browser, `Db${tag}`);
     await asker.page.goto('/me');
-    const form = asker.page.getByRole('region', { name: 'Utfordra nogen te 1v1' });
+    const form = asker.page.getByRole('region', { name: 'Utfordra någen te 1v1' });
     await form.getByLabel('Motstandar').selectOption({ label: `Db${tag}` });
     await form.getByRole('button', { name: 'Send utfordring' }).click();
     await expect(asker.page.getByRole('status')).toHaveText('Utfordringå e sendt. No e det opp te motstandaren.');

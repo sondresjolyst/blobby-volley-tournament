@@ -182,7 +182,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
                     )}
                     <section aria-labelledby="fakta" className={podium.length > 0 ? styles.section : undefined}>
                         <h2 id="fakta" className={styles.heading}>
-                            Morosame fakta
+                            Gjæve fakta
                         </h2>
                         {facts.length === 0 ? (
                             <p className={styles.empty}>Ingen fakta enno. Dei kjem når ballen fyk.</p>

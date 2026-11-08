@@ -38,7 +38,7 @@ const BET_MESSAGES: Record<string, string> = {
     switch: 'Du har allerede satsa på den andre. Du kan høgna spelet, men ikkje bytta side.',
     amount: 'Innsatsen må vera eit heilt tal Foza, minst 1.',
     balance: 'Så mykje Foza har du ikkje.',
-    form: 'Nokke gjekk gale. Prøv igjen.',
+    form: 'Någe gjekk gale. Prøv igjen.',
 };
 
 /** The text for a bet error code in the address. Unknown codes show nothing. */

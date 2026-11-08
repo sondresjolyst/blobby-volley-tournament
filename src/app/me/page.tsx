@@ -74,7 +74,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
 
                 {incoming.length > 0 && (
                     <p className={styles.notice}>
-                        <a href="#utfordringa">{incoming.length === 1 ? 'Nogen utfordre deg te 1v1. Svar her.' : `${incoming.length} utfordre deg te 1v1. Svar her.`}</a>
+                        <a href="#utfordringa">{incoming.length === 1 ? 'Någen utfordre deg te 1v1. Svar her.' : `${incoming.length} utfordre deg te 1v1. Svar her.`}</a>
                     </p>
                 )}
 
@@ -101,7 +101,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                                     <li>Svar Yes.</li>
                                 </ol>
                                 <p className={styles.heroNote}>
-                                    Lenkjå og koden e bare dine, så ikkje del dei med nogen. Mista du sambandet, gjer det same igjen. Har du lenkjåtypen registrert på maskinå, kan du òg{' '}
+                                    Lenkjå og koden e bare dine, så ikkje del dei med någen. Mista du sambandet, gjer det same igjen. Har du lenkjåtypen registrert på maskinå, kan du òg{' '}
                                     <a className={styles.heroLink} href={join}>
                                         opne lenkjå direkte
                                     </a>
@@ -137,11 +137,11 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                             Snart i ringen
                         </h2>
                         <a href="#utfordra" className={styles.buttonQuiet}>
-                            Utfordra nogen te 1v1
+                            Utfordra någen te 1v1
                         </a>
                     </div>
                     {ahead.length === 0 ? (
-                        <p className={styles.empty}>Ingen kampa enno. Ta deg ei øl og nogen nædæ.</p>
+                        <p className={styles.empty}>Ingen kampa enno. Ta deg ei øl og någen nædæ.</p>
                     ) : (
                         <div className={styles.cards}>
                             {ahead.map((m) => (
@@ -156,7 +156,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                         Spelå dine
                     </h2>
                     {bets.length === 0 ? (
-                        <p className={styles.muted}>Du har ikkje satsa nogen Foza enno.</p>
+                        <p className={styles.muted}>Du har ikkje satsa någen Foza enno.</p>
                     ) : (
                         <div className={styles.tableWrap}>
                             <table className={styles.table}>
@@ -251,17 +251,17 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
 
                 <section id="utfordra" className={styles.panel} aria-labelledby="utfordra-tittel">
                     <h2 id="utfordra-tittel" className={styles.h2}>
-                        Utfordra nogen te 1v1
+                        Utfordra någen te 1v1
                     </h2>
                     {opponents.length === 0 ? (
-                        <p className={styles.muted}>Ingen andre e med enno. Få nogen te å bli med på LANet først.</p>
+                        <p className={styles.muted}>Ingen andre e med enno. Få någen te å bli med på LANet først.</p>
                     ) : (
                         <form method="post" action="/api/player/challenges" className={styles.challengeForm}>
                             <label className={styles.field}>
                                 Motstandar
                                 <select name="opponent" required className={styles.input} defaultValue="">
                                     <option value="" disabled>
-                                        Velg nogen
+                                        Velg någen
                                     </option>
                                     {opponents.map((p) => (
                                         <option key={p.id} value={p.id}>
