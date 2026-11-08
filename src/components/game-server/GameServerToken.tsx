@@ -58,12 +58,12 @@ export function GameServerToken({
 
     return (
         <div className="admin-guide">
-            <form onSubmit={submit}>
+            <form onSubmit={submit} className="admin-confirm-stack">
                 {hasToken && (
                     <label>
                         <input type="checkbox" name="confirm" value="yes" required /> I understand the old token stops working at once
                     </label>
-                )}{' '}
+                )}
                 <button type="submit" disabled={busy}>
                     {hasToken ? 'Make a new token' : 'Make a token'}
                 </button>

@@ -504,6 +504,13 @@
     cursor: pointer;
 }
 
+/* A check box that confirms the button below it. The box sits on the line of its text, and the button starts a line of its own at any width. */
+.main form:global(.admin-confirm-stack) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+}
+
 /* A field whose label has an i button. The help text opens between the label and the input. */
 .main :global(.admin-field) {
     display: flex;
