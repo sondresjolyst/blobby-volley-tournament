@@ -83,14 +83,14 @@ Each place has its own text, set with `text` in `PLACES` at the top of `pizzakon
 |---|---|
 | 1. Pizzakongen | Svettaste Blåbby |
 | 2. Prinsen | Beste tabaren |
-| 3. Fanten | Svettaste Blåbby, for now |
+| 3. Fanten | Pallfanten |
 
 Two layouts are built in, and `--plaque` picks one:
 
 - `number` (default): a big place number on the left, the text and the year on the right.
 - `lines`: "1. plass" over the text and the year, for example "Svettaste Blåbby 2026".
 
-The big number reads better, mostly on the small plaques. With `number` the text has a cap height of 6.2 mm on Pizzakongen, 6.3 mm on Prinsen and 4.1 mm on Fanten. With `lines` Fanten drops to 3.6 mm. The script stops if any text is below 3 mm cap height (`MIN_CAP`). A long text on Fanten gives thin strokes, so a shorter text there prints cleaner and larger.
+The big number reads better, mostly on the small plaques. With `number` the text has a cap height of 6.2 mm on Pizzakongen, 6.3 mm on Prinsen and 4.9 mm on Fanten. With `lines` Fanten drops to 4.3 mm. The script stops if any text is below 3 mm cap height (`MIN_CAP`). The smallest letters, on Fanten, have 1.2 mm stems, three nozzle widths. A long text on a small plaque gives thin strokes, so keep the text short there.
 
 ![Plaque layouts, true relative size](renders/plaque_layouts.png)
 

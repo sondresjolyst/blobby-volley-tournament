@@ -41,7 +41,7 @@ PLACES = {
             tiers=3, points=7, crown_h=30.0, ball_r=3.2),
     2: dict(name="Prinsen", text="Beste tabaren", scale=0.85, blob="white", hat="crown", hat_colour="black",
             tiers=2, points=5, crown_h=20.0, ball_r=2.8),
-    3: dict(name="Fanten", text="Svettaste Blåbby", scale=0.70, blob="dark green", hat="beanie", hat_colour="white",
+    3: dict(name="Fanten", text="Pallfanten", scale=0.70, blob="dark green", hat="beanie", hat_colour="white",
             tiers=1),
 }
 SCALE = 1.0
