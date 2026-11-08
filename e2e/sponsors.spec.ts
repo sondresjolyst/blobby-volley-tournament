@@ -215,7 +215,7 @@ test('an admin adds a sponsor to the library, puts it on the event, and it shows
     const home = await page.context().browser()!.newContext({ baseURL: process.env.E2E_BASE_URL });
     const homePage = await home.newPage();
     await homePage.goto('/');
-    const footer = homePage.getByRole('contentinfo', { name: 'Sponsors' });
+    const footer = homePage.getByRole('contentinfo', { name: 'Sponsora' });
     await expect(footer.getByRole('link', { name })).toHaveAttribute('href', `https://${tag}.example.test/`);
 
     // The library cannot delete it while the event uses it. Removing it from the event keeps it in the library.
