@@ -14,6 +14,8 @@ import { listMatchPools, type MatchPool } from '@/lib/store/bets';
 import { getActiveEvent } from '@/lib/store/events';
 import { liveStamp } from '@/lib/store/live';
 import { listMatches, type MatchSummary } from '@/lib/store/matches';
+import { listLiveTraining } from '@/lib/store/training';
+import { TrainingCard } from '@/components/training/TrainingCard';
 import { BETS_OPEN, calledText, STATE_TAGS } from '@/lib/tournaments/board';
 import { AdminWayIn } from '@/components/site/NoEvent';
 import { ADMIN_OPENS_LAN, NO_LAN, NOT_DECIDED } from '@/lib/texts';
@@ -94,7 +96,7 @@ export default async function Home() {
         );
     }
 
-    const [matches, pools] = await Promise.all([listMatches(pool, event.id), listMatchPools(pool, event.id)]);
+    const [matches, pools, training] = await Promise.all([listMatches(pool, event.id), listMatchPools(pool, event.id), listLiveTraining(pool, event.id)]);
     const poolOf = new Map(pools.map((x) => [x.matchId, x]));
     const live = matches.filter(isLive).sort((a, b) => (a.state === b.state ? a.id - b.id : a.state === 'started' ? -1 : 1));
     const upcoming = matches.filter((m) => m.state === 'upcoming' && !isPending(m) && m.players.some((x) => x !== null)).sort((a, b) => a.id - b.id);
@@ -144,12 +146,16 @@ export default async function Home() {
                     <h2 id="i-ringen" className={p.h2}>
                         I ringen nå
                     </h2>
-                    {live.length === 0 ? (
+                    {live.length === 0 && training.length === 0 ? (
                         <p className={p.muted}>Ingen kampa e i gang akkurat nå.</p>
                     ) : (
                         <div className={p.cards}>
                             {live.map((m) => (
                                 <PublicMatch key={m.id} match={m} pool={poolOf.get(m.id)} signedIn={shellPlayer !== null} />
+                            ))}
+                            {/* Training comes after the real matches and has no pool or bets. */}
+                            {training.map((t) => (
+                                <TrainingCard key={`trening-${t.id}`} training={t} />
                             ))}
                         </div>
                     )}

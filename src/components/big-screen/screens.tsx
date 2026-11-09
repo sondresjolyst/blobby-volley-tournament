@@ -1,5 +1,6 @@
 // The screens that take turns with the overview on the big screen. Each one fills the screen above
 // the sponsor strip and is drawn for 1920 by 1080, like the overview.
+import { TRAINING_TAG, trainingSettings, trainingVersus } from '@/components/training/text';
 import type { CSSProperties, ReactNode } from 'react';
 import { Pizza } from '@/components/pizza/Pizza';
 import { signed } from '@/components/stats/format';
@@ -165,15 +166,15 @@ function DuelPart({ label, children }: { label: string; children: ReactNode }) {
  */
 export function DuelScreen({ data }: { data: BigScreenData }) {
     const site = useSite();
-    const { live, liveMore, done, coming } = data.duels;
+    const { live, training, liveMore, done, coming } = data.duels;
     return (
         <Frame data={data} label={SCREEN_LABELS.duels} title={SCREEN_LABELS.duels}>
-            {live.length + done.length + coming.length === 0 ? (
+            {live.length + training.length + done.length + coming.length === 0 ? (
                 <Empty text={DUEL_TEXT.empty(site)} />
             ) : (
                 <div className={own.duels}>
                     <DuelPart label={DUEL_TEXT.live}>
-                        {live.length === 0 ? (
+                        {live.length + training.length === 0 ? (
                             <p className={own.duelNone}>{DUEL_TEXT.noLive(site)}</p>
                         ) : (
                             <ol className={own.duelList}>
@@ -192,6 +193,19 @@ export function DuelScreen({ data }: { data: BigScreenData }) {
                                                 {bets && <span className={own.duelBets}>{bets}</span>}
                                             </span>
                                             {started && <span className={own.nextScore}>{m.live ? livePoints(m.live) : `${a.sets}–${b.sets}`}</span>}
+                                        </li>
+                                    );
+                                })}
+                                {/* Training against the bot of the game server comes last and has no bets. */}
+                                {training.map((t) => {
+                                    const started = t.state === 'started';
+                                    return (
+                                        <li key={`trening-${t.trainingId}`} className={`${own.nextRow} ${own.duelRow} ${started ? own.nextLive : ''}`} aria-label={trainingVersus(t.nickname, t.bot, t.difficulty)}>
+                                            <span className={`${styles.tag} ${own.nextTag}`}>{TRAINING_TAG}</span>
+                                            <span className={own.nextMain}>
+                                                <span className={own.nextNames}>{trainingVersus(t.nickname, t.bot, t.difficulty)}</span>
+                                                <span className={styles.muted}>{trainingSettings(t.ruleFile, t.scoreToWin)}</span>
+                                            </span>
                                         </li>
                                     );
                                 })}

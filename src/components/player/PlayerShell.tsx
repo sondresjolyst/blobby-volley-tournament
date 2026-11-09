@@ -3,7 +3,7 @@ import { EdgePizzas } from '@/components/pizza/Decor';
 import { HeaderNav } from './HeaderNav';
 import styles from './player.module.css';
 
-export type PlayerPage = 'matches' | 'bracket';
+export type PlayerPage = 'matches' | 'bracket' | 'training';
 
 interface ShellProps {
     page: PlayerPage;
@@ -18,6 +18,7 @@ export function PlayerShell({ page, eventName, nickname, balance, children }: Sh
     const links = [
         { href: '/me', text: 'Kampa', current: page === 'matches' },
         { href: '/bracket', text: 'Kampoppsett', current: page === 'bracket' },
+        { href: '/trening', text: 'Trening', current: page === 'training' },
         { href: '/leaderboard', text: 'Toppliste' },
         { href: '/last-ned', text: 'Last ned' },
     ];

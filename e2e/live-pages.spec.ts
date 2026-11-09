@@ -42,6 +42,8 @@ test('open pages show new players, a new match, a bet and a new balance without 
     const form = asker.page.getByRole('region', { name: 'Utfordra någen te 1v1' });
     await form.getByLabel('Motstandar').selectOption({ label: `Lb${tag}` });
     await form.getByRole('button', { name: 'Send utfordring' }).click();
+    // The form posts in the background, so the test waits for its answer before it moves on.
+    await expect(asker.page.locator('form[aria-busy="true"]')).toHaveCount(0);
     await asked.page.goto('/me');
     await asked.page.getByRole('list', { name: 'Utfordringa te deg' }).getByRole('listitem').filter({ hasText: `La${tag} utfordre deg!` }).getByRole('button', { name: 'Godta' }).click();
     const card = front.getByRole('region', { name: 'I ringen nå' }).getByRole('article').filter({ hasText: `La${tag} vs Lb${tag}` });

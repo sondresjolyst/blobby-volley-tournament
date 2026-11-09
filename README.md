@@ -89,6 +89,19 @@ On `/me` a player asks another player of the event for a 1v1 match, with a best-
 
 Both send a signed out browser to `/login`.
 
+## Training against a bot
+
+On `/trening` a signed in player starts a training match against a bot that the game server runs itself. The player picks the bot, the difficulty, the rules and the points that win the game, and joins with the normal join link. The bots are the scripts of the game: `reduced`, `axji-0-2`, `com_11`, `gintonicV9`, `hyp014` and `Union`, with `reduced` by default. The difficulty is 0 to 25, where 0 is the strongest bot, and 15 by default. A training match is one game at normal speed. The rules are a fixed list of the rule files of the game for now.
+
+A player has one live match at a time. A player in a called or started match cannot train, and a player has one open training match. When a match of a training player is called, the training ends. The player can stop the training on `/trening`. When the player leaves the game, the training ends without a result.
+
+Training matches are in their own table, `training_matches`. They never count for Foza, bets, the leaderboards, Elo, tournaments or the bracket. Their ids come from the same sequence as the matches, so the game server never sees one id twice. The front page and `/me` show open training matches in the ring after the real matches, with the badge TRENING, the bot and the difficulty, and no pool or bet button. The 1v1 screen of the big screen shows them the same way after the real 1v1 matches. A finished training is never in its latest results.
+
+Every finished training game is stored with the player, the bot, the difficulty, the rules, the points to win, the score, who won and when the game started and ended. `/me` and `/trening` show the training stats of the player: games, wins and losses per bot and difficulty, and the hardest bot beaten, which is the lowest difficulty the player has beaten. `/trening` also shows a public overview of the event: who trains the most, the most played bots and the wins against each bot per difficulty. The queries are in `src/lib/store/training.ts`.
+
+- `POST /api/player/training` starts a training match from the form on `/trening`.
+- `POST /api/player/training/<id>` stops the open training match of the player.
+
 ## Foza and betting
 
 Foza has no real value. Every change to a balance is a row in the `foza_ledger` table: the starting Foza, the daily Foza, bets, payouts, refunds, reversals and admin adjustments. A trigger adds each row to the balance on the player, and a check at commit refuses a balance that does not equal the sum of its ledger. Ledger rows are never changed or removed.
@@ -245,6 +258,11 @@ Everything the server needs: the active event, every player of it with the join 
 - `wins1` and `wins2` are the games player 1 and player 2 have won in the series so far. They are the stored series score, so they include results an admin entered or corrected and a score set by hand. An abandoned game does not count. After a restart the server continues the series from them. The site decides when a series is over, and a decided match leaves the list.
 - `speed` is in frames per second. `scoreToWin` is the points that win one game.
 - `nextGameDelay` is the pause in seconds before the next game of a series, which the game counts down. It comes from the tournament, from 3 to 120 and 10 by default. A 1v1 match always gets 10.
+- `training` is only on a training match, as `{ "bot": "hyp014", "difficulty": 13 }`. Such a match has one player in `players`, and the game server plays the bot on the right. Its `bestOf` is 1. A server that does not know training skips it, since it has no two players.
+
+### Training matches
+
+The game server names its bot with player id 0. For a training match it reports `connected` with `{ "playerIds": [17, 0] }`, and the game with `"training": true` and the bot in `points` and as `winnerId` when it won. The answers are the same as for a match. A training game is never stored as a match result, and a training match has no live score.
 
 ### GET /api/server/sponsors
 

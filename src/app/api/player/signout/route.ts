@@ -8,7 +8,7 @@ export async function POST(req: Request) {
     if (!isTrustedPost(req, process.env)) return seeOther('/me');
     const token = (await cookies()).get(SESSION_COOKIE)?.value;
     if (isWellFormedToken(token)) await deleteSession(getPool(), token);
-    const res = seeOther('/');
+    const res = await seeOther('/');
     res.cookies.set(SESSION_COOKIE, '', sessionCookieOptions(process.env, new Date(0)));
     return res;
 }

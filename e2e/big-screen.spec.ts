@@ -97,6 +97,8 @@ async function saveScreens(page: Page, screens: Screen[], seconds: number) {
     }
     await page.getByLabel('Seconds on each screen').fill(String(seconds));
     await page.getByRole('button', { name: 'Save screens' }).click();
+    // The form posts in the background, and the notice can be there from the last save.
+    await expect(page.locator('form[aria-busy="true"]')).toHaveCount(0);
     await expect(page.getByRole('status')).toHaveText('Saved the screens.');
 }
 
@@ -111,6 +113,8 @@ async function playMatch(page: Page, matchId: number, games: [1 | 2, number, num
         await points.nth(0).fill(String(points1));
         await points.nth(1).fill(String(points2));
         await page.getByRole('button', { name: 'Save game' }).click();
+        // The form posts in the background. The notice of the last game is still there until the answer comes.
+        await expect(page.locator('form[aria-busy="true"]')).toHaveCount(0);
         await expect(page.getByRole('status')).toHaveText('The game result is saved.');
     }
 }

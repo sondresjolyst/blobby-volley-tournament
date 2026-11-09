@@ -1,11 +1,33 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { isTrustedPost, parseId, readForm, readUploadForm, seeOther } from './http';
 
+const requestHeaders = vi.hoisted(() => ({ current: null as Headers | null }));
+vi.mock('next/headers', () => ({
+    headers: async () => {
+        if (!requestHeaders.current) throw new Error('outside a request');
+        return requestHeaders.current;
+    },
+}));
+
 describe('seeOther', () => {
-    it('answers 303 with a relative address', () => {
-        const res = seeOther('/me');
+    it('answers 303 with a relative address', async () => {
+        requestHeaders.current = new Headers();
+        const res = await seeOther('/me');
         expect(res.status).toBe(303);
         expect(res.headers.get('location')).toBe('/me');
+    });
+
+    it('answers a post sent in the background with the address as JSON', async () => {
+        requestHeaders.current = new Headers({ 'x-background-post': '1' });
+        const res = await seeOther('/me?bet=placed');
+        expect(res.status).toBe(200);
+        expect(res.headers.get('location')).toBeNull();
+        expect(await res.json()).toEqual({ location: '/me?bet=placed' });
+    });
+
+    it('answers 303 outside a request', async () => {
+        requestHeaders.current = null;
+        expect((await seeOther('/me')).status).toBe(303);
     });
 });
 

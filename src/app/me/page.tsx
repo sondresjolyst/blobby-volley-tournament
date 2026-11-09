@@ -24,6 +24,10 @@ import { liveStamp } from '@/lib/store/live';
 import { listMatches, type MatchSummary } from '@/lib/store/matches';
 import { getJoinCode, listPlayers } from '@/lib/store/players';
 import { calledText } from '@/lib/tournaments/board';
+import { getPlayerTrainingStats, listLiveTraining } from '@/lib/store/training';
+import { TrainingCard } from '@/components/training/TrainingCard';
+import { OwnTrainingStats } from '@/components/training/TrainingStats';
+import { TRAINING_TEXT } from '@/components/training/text';
 
 type Search = { error?: string | string[]; bet?: string | string[]; challenge?: string | string[]; challengeError?: string | string[] };
 
@@ -41,13 +45,16 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
     const wallet = await getWallet(pool, player.id, new Date());
     const balance = wallet?.balance ?? player.fozaBalance;
     const dailyToday = wallet?.dailyToday ?? 0;
-    const [matches, pools, bets, players, event] = await Promise.all([
+    const [matches, pools, bets, players, event, training, trainingStats] = await Promise.all([
         listMatches(pool, player.eventId),
         listMatchPools(pool, player.eventId),
         listPlayerBets(pool, player.id),
         listPlayers(pool, player.eventId),
         getEvent(pool, player.eventId),
+        listLiveTraining(pool, player.eventId),
+        getPlayerTrainingStats(pool, player.id),
     ]);
+    const ownTraining = training.find((t) => t.playerId === player.id);
     const plays = (m: MatchSummary) => m.players.some((p) => p?.id === player.id);
     // A player is in at most one called or started match, since calling refuses a busy player.
     const current = matches.find((m) => (m.state === 'called' || m.state === 'started') && plays(m));
@@ -95,6 +102,12 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                 {incoming.length > 0 && (
                     <p className={styles.notice}>
                         <a href="#utfordringa">{incoming.length === 1 ? 'Någen utfordre deg te 1v1. Svar her.' : `${incoming.length} spelara utfordre deg te 1v1. Svar her.`}</a>
+                    </p>
+                )}
+
+                {ownTraining && (
+                    <p className={styles.notice}>
+                        <Link href="/trening#treninga-di">{TRAINING_TEXT.meReady}</Link>
                     </p>
                 )}
 
@@ -171,16 +184,27 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                             Utfordra någen te 1v1
                         </a>
                     </div>
-                    {ahead.length === 0 ? (
+                    {ahead.length === 0 && training.length === 0 ? (
                         <p className={styles.empty}>Ingen kampa ennå. Ta deg ei øl og någen nædæ.</p>
                     ) : (
                         <div className={styles.cards}>
                             {ahead.map((m) => (
                                 <MatchCard key={m.id} match={m} pool={poolOf.get(m.id)} viewerId={player.id} balance={balance} bet={liveBet.get(m.id)} />
                             ))}
+                            {/* Training comes after the real matches and has no pool or bets. */}
+                            {training.map((t) => (
+                                <TrainingCard key={`trening-${t.id}`} training={t} />
+                            ))}
                         </div>
                     )}
                 </section>
+
+                <OwnTrainingStats stats={trainingStats} headingId="treninga" />
+                <p>
+                    <Link href="/trening" className={styles.buttonQuiet}>
+                        {TRAINING_TEXT.meLink}
+                    </Link>
+                </p>
 
                 <section className={styles.section} aria-labelledby="spel">
                     <h2 id="spel" className={styles.h2}>

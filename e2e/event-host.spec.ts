@@ -4,8 +4,9 @@ import { expect, test, type Browser } from '@playwright/test';
 // This file changes the game server host of the active event, which the join links of the other
 // tests use. So it runs after them, and it always puts the host back, also when a test fails.
 
+// These sign-ups come from their own made-up network, as this file runs after the others have used up the shared limit.
 async function signUp(browser: Browser, nickname: string) {
-    const context = await browser.newContext({ baseURL: process.env.E2E_BASE_URL });
+    const context = await browser.newContext({ baseURL: process.env.E2E_BASE_URL, extraHTTPHeaders: { 'x-e2e-client': '192.0.2.40' } });
     const page = await context.newPage();
     await page.goto('/join');
     await page.getByLabel('LAN-kode').fill(process.env.E2E_EVENT_CODE ?? '');
@@ -40,6 +41,8 @@ test('an admin moves the game server to another PC and the join link follows at 
     const form = asker.page.getByRole('region', { name: 'Utfordra någen te 1v1' });
     await form.getByLabel('Motstandar').selectOption({ label: `Hb${tag}` });
     await form.getByRole('button', { name: 'Send utfordring' }).click();
+    // The form posts in the background, so the test waits for its answer before it moves on.
+    await expect(asker.page.locator('form[aria-busy="true"]')).toHaveCount(0);
     await asked.page.goto('/me');
     await asked.page
         .getByRole('list', { name: 'Utfordringa te deg' })
@@ -69,6 +72,8 @@ test('an admin moves the game server to another PC and the join link follows at 
     await expect(info).toBeFocused();
     await page.getByLabel('Game server host').fill('192.168.1.77');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
+    // The form posts in the background, and the notice can be there from the last save.
+    await expect(page.locator('form[aria-busy="true"]')).toHaveCount(0);
     await expect(page.getByRole('status')).toHaveText('Saved the event.');
     await expect(page.getByLabel('Game server host')).toHaveValue('192.168.1.77');
 
