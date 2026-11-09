@@ -27,7 +27,7 @@ test('a player trains against the bot of the game server, the ring shows it as t
     await expect(form.getByLabel('Bot')).toHaveValue('reduced');
     await expect(form.getByLabel('Regla')).toHaveValue('default.lua');
     await form.getByLabel('Bot').selectOption('hyp014');
-    await form.getByLabel('Vanskegrad').fill('13');
+    await form.getByLabel('Vanskegrad', { exact: true }).fill('13');
     await form.getByLabel('Først te').fill('5');
     await form.getByRole('button', { name: 'Start treninga' }).click();
     await expect(page.getByRole('status')).toHaveText('Treninga e klar. Bli med i spelet med lenkjå di.');
