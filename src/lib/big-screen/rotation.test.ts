@@ -59,9 +59,10 @@ describe('the screen rotation', () => {
             facts: has('stats') ? [fact] : [],
             sponsors: has('sponsors') ? [sponsor] : [],
             winner: has('winner') ? winner : null,
+            duels: { live: [], liveMore: 0, done: [], coming: has('duels') ? [match] : [] },
         };
     }
-    const ALL_EMPTY: ScreenType[] = ['bracket', 'next', 'foza', 'stats', 'sponsors', 'winner'];
+    const ALL_EMPTY: ScreenType[] = ['bracket', 'next', 'foza', 'duels', 'stats', 'sponsors', 'winner'];
 
     it('goes through the screens in the order the admin set and starts over', () => {
         const data = content(['stats', 'overview', 'bracket']);
@@ -83,7 +84,7 @@ describe('the screen rotation', () => {
     });
 
     it('skips screens with nothing to show, and never shows the winner screen without a winner', () => {
-        expect(rotatingScreens(content(['winner', 'stats', 'sponsors', 'bracket', 'foza', 'next', 'overview'], ALL_EMPTY))).toEqual(['overview']);
+        expect(rotatingScreens(content(['winner', 'stats', 'sponsors', 'bracket', 'foza', 'next', 'duels', 'overview'], ALL_EMPTY))).toEqual(['overview']);
         expect(currentScreen(content(['winner'], ALL_EMPTY), 0)).toBe('overview');
         expect(currentScreen(content(['winner', 'stats'], ALL_EMPTY), 0)).toBe('stats');
         expect(currentScreen(content(['winner', 'stats'], ['winner']), 0)).toBe('stats');
@@ -135,6 +136,7 @@ describe('startScreenTurns', () => {
         facts: [{ key: 'wins', label: 'Flest seira', value: '3 seira', who: 'Ostebit' }],
         sponsors: [],
         winner: null,
+        duels: { live: [], liveMore: 0, done: [], coming: [] },
     });
 
     /** Runs the turns like the page does, with the turn in a plain variable. */

@@ -91,6 +91,7 @@ export interface MatchSummary {
     winnerId: number | null;
     result: 'played' | 'forfeit' | null;
     cancelReason: 'admin' | 'declined' | 'withdrawn' | null;
+    finishedAt: Date | null;
 }
 
 export interface BracketRound {
@@ -112,7 +113,6 @@ export interface MatchDetails extends MatchSummary {
     awaitingDecision: boolean;
     calledAt: Date | null;
     startedAt: Date | null;
-    finishedAt: Date | null;
     cancelledAt: Date | null;
 }
 
@@ -948,6 +948,7 @@ function toSummary(row: SummaryRecord): MatchSummary {
         winnerId: row.winner_id,
         result: row.result,
         cancelReason: row.cancel_reason,
+        finishedAt: row.finished_at,
     };
 }
 

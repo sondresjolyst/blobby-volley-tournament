@@ -77,7 +77,7 @@ export function firewallCommand(port: number): string {
     return `New-NetFirewallRule -DisplayName "Blobby Volley server" -Direction Inbound -Protocol UDP -LocalPort ${port} -Action Allow`;
 }
 
-const SCRIPTS = 'https://raw.githubusercontent.com/sondresjolyst/blobbyvolley2/main/scripts';
+const SCRIPTS = 'https://raw.githubusercontent.com/sondresjolyst/blobbyvolley2-tournament/main/scripts';
 
 const PS1 = 'powershell -ExecutionPolicy Bypass -File .\\tournament-server.ps1';
 

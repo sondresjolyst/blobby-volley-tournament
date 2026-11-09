@@ -138,6 +138,153 @@
     color: var(--yellow);
 }
 
+/* 1v1 and next up */
+
+.duels {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    gap: calc(48 * var(--u));
+}
+
+.duelSide {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: calc(20 * var(--u));
+}
+
+.duelPart {
+    flex: none;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: calc(14 * var(--u));
+}
+
+/* The next matches keep their room. The latest results get what is left. */
+.duelSide > .duelPart:last-child {
+    flex: 0 1 auto;
+}
+
+.duelHead {
+    font-size: calc(26 * var(--u));
+    font-weight: 700;
+    letter-spacing: calc(2 * var(--u));
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.duelNone {
+    font-size: calc(30 * var(--u));
+    color: var(--muted);
+}
+
+.duelList {
+    flex: 0 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-flow: column wrap;
+    align-content: flex-start;
+    gap: calc(12 * var(--u));
+}
+
+/* A row that does not fit wraps into a second column out of view, so no row is cut in half. */
+.duelList > li {
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.duelRow {
+    flex: 0 0 auto;
+    padding: calc(16 * var(--u)) calc(32 * var(--u));
+    grid-template-columns: calc(130 * var(--u)) minmax(0, 1fr) auto;
+}
+
+.duelBets {
+    font-weight: 700;
+    color: var(--yellow);
+}
+
+.duelMore {
+    font-size: calc(26 * var(--u));
+    color: var(--muted);
+}
+
+.comingRow {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: calc(170 * var(--u)) minmax(0, 1fr);
+    align-items: center;
+    gap: calc(20 * var(--u));
+    padding: calc(10 * var(--u)) calc(28 * var(--u));
+    background: var(--card);
+    border: calc(1 * var(--u)) solid var(--line);
+    border-radius: calc(24 * var(--u));
+}
+
+.comingCalled {
+    border: calc(3 * var(--u)) solid var(--yellow);
+}
+
+.comingTag {
+    justify-self: start;
+    font-size: calc(20 * var(--u));
+    padding: calc(6 * var(--u)) calc(16 * var(--u));
+}
+
+.tagCalled {
+    background: var(--yellow);
+    color: var(--ink);
+}
+
+.comingNames {
+    font-family: var(--display);
+    font-size: calc(34 * var(--u));
+    line-height: 1.05;
+}
+
+.doneRow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: calc(20 * var(--u));
+    padding: calc(6 * var(--u)) calc(28 * var(--u));
+    background: var(--card);
+    border-radius: calc(20 * var(--u));
+    font-size: calc(30 * var(--u));
+    font-weight: 700;
+}
+
+.doneName {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--lost);
+}
+
+.doneRight {
+    text-align: right;
+}
+
+.doneWon {
+    color: var(--cream);
+}
+
+.doneScore {
+    font-family: var(--display);
+    font-weight: 400;
+    font-size: calc(40 * var(--u));
+    color: var(--yellow);
+    font-variant-numeric: tabular-nums;
+}
+
 /* Stats */
 
 .facts {

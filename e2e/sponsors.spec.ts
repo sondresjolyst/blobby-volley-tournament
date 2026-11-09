@@ -85,6 +85,44 @@ test('an admin adds, orders, turns off and deletes sponsors, and the footer and 
     await expect.poll(() => footer.getByRole('img', { name: first }).evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(300);
     const alts = await footer.getByRole('img').evaluateAll((imgs) => imgs.map((img) => img.getAttribute('alt')));
     expect(alts.indexOf(first)).toBeLessThan(alts.indexOf(second));
+
+    // The strip always moves, also on wide screens where both tiles fit, and the sets cover it while it slides.
+    for (const width of [375, 1920, 2560]) {
+        await homePage.setViewportSize({ width, height: 900 });
+        const track = footer.locator('[data-sponsor-track]');
+        await expect
+            .poll(() =>
+                track.evaluate((el) => {
+                    const box = el.parentElement!.clientWidth;
+                    const step = el.firstElementChild!.getBoundingClientRect().width + parseFloat(getComputedStyle(el).columnGap);
+                    const running = el.getAnimations().some((a) => a.playState === 'running');
+                    return running && el.getBoundingClientRect().width - step >= box;
+                }),
+            )
+            .toBe(true);
+    }
+
+    // The strip stays at the bottom of the window, at the top of the page and at the end of it, and the
+    // page has room under its last content, so the strip covers nothing.
+    for (const { width, height } of [
+        { width: 375, height: 700 },
+        { width: 1920, height: 1080 },
+    ]) {
+        await homePage.setViewportSize({ width, height });
+        await homePage.evaluate(() => window.scrollTo(0, 0));
+        await expect(footer).toBeInViewport({ ratio: 1 });
+        const atTop = await footer.boundingBox();
+        expect(Math.round(atTop!.y + atTop!.height)).toBe(height);
+        await homePage.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+        await expect(footer).toBeInViewport({ ratio: 1 });
+        const admin = homePage.getByRole('link', { name: 'Admin' });
+        await expect(admin).toBeInViewport({ ratio: 1 });
+        const [link, strip] = await Promise.all([admin.boundingBox(), footer.boundingBox()]);
+        expect(link!.y + link!.height).toBeLessThanOrEqual(strip!.y);
+        // On phones the strip stays low, so the page keeps most of the screen.
+        if (width === 375) expect(strip!.height).toBeLessThanOrEqual(90);
+    }
+    await homePage.setViewportSize({ width: 1280, height: 720 });
     const src = await footer.getByRole('img', { name: first }).getAttribute('src');
     const logo = await homePage.request.get(src!);
     expect(logo.status()).toBe(200);
