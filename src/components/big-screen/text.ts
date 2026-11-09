@@ -89,8 +89,8 @@ export const joinChip = (code: string, site: string | null = null) => `Bli med p
 export const WINNER_TEXT = { title: 'Me har ein vinnar!', of: (tournament: string) => `Vinnaren av ${tournament}` };
 export const placeName = (place: number) => `${place}. plass`;
 
-/** The state of a match on the up next screen, such as `Sett 2 · 1–0 i sett · best av 3`. */
-export function nextCaption(match: Pick<ScreenMatch, 'live' | 'bestOf' | 'sides'>): string {
-    if (match.live) return `Sett ${match.live.game} · ${match.sides[0].sets}–${match.sides[1].sets} i sett · best av ${match.bestOf}`;
-    return `Best av ${match.bestOf}`;
+/** The state of a match on the up next screen, such as `Sett 2 · 1–0 i sett · best av 3 · Tennis`. */
+export function nextCaption(match: Pick<ScreenMatch, 'live' | 'bestOf' | 'rules' | 'sides'>): string {
+    if (match.live) return `Sett ${match.live.game} · ${match.sides[0].sets}–${match.sides[1].sets} i sett · best av ${match.bestOf} · ${match.rules}`;
+    return `Best av ${match.bestOf} · ${match.rules}`;
 }

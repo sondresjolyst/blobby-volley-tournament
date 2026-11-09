@@ -46,18 +46,20 @@ describe('POST /api/player/challenges', () => {
     it('asks for the match as the signed in player with the chosen settings', async () => {
         getActivePlayer.mockResolvedValue({ id: 5 });
         createChallenge.mockResolvedValueOnce({ ok: true, matchId: 9 }).mockResolvedValueOnce({ ok: false, error: 'taken' });
-        const sent = await create(post('/api/player/challenges', sameSite, { opponent: '2', bestOf: '3', scoreToWin: '21', speed: '90' }));
+        const sent = await create(post('/api/player/challenges', sameSite, { opponent: '2', bestOf: '3', ruleFile: 'tennis.lua', scoreToWin: '21', speed: '90' }));
         expect(sent.headers.get('location')).toBe('/me?challenge=sent#utfordringa');
-        expect(createChallenge).toHaveBeenCalledWith({}, 5, 2, { bestOf: 3, scoreToWin: 21, speed: 90 });
+        expect(createChallenge).toHaveBeenCalledWith({}, 5, 2, { bestOf: 3, ruleFile: 'tennis.lua', scoreToWin: 21, speed: 90 });
         const taken = await create(post('/api/player/challenges', sameSite, { opponent: '2' }));
         expect(taken.headers.get('location')).toBe('/me?challengeError=taken#utfordringa');
-        expect(createChallenge).toHaveBeenLastCalledWith({}, 5, 2, { bestOf: 1, scoreToWin: 15, speed: 75 });
+        expect(createChallenge).toHaveBeenLastCalledWith({}, 5, 2, { bestOf: 1, ruleFile: 'default.lua', scoreToWin: 15, speed: 75 });
     });
 
     it('refuses settings out of bounds without asking the store', async () => {
         getActivePlayer.mockResolvedValue({ id: 5 });
         const res = await create(post('/api/player/challenges', sameSite, { opponent: '2', speed: '500' }));
         expect(res.headers.get('location')).toBe('/me?challengeError=form#utfordringa');
+        const rules = await create(post('/api/player/challenges', sameSite, { opponent: '2', ruleFile: 'fun.lua' }));
+        expect(rules.headers.get('location')).toBe('/me?challengeError=form#utfordringa');
         expect(createChallenge).not.toHaveBeenCalled();
     });
 });

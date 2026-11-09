@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { BoardMatch, BoardRound, BoardSlot } from '@/lib/tournaments/board';
 import styles from './player.module.css';
+import { roundSettings } from './text';
 
 function SlotRow({ slot }: { slot: BoardSlot }) {
     const classes = [styles.slot, slot.outcome === 'won' && styles.slotWon, slot.outcome === 'lost' && styles.slotLost, slot.playerId === null && styles.slotEmpty, slot.mine && styles.slotMine];
@@ -32,7 +33,7 @@ function BoardCard({ match }: { match: BoardMatch }) {
 }
 
 /** The rounds of one part of a bracket side by side. Wide brackets scroll sideways. */
-export function BracketBoard({ rounds, champion }: { rounds: BoardRound[]; champion?: { name: string | null } }) {
+export function BracketBoard({ rounds, champion, scoreToWin }: { rounds: BoardRound[]; champion?: { name: string | null }; scoreToWin: number }) {
     return (
         <div className={styles.boardScroll}>
             <div className={styles.board}>
@@ -40,7 +41,7 @@ export function BracketBoard({ rounds, champion }: { rounds: BoardRound[]; champ
                     <section key={round.key} className={styles.round} aria-label={round.name}>
                         <div className={styles.roundHead}>
                             <h3 className={styles.roundName}>{round.name}</h3>
-                            <span className={styles.roundBestOf}>Best av {round.bestOf}</span>
+                            <span className={styles.roundBestOf}>{roundSettings(round, scoreToWin)}</span>
                         </div>
                         <div className={styles.roundMatches}>
                             {round.matches.map((match) => (

@@ -2,6 +2,7 @@
 // tested on its own. Everything here goes to a public page and a public JSON route, so it holds
 // nicknames and numbers only.
 import type { FormatId } from '@/lib/bracket';
+import { rulesName } from '@/lib/matches/rules';
 import type { MatchState } from '@/lib/matches/state';
 import { ELO_START, shownRating } from '@/lib/stats/elo';
 import type { MatchPool } from '@/lib/store/bets';
@@ -50,6 +51,8 @@ export interface ScreenMatch {
     label: string;
     tournamentName: string | null;
     bestOf: number;
+    /** The name of the game rules, such as `Tennis`. */
+    rules: string;
     /** The score of the game being played. Null when none has come in. */
     live: { game: number; points: [number, number] } | null;
     /** The Foza in the pool. */
@@ -253,6 +256,7 @@ function screenMatch(match: MatchSummary, pool: MatchPool | undefined, live: Liv
         label: label(match),
         tournamentName: match.tournamentName,
         bestOf: match.bestOf,
+        rules: rulesName(match.ruleFile),
         live: live?.live ? { game: live.live.game, points: [live.live.points[0].points, live.live.points[1].points] } : null,
         pool: pool?.total ?? 0,
         open: pool?.open ?? false,

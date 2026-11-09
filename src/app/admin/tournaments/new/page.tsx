@@ -5,6 +5,8 @@ import { InfoButton } from '@/components/InfoButton';
 import { requireAdmin } from '@/lib/auth/options';
 import { BEST_OF, FORMATS, type PlannedBracket } from '@/lib/bracket';
 import { getPool } from '@/lib/db';
+import { fixedScoreToWin, GAME_RULES, realScoreToWin } from '@/lib/matches/rules';
+import { DEFAULT_SCORE_TO_WIN } from '@/lib/matches/settings';
 import { getActiveEvent } from '@/lib/store/events';
 import { listPlayers } from '@/lib/store/players';
 import { eloRatings } from '@/lib/store/stats';
@@ -26,6 +28,13 @@ import {
 import { describeBracket } from '@/lib/tournaments/view';
 
 type Search = Record<string, string | string[] | undefined>;
+
+/** The points a game of the round really plays to, such as `150 (Brannmur, 10 times 15)`. */
+function roundPoints(ruleFile: string, scoreToWin: number): string {
+    const real = realScoreToWin(ruleFile, scoreToWin);
+    if (fixedScoreToWin(ruleFile)) return `${real} (always ${real} with these rules)`;
+    return real === scoreToWin ? String(real) : `${real} (10 times ${scoreToWin} with these rules)`;
+}
 
 /**
  * Builds a tournament in the active event. The form is sent to this page with GET to show a
@@ -168,6 +177,16 @@ export default async function NewTournament({ searchParams }: { searchParams: Pr
                 {plan && (
                     <fieldset>
                         <legend>Rounds</legend>
+                        <div className="admin-field-label">
+                            <p>Each round can play other rules. Lyn always plays to 2, and Brannmur plays to 10 times the points to win.</p>
+                            <InfoButton label="What the rules do">
+                                {GAME_RULES.map((r) => (
+                                    <p key={r.file}>
+                                        <strong>{r.name}</strong> ({r.file}): {r.description}
+                                    </p>
+                                ))}
+                            </InfoButton>
+                        </div>
                         <input type="hidden" name="roundsFor" value={roundsSignature(plan)} />
                         <div className="admin-table">
                             <table>
@@ -176,6 +195,7 @@ export default async function NewTournament({ searchParams }: { searchParams: Pr
                                         <th>Round</th>
                                         <th>Best of</th>
                                         <th>Rules</th>
+                                        <th>Points to win</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -196,9 +216,17 @@ export default async function NewTournament({ searchParams }: { searchParams: Pr
                                             </td>
                                             <td>
                                                 <label>
-                                                    Rules for {round.name} <input name={rulesField(round.key)} maxLength={64} defaultValue={round.ruleFile} />
+                                                    Rules for {round.name}{' '}
+                                                    <select name={rulesField(round.key)} defaultValue={round.ruleFile}>
+                                                        {GAME_RULES.map((r) => (
+                                                            <option key={r.file} value={r.file}>
+                                                                {r.name}
+                                                            </option>
+                                                        ))}
+                                                    </select>
                                                 </label>
                                             </td>
+                                            <td data-label="Points to win">{roundPoints(round.ruleFile, draft?.scoreToWin ?? DEFAULT_SCORE_TO_WIN)}</td>
                                         </tr>
                                     ))}
                                 </tbody>

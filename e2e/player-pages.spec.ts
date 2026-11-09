@@ -56,7 +56,7 @@ test('a player challenges another to a 1v1, the other sees it and accepts withou
 
     // The asked player still has /me open from the sign-up, and the challenge shows up without a reload.
     const incoming = asked.page.getByRole('list', { name: 'Utfordringa te deg' }).getByRole('listitem').filter({ hasText: `Ua${tag} utfordre deg!` });
-    await expect(incoming).toContainText('Best av 3 · først te 21 · 90 fps', { timeout: 15_000 });
+    await expect(incoming).toContainText('Best av 3 · Vanlig · først te 21 · 90 fps', { timeout: 15_000 });
     await expect(asker.page.getByRole('button', { name: 'Kopier lenkjå' })).toHaveCount(0);
     await incoming.getByRole('button', { name: 'Godta' }).click();
     // Both players are free, so the match is called at once without an admin.
@@ -104,6 +104,62 @@ test('a player challenges another to a 1v1, the other sees it and accepts withou
     await asked.context.close();
 });
 
+test('a player challenges another to a 1v1 with Tennis rules, and the other sees the rules before accepting', async ({ browser }) => {
+    const tag = randomBytes(2).toString('hex');
+    const asker = await signUp(browser, `Ta${tag}`);
+    const asked = await signUp(browser, `Tb${tag}`);
+    await asker.page.goto('/me');
+
+    const form = asker.page.getByRole('region', { name: 'Utfordra någen te 1v1' });
+    const rules = form.getByLabel('Regla');
+    await expect(rules).toHaveValue('default.lua');
+    await expect(rules.locator('option')).toHaveText(['Vanlig', 'Klassisk', 'Lyn', 'Eitt slag', 'Dobbel', 'Tennis', 'Hoppetusse', 'Limfot', 'Bakforsvar', 'Brannmur']);
+
+    // Lyn always plays to 2, so the points field is locked.
+    await rules.selectOption({ label: 'Lyn' });
+    await expect(form.getByLabel('Først te')).toBeDisabled();
+    await expect(form.getByLabel('Først te')).toHaveValue('2');
+    await expect(form.getByText('Lyn spele alltid te 2')).toBeVisible();
+    // Brannmur plays to 10 times the points.
+    await rules.selectOption({ label: 'Brannmur' });
+    await expect(form.getByLabel('Først te')).toBeEnabled();
+    await expect(form.getByText('Brannmur gonge med 10, så dåkke spele te 150. Høgst 90')).toBeVisible();
+
+    await rules.selectOption({ label: 'Tennis' });
+    await expect(form.getByLabel('Først te')).toHaveValue('15');
+    await form.getByRole('button', { name: 'Ka betyr dei?' }).click();
+    await expect(form.getByText('Eitt touch på kvar side, og ballen kan sprett éin gang på din side før du slår.')).toBeVisible();
+    await form.getByLabel('Motstandar').selectOption({ label: `Tb${tag}` });
+    if (process.env.SITE_SHOTS) await asker.page.screenshot({ path: `${process.env.SITE_SHOTS}/rules-1v1-form.png`, fullPage: true });
+    await form.getByRole('button', { name: 'Send utfordring' }).click();
+    await expect(asker.page.getByRole('status')).toHaveText('Utfordringå e sendt. Nå e det opp te motstandaren.');
+    await expect(asker.page.getByRole('list', { name: 'Utfordringa frå deg' })).toContainText('Best av 1 · Tennis · først te 15 · 75 fps');
+
+    // The asked player sees the rules and what they mean before answering.
+    const incoming = asked.page.getByRole('list', { name: 'Utfordringa te deg' }).getByRole('listitem').filter({ hasText: `Ta${tag} utfordre deg!` });
+    await expect(incoming).toContainText('Best av 1 · Tennis · først te 15 · 75 fps', { timeout: 15_000 });
+    await expect(incoming).toContainText('ballen kan sprett éin gang på din side');
+    if (process.env.SITE_SHOTS) await asked.page.screenshot({ path: `${process.env.SITE_SHOTS}/rules-1v1-challenge.png`, fullPage: true });
+    await incoming.getByRole('button', { name: 'Godta' }).click();
+    await expect(asked.page.getByRole('heading', { name: 'Kampen din e klar!' })).toBeVisible();
+    await expect(asked.page.getByRole('region', { name: 'Kampen din e klar!' })).toContainText('Tennis');
+
+    // The game server gets the rule file.
+    const sync = await (await asker.page.request.get('/api/server/sync', { headers: { authorization: `Bearer ${process.env.E2E_GAME_SERVER_TOKEN ?? ''}` } })).json();
+    const askerId = sync.players.find((p: { nickname: string }) => p.nickname === `Ta${tag}`).playerId as number;
+    expect(sync.matches.find((m: { players: { playerId: number }[] }) => m.players.some((p) => p.playerId === askerId))).toMatchObject({ ruleFile: 'tennis.lua', scoreToWin: 15 });
+
+    // A rule file outside the list is refused.
+    const refused = await asker.page.request.post('/api/player/challenges', {
+        form: { opponent: '1', ruleFile: 'fun.lua' },
+        headers: { 'sec-fetch-site': 'same-origin' },
+        maxRedirects: 0,
+    });
+    expect(refused.headers()['location']).toBe('/me?challengeError=form#utfordringa');
+    await asker.context.close();
+    await asked.context.close();
+});
+
 test('the asked player declines a 1v1, the asker withdraws the next one, and the pair can try again', async ({ browser }) => {
     const tag = randomBytes(2).toString('hex');
     const asker = await signUp(browser, `Da${tag}`);
@@ -116,7 +172,7 @@ test('the asked player declines a 1v1, the asker withdraws the next one, and the
 
     await asked.page.goto('/me');
     const incoming = asked.page.getByRole('listitem').filter({ hasText: `Da${tag} utfordre deg!` });
-    await expect(incoming).toContainText('Best av 1 · først te 15 · 75 fps');
+    await expect(incoming).toContainText('Best av 1 · Vanlig · først te 15 · 75 fps');
     await incoming.getByRole('button', { name: 'Nei takk' }).click();
     await expect(asked.page.getByRole('status')).toHaveText('Du sa nei takk. Kampen e avlyst.');
     await expect(asked.page.getByRole('listitem').filter({ hasText: `Da${tag} utfordre deg!` })).toHaveCount(0);

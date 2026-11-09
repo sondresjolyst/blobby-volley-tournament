@@ -15,6 +15,7 @@ const match = (matchId: number, state: ScreenMatch['state'], names: [string, str
     label: 'Semifinala, kamp 1',
     tournamentName: 'Hovedcupen',
     bestOf: 3,
+    rules: 'Tennis',
     live,
     pool: 0,
     open: state === 'upcoming',
@@ -97,7 +98,7 @@ describe('the Foza screen', () => {
 describe('the up next screen', () => {
     it('lists the matches with the live score of the running one', () => {
         const out = html(<UpNextScreen data={full} />);
-        for (const text of ['Snart i ringen', 'LIVE', '11–8', 'Sett 2 · 1–0 i sett · best av 3', 'SNART', 'Blobfisk', 'Ingen spel ennå']) expect(out).toContain(text);
+        for (const text of ['Snart i ringen', 'LIVE', '11–8', 'Sett 2 · 1–0 i sett · best av 3 · Tennis', 'SNART', 'Blobfisk', 'Ingen spel ennå']) expect(out).toContain(text);
         expect(out.indexOf('Skvett')).toBeLessThan(out.indexOf('Blobfisk'));
     });
 

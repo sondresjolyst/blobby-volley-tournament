@@ -1,6 +1,7 @@
-import { isBestOf } from '@/lib/bracket';
+import { DEFAULT_RULES, isBestOf } from '@/lib/bracket';
 import { parseId } from '@/lib/http';
 import { DEFAULT_GAME_SPEED, DEFAULT_SCORE_TO_WIN, formNumber, isGameSpeed, isPoints, isScoreToWin } from './settings';
+import { fitsScoreToWin, isGameRules } from './rules';
 import type { MatchState } from './state';
 
 /** A whole number from 0 to MAX_POINTS from a form field, or null. */
@@ -64,21 +65,24 @@ export function parseMatchForm(form: Record<string, string>): MatchForm | null {
 export interface ChallengeForm {
     opponentId: number;
     bestOf: number;
+    ruleFile: string;
     scoreToWin: number;
     speed: number;
 }
 
 /**
- * Reads the form a player sends to ask another player for a 1v1 match. An empty best-of, points
- * or speed gives 1, 15 and 75. Returns null when a field is missing or out of bounds.
+ * Reads the form a player sends to ask another player for a 1v1 match. An empty best-of, rules,
+ * points or speed gives 1, default.lua, 15 and 75. The rules must be one of GAME_RULES. Returns
+ * null when a field is missing or out of bounds.
  */
 export function parseChallengeForm(form: Record<string, string>): ChallengeForm | null {
     const opponentId = parseId(form.opponent ?? '');
     const bestOf = formNumber(form.bestOf ?? '', 1);
+    const ruleFile = (form.ruleFile ?? '').trim() || DEFAULT_RULES;
     const scoreToWin = formNumber(form.scoreToWin ?? '', DEFAULT_SCORE_TO_WIN);
     const speed = formNumber(form.speed ?? '', DEFAULT_GAME_SPEED);
-    if (opponentId === null || bestOf === null || !isBestOf(bestOf) || !isScoreToWin(scoreToWin) || !isGameSpeed(speed)) return null;
-    return { opponentId, bestOf, scoreToWin, speed };
+    if (opponentId === null || bestOf === null || !isBestOf(bestOf) || !isGameRules(ruleFile) || !isScoreToWin(scoreToWin) || !fitsScoreToWin(ruleFile, scoreToWin) || !isGameSpeed(speed)) return null;
+    return { opponentId, bestOf, ruleFile, scoreToWin, speed };
 }
 
 export const CHALLENGE_ANSWERS = ['accept', 'decline', 'withdraw'] as const;

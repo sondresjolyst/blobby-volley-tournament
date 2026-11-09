@@ -42,15 +42,26 @@ test('an admin previews and saves a double elimination tournament', async ({ pag
     await expect(firstRound.getByRole('row', { name: /Match 1/ })).toContainText(`${nicknames[1]}${nicknames[0]}`);
 
     await page.getByLabel('Best of for Grand final').selectOption('5');
-    await page.getByLabel('Rules for Grand final').fill('final.lua');
+    // The rules are picked from the game's list, and the real points to win show per round.
+    await expect(page.getByLabel('Rules for Grand final').locator('option')).toHaveText(['Vanlig', 'Klassisk', 'Lyn', 'Eitt slag', 'Dobbel', 'Tennis', 'Hoppetusse', 'Limfot', 'Bakforsvar', 'Brannmur']);
+    await expect(page.getByLabel('Rules for Grand final')).toHaveValue('default.lua');
+    await page.getByLabel('Rules for Grand final').selectOption({ label: 'Tennis' });
+    await page.getByLabel('Rules for Winners round 1').selectOption({ label: 'Lyn' });
+    await page.getByLabel('Rules for Winners round 2').selectOption({ label: 'Brannmur' });
     await page.getByRole('button', { name: 'Preview' }).click();
-    await expect(page.getByRole('heading', { name: 'Grand final, best of 5, rules final.lua' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Grand final, best of 5, rules Tennis' })).toBeVisible();
+    await expect(page.getByRole('row', { name: /Winners round 1/ }).first()).toContainText('2 (always 2 with these rules)');
+    await expect(page.getByRole('row', { name: /Winners round 2/ }).first()).toContainText('150 (10 times 15 with these rules)');
+    await page.getByRole('button', { name: 'What the rules do' }).click();
+    await expect(page.getByText('Tennis (tennis.lua): Eitt touch på kvar side')).toBeVisible();
+    if (process.env.SITE_SHOTS) await page.getByRole('group', { name: 'Rounds' }).screenshot({ path: `${process.env.SITE_SHOTS}/rules-tournament-rounds.png` });
 
     await page.getByRole('button', { name: 'Save tournament' }).click();
     await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
     await expect(page.getByRole('status')).toHaveText('Saved the tournament.');
     await expect(page.getByText('Format: Double elimination')).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Grand final, best of 5, rules final.lua' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Grand final, best of 5, rules Tennis' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Winners round 1, best of 1, rules Lyn' })).toBeVisible();
     await expect(page.getByRole('region', { name: 'Winners round 2' }).getByRole('row', { name: /Match 2/ })).toContainText(`${nicknames[2]}Winner of match 1`);
 
     await page.getByRole('link', { name: 'Tournaments' }).click();
@@ -77,7 +88,23 @@ test('a save with a bad rule file goes back to the form with the error and the v
     expect(query.get('error')).toBe('rules');
     expect(query.getAll('player')).toEqual(['1', '2']);
     await page.goto(location);
-    await expect(page.getByText('A rule file must be a file name')).toBeVisible();
+    await expect(page.getByText('Pick the rules of each round from the list.')).toBeVisible();
+
+    // A file name the game does not ship is refused too.
+    const unknown = await page.request.post('/api/admin/tournaments', {
+        data: new URLSearchParams([
+            ['name', 'Bad'],
+            ['format', 'single_elimination'],
+            ['seeding', 'random'],
+            ['randomSeed', '5'],
+            ['player', '1'],
+            ['player', '2'],
+            ['rules_final-1', 'fast_ball.lua'],
+        ]).toString(),
+        headers: { 'content-type': 'application/x-www-form-urlencoded', 'sec-fetch-site': 'same-origin' },
+        maxRedirects: 0,
+    });
+    expect(new URLSearchParams(unknown.headers()['location'].split('?')[1]).get('error')).toBe('rules');
     await expect(page.getByLabel('Name')).toHaveValue('Bad');
 });
 

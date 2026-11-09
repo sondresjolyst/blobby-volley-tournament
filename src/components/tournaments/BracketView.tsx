@@ -1,3 +1,4 @@
+import { rulesName } from '@/lib/matches/rules';
 import type { ViewRound } from '@/lib/tournaments/view';
 
 /** A plain list of the rounds and matches of a bracket. */
@@ -7,7 +8,7 @@ export function BracketView({ rounds }: { rounds: ViewRound[] }) {
             {rounds.map((round) => (
                 <section key={round.key} aria-label={round.name}>
                     <h3>
-                        {round.name}, best of {round.bestOf}, rules {round.ruleFile}
+                        {round.name}, best of {round.bestOf}, rules {rulesName(round.ruleFile)}
                     </h3>
                     <div className="admin-table">
                         <table>
