@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { expect, test, type Browser, type BrowserContext } from '@playwright/test';
+import pg from 'pg';
 
 async function signUp(browser: Browser, nickname: string) {
     const context = await browser.newContext({ baseURL: process.env.E2E_BASE_URL });
@@ -29,6 +30,8 @@ test('a player challenges another to a 1v1, the other sees it and accepts withou
     await asker.page.goto('/me');
     // The E2E event pays 100 Foza a day, and the page says so quietly.
     await expect(asker.page.getByText('Du får 100 Foza kvar dag du e med.')).toBeVisible();
+    // The day of the sign-up is covered by the starting Foza, so there is no notice of a daily payment.
+    await expect(asker.page.getByText(/Du fekk .* Foza for i dag/)).toHaveCount(0);
 
     // Settings out of bounds are refused before anything is stored.
     const refused = await asker.page.request.post('/api/player/challenges', {
@@ -186,4 +189,26 @@ test('a player sees the bracket of a tournament with the own match marked', asyn
 test('the bracket page sends a visitor without a session to sign-in', async ({ page }) => {
     await page.goto('/bracket');
     await expect(page).toHaveURL(/\/login$/);
+});
+
+test('a player who signed up the day before is told on /me that they got the daily Foza for today', async ({ browser }) => {
+    const nickname = `Ud${randomBytes(2).toString('hex')}`;
+    const player = await signUp(browser, nickname);
+    // Moves the sign-up a day back in the test database, so today is a day with daily Foza.
+    const db = new pg.Pool({ connectionString: process.env.E2E_DATABASE_URL });
+    try {
+        await db.query(`UPDATE players SET created_at = created_at - interval '1 day' WHERE nickname = $1`, [nickname]);
+    } finally {
+        await db.end();
+    }
+
+    await player.page.goto('/me');
+    await expect(player.page.getByRole('status').filter({ hasText: 'Du fekk 100 Foza for i dag!' })).toBeVisible();
+    await expect(player.page.getByText('Du får 100 Foza kvar dag du e med.')).toHaveCount(0);
+    // A later visit the same day still tells it, and pays nothing more.
+    await player.page.reload();
+    await expect(player.page.getByText('Du fekk 100 Foza for i dag!')).toBeVisible();
+    const balance = await player.page.request.get('/api/player/balance');
+    expect(await balance.json()).toMatchObject({ balance: 1100 });
+    await player.context.close();
 });
