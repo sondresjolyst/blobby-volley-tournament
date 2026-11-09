@@ -9,7 +9,7 @@ import type { EventInput } from '@/lib/events/input';
 import { newJoinCode } from '@/lib/players/join-code';
 import { getMatchPool, listMatchPools, listPlayerBets, placeBet } from './bets';
 import { createEvent, setActiveEvent, updateEvent, clearActiveEvent } from './events';
-import { addLedger, adjustBalance, getBalance, getFozaSummary, listFozaSummaries, listLedger } from './foza';
+import { addLedger, adjustBalance, getBalance, getFozaSummary, getWallet, listFozaSummaries, listLedger } from './foza';
 import {
     acceptChallenge,
     callMatch,
@@ -520,6 +520,20 @@ describe('daily Foza', () => {
         expect(await getBalance(pool, s.X, new Date('2026-11-21T22:59:59Z'))).toBe(1100);
         expect(await getBalance(pool, s.X, new Date('2026-11-21T23:00:00Z'))).toBe(1200);
         expect((await listLedger(pool, s.X)).filter((r) => r.type === 'daily').map((r) => r.day)).toEqual(['2026-11-21', '2026-11-22']);
+    });
+
+    it('tells the daily Foza of today, also on a later read that day, and none on the sign-up day', async () => {
+        const s = await setup();
+        expect(await getWallet(pool, s.X, new Date('2026-11-20T12:00:00Z'))).toEqual({ balance: 1000, dailyToday: null });
+        expect(await getWallet(pool, s.X, new Date('2026-11-21T08:00:00Z'))).toEqual({ balance: 1100, dailyToday: 100 });
+        expect(await getWallet(pool, s.X, new Date('2026-11-21T20:00:00Z'))).toEqual({ balance: 1100, dailyToday: 100 });
+        // A changed daily amount does not change what was paid today.
+        await updateEvent(pool, s.eventId, { ...lan, dailyFoza: 250 });
+        expect(await getWallet(pool, s.X, new Date('2026-11-21T21:00:00Z'))).toEqual({ balance: 1100, dailyToday: 100 });
+        expect(await getWallet(pool, s.X, new Date('2026-11-22T08:00:00Z'))).toEqual({ balance: 1350, dailyToday: 250 });
+        await clearActiveEvent(pool);
+        expect(await getWallet(pool, s.X, new Date('2026-11-23T08:00:00Z'))).toEqual({ balance: 1350, dailyToday: null });
+        expect(await getWallet(pool, 999999, new Date('2026-11-23T08:00:00Z'))).toBeNull();
     });
 
     it('follows summer time in Oslo', async () => {

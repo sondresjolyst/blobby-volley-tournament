@@ -21,6 +21,9 @@ export function payout(multiplier: number | null): string {
 /** The quiet note on /me about the daily Foza, such as `Du får 100 Foza kvar dag du e med.` */
 export const dailyFozaLine = (daily: number) => `Du får ${foza(daily)} kvar dag du e med.`;
 
+/** The notice on /me on a day the player got the daily Foza, such as `Du fekk 100 Foza for i dag!` */
+export const dailyFozaNotice = (paid: number) => `Du fekk ${foza(paid)} for i dag!`;
+
 /** Such as `Best av 3 · først te 15 · 75 fps`. */
 export function matchSettings(match: Pick<MatchSummary, 'bestOf' | 'scoreToWin' | 'speed'>): string {
     return `Best av ${match.bestOf} · først te ${match.scoreToWin} · ${match.speed} fps`;

@@ -108,7 +108,7 @@ try {
 
     // A session for the test admin, signed with the placeholder secret.
     const adminToken = await encode({ token: { githubId: adminId }, secret });
-    code = run('@playwright/test/cli.js', ['test', ...process.argv.slice(2)], { E2E_BASE_URL: baseUrl, E2E_EVENT_CODE, E2E_ADMIN_TOKEN: adminToken, E2E_GAME_SERVER_TOKEN: gameServerToken });
+    code = run('@playwright/test/cli.js', ['test', ...process.argv.slice(2)], { E2E_BASE_URL: baseUrl, E2E_EVENT_CODE, E2E_ADMIN_TOKEN: adminToken, E2E_GAME_SERVER_TOKEN: gameServerToken, E2E_DATABASE_URL: databaseUrl });
 } catch (error) {
     console.error(error instanceof Error ? error.message : 'The check failed.');
 } finally {
