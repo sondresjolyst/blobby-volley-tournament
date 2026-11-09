@@ -67,7 +67,7 @@ test('placing a bet keeps the scroll and shows the result on the screen', async 
     await adminPage.getByRole('button', { name: 'Preview' }).click();
     await adminPage.getByRole('button', { name: 'Save tournament' }).click();
     await expect(adminPage.getByRole('heading', { level: 1, name })).toBeVisible();
-    await adminPage.goto('/admin/matches');
+    await adminPage.goto(`/admin/matches?q=${encodeURIComponent(name)}`);
     const href = await adminPage.getByRole('link', { name: new RegExp(name) }).getAttribute('href');
     const matchId = href!.match(/\/admin\/matches\/(\d+)/)![1];
     await admin.close();

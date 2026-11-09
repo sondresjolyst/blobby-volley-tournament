@@ -3,7 +3,7 @@ import { afterPost, canPostInBackground } from './stay';
 
 const origin = 'https://lan.example';
 const at = (path: string) => new URL(path, origin);
-const answer = (location: unknown) => ({ redirected: false, location });
+const answer = (location: unknown, status = 200) => ({ redirected: false, status, location });
 
 describe('canPostInBackground', () => {
     it('takes a post form to an API route of the site', () => {
@@ -17,6 +17,7 @@ describe('canPostInBackground', () => {
         expect(canPostInBackground({ method: 'post', target: '', action: '/me' }, origin)).toBe(false);
         expect(canPostInBackground({ method: 'post', target: '', action: '/apiary' }, origin)).toBe(false);
         expect(canPostInBackground({ method: 'post', target: '', action: 'https://other.example/api/player/bets' }, origin)).toBe(false);
+        expect(canPostInBackground({ method: 'post', target: '', action: '/api/auth/signin/github' }, origin)).toBe(false);
     });
 });
 
@@ -40,12 +41,19 @@ describe('afterPost', () => {
     });
 
     it('loads the page again when the route redirected anyway, so the post is never sent twice', () => {
-        expect(afterPost(at('/me'), { redirected: true, location: undefined })).toEqual({ kind: 'reload' });
+        expect(afterPost(at('/me'), { redirected: true, status: 0, location: undefined })).toEqual({ kind: 'reload' });
     });
 
-    it('sends the form the normal way when the answer holds no address of the site', () => {
-        expect(afterPost(at('/me'), answer(undefined))).toEqual({ kind: 'native' });
-        expect(afterPost(at('/me'), answer('https://other.example/me'))).toEqual({ kind: 'native' });
-        expect(afterPost(at('/me'), answer('//other.example/me'))).toEqual({ kind: 'native' });
+    it('loads the page again when the sign-in has run out, so it shows the sign-in', () => {
+        expect(afterPost(at('/admin/events/1'), answer(undefined, 401))).toEqual({ kind: 'reload' });
+        expect(afterPost(at('/admin/events/1'), answer(undefined, 403))).toEqual({ kind: 'reload' });
+    });
+
+    it('shows an error and never sends the form again when the answer holds no address of the site', () => {
+        expect(afterPost(at('/me'), answer(undefined))).toEqual({ kind: 'error' });
+        expect(afterPost(at('/me'), answer(undefined, 404))).toEqual({ kind: 'error' });
+        expect(afterPost(at('/me'), answer(undefined, 500))).toEqual({ kind: 'error' });
+        expect(afterPost(at('/me'), answer('https://other.example/me'))).toEqual({ kind: 'error' });
+        expect(afterPost(at('/me'), answer('//other.example/me'))).toEqual({ kind: 'error' });
     });
 });

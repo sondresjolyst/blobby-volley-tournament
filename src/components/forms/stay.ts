@@ -6,10 +6,10 @@ export type AfterPost =
     | { kind: 'replace'; href: string }
     /** The post ended on another page. Open it as a normal page load. */
     | { kind: 'load'; href: string }
-    /** The route redirected anyway, so where it went is not known. Load this page again. */
+    /** The route redirected anyway, or the sign-in ran out. Load this page again. */
     | { kind: 'reload' }
-    /** The answer is not an address. Send the form again the normal way, so the browser shows it. */
-    | { kind: 'native' };
+    /** The answer is an error or not an address. Show that it went wrong, and never send the form again. */
+    | { kind: 'error' };
 
 export const isApiPath = (path: string) => path === '/api' || path.startsWith('/api/');
 
@@ -26,17 +26,19 @@ export function canPostInBackground(form: { method: string; target: string; acti
     } catch {
         return false;
     }
-    return action.origin === origin && isApiPath(action.pathname);
+    // A sign-in route of NextAuth redirects to GitHub and sets its own cookies, so the browser follows it.
+    return action.origin === origin && isApiPath(action.pathname) && !action.pathname.startsWith('/api/auth/');
 }
 
 /**
- * Picks what to do with the address that the API route answered a background post with. A route
- * that answers with an error instead of an address has not done anything.
+ * Picks what to do with the address that the API route answered a background post with. A post
+ * that may have reached the route is never sent again. When the sign-in has run out, the page is
+ * loaded again, so it shows the sign-in.
  */
-export function afterPost(current: URL, answer: { redirected: boolean; location: unknown }): AfterPost {
-    if (answer.redirected) return { kind: 'reload' };
+export function afterPost(current: URL, answer: { redirected: boolean; status: number; location: unknown }): AfterPost {
+    if (answer.redirected || answer.status === 401 || answer.status === 403) return { kind: 'reload' };
     const { location } = answer;
-    if (typeof location !== 'string' || !location.startsWith('/') || location.startsWith('//')) return { kind: 'native' };
+    if (typeof location !== 'string' || !location.startsWith('/') || location.startsWith('//')) return { kind: 'error' };
     const next = new URL(location, current);
     if (next.pathname !== current.pathname) return { kind: 'load', href: next.href };
     if (next.search === current.search) return { kind: 'refresh' };

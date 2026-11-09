@@ -11,6 +11,10 @@ const NOTICE_MS = 6000;
 
 const NOTICES = '[role="status"], [role="alert"]';
 
+/** The admin pages are in English and the player pages in Nynorsk. */
+const failedText = (path: string) =>
+    path.startsWith('/admin') ? 'Something went wrong. Load the page again to see what was saved.' : 'Noko gjekk gale. Last sida på nytt for å sjå kva som vart lagra.';
+
 /** The body of a post, the same as the browser would send for the form. */
 function bodyOf(form: HTMLFormElement, submitter: HTMLElement | null): FormData | URLSearchParams {
     const data = new FormData(form, submitter);
@@ -35,19 +39,17 @@ export function StayOnSubmit({ children }: { children: ReactNode }) {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
     const [round, setRound] = useState(0);
+    const [failed, setFailed] = useState<string | null>(null);
     const waiting = useRef<Anchor | null>(null);
     const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
     useEffect(() => {
-        const passThrough = new WeakSet<HTMLFormElement>();
-
         const follow = (form: HTMLFormElement, submitter: HTMLElement | null, plan: AfterPost) => {
             switch (plan.kind) {
-                case 'native':
-                    // The form goes again without this handler, so the browser shows the answer.
+                case 'error':
+                    // The post may have reached the route, so it is not sent again by itself.
                     form.removeAttribute('aria-busy');
-                    passThrough.add(form);
-                    form.requestSubmit(submitter);
+                    setFailed(failedText(window.location.pathname));
                     return;
                 case 'load':
                     window.location.assign(plan.href);
@@ -56,7 +58,7 @@ export function StayOnSubmit({ children }: { children: ReactNode }) {
                     window.location.reload();
                     return;
                 default:
-                    waiting.current = anchorOf(form);
+                    waiting.current = anchorOf(form, submitter);
                     startTransition(() => {
                         setRound((n) => n + 1);
                         if (plan.kind === 'refresh') router.refresh();
@@ -68,16 +70,13 @@ export function StayOnSubmit({ children }: { children: ReactNode }) {
         const onSubmit = async (event: SubmitEvent) => {
             const form = event.target;
             if (event.defaultPrevented || !(form instanceof HTMLFormElement)) return;
-            if (passThrough.has(form)) {
-                passThrough.delete(form);
-                return;
-            }
             const submitter = event.submitter;
             if (submitterOverrides(submitter) || !canPostInBackground(form, window.location.origin)) return;
             event.preventDefault();
             // The form is busy until the page has the result, so a second press sends nothing.
             if (form.getAttribute('aria-busy') === 'true') return;
             form.setAttribute('aria-busy', 'true');
+            setFailed(null);
             let plan: AfterPost;
             try {
                 const res = await fetch(form.action, {
@@ -90,15 +89,24 @@ export function StayOnSubmit({ children }: { children: ReactNode }) {
                 });
                 const body: unknown = res.ok ? await res.json().catch(() => null) : null;
                 const location = body !== null && typeof body === 'object' && 'location' in body ? body.location : undefined;
-                plan = afterPost(new URL(window.location.href), { redirected: res.type === 'opaqueredirect', location });
+                plan = afterPost(new URL(window.location.href), { redirected: res.type === 'opaqueredirect', status: res.status, location });
             } catch {
-                plan = { kind: 'native' };
+                plan = { kind: 'error' };
             }
             follow(form, submitter, plan);
         };
 
+        // A page that the back button brings back from the cache keeps its busy forms, so they are freed.
+        const onShow = (event: PageTransitionEvent) => {
+            if (event.persisted) document.querySelectorAll('form[aria-busy]').forEach((form) => form.removeAttribute('aria-busy'));
+        };
+
         window.addEventListener('submit', onSubmit);
-        return () => window.removeEventListener('submit', onSubmit);
+        window.addEventListener('pageshow', onShow);
+        return () => {
+            window.removeEventListener('submit', onSubmit);
+            window.removeEventListener('pageshow', onShow);
+        };
     }, [router]);
 
     // The new page is in place but not painted yet, so a notice can float before it is seen.
@@ -110,7 +118,12 @@ export function StayOnSubmit({ children }: { children: ReactNode }) {
         timers.current.forEach(clearTimeout);
         timers.current = floatNotices();
         // A notice that floats leaves the page, so the content under it moves up.
-        keepInPlace(anchor);
+        const form = keepInPlace(anchor);
+        // The page is drawn anew, so the focus goes back to the button that sent the form.
+        const control = form?.elements[anchor.control];
+        if (control instanceof HTMLElement && (document.activeElement === null || document.activeElement === document.body)) {
+            control.focus({ preventScroll: true });
+        }
     }, [isPending, round]);
 
     useEffect(() => {
@@ -136,7 +149,16 @@ export function StayOnSubmit({ children }: { children: ReactNode }) {
     }, []);
 
     // A new key draws the page anew after each post, as a page load would.
-    return <Fragment key={round}>{children}</Fragment>;
+    return (
+        <>
+            <Fragment key={round}>{children}</Fragment>
+            {failed && (
+                <p role="alert" className={styles.floating} style={{ bottom: 16 }}>
+                    {failed}
+                </p>
+            )}
+        </>
+    );
 }
 
 /**
@@ -148,35 +170,47 @@ export function StayOnSubmit({ children }: { children: ReactNode }) {
 interface Anchor {
     action: string;
     index: number;
-    unique: boolean;
+    /** How many forms had the same address. */
+    count: number;
     top: number;
     id: string | null;
     idTop: number;
+    /** The number of the button that sent the form among the fields of the form, or -1. */
+    control: number;
 }
 
 const formsWith = (action: string) => [...document.forms].filter((form) => form.getAttribute('action') === action);
 
-function anchorOf(form: HTMLFormElement): Anchor {
+function anchorOf(form: HTMLFormElement, submitter: HTMLElement | null): Anchor {
     const action = form.getAttribute('action') ?? '';
     const same = formsWith(action);
     const holder = form.parentElement?.closest<HTMLElement>('[id]') ?? null;
     return {
         action,
         index: same.indexOf(form),
-        unique: same.length === 1,
+        count: same.length,
         top: form.getBoundingClientRect().top,
         id: holder?.id ?? null,
         idTop: holder?.getBoundingClientRect().top ?? 0,
+        control: [...form.elements].indexOf(submitter as Element),
     };
 }
 
-/** Scrolls so the part where the form was sent from is where it was on the screen. */
-function keepInPlace(anchor: Anchor) {
+/**
+ * Scrolls so the part where the form was sent from is where it was on the screen. Returns the form
+ * when it is found again by its address.
+ */
+function keepInPlace(anchor: Anchor): HTMLFormElement | null {
     const same = formsWith(anchor.action);
     const holder = anchor.id === null ? null : document.getElementById(anchor.id);
-    if (anchor.unique && same.length === 1) window.scrollBy(0, same[0].getBoundingClientRect().top - anchor.top);
-    else if (holder) window.scrollBy(0, holder.getBoundingClientRect().top - anchor.idTop);
+    if (anchor.count === 1 && same.length === 1) {
+        window.scrollBy(0, same[0].getBoundingClientRect().top - anchor.top);
+        return same[0];
+    }
+    if (holder) window.scrollBy(0, holder.getBoundingClientRect().top - anchor.idTop);
     else if (same[anchor.index]) window.scrollBy(0, same[anchor.index].getBoundingClientRect().top - anchor.top);
+    // When a form came or went, the number may point at another form.
+    return same.length === anchor.count ? (same[anchor.index] ?? null) : null;
 }
 
 /**
