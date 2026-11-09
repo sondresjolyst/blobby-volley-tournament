@@ -18,7 +18,7 @@ import { getBigScreen } from './big-screen';
 import { clearActiveEvent, createEvent, getActiveBigScreenKey, getBigScreenKey, getEvent, rotateBigScreenKey, setActiveEvent, setBigScreenRotation } from './events';
 import { addLedger } from './foza';
 import { updateLiveScore } from './game-server';
-import { callMatch, enterGameResult, listMatches, reportPlayersConnected } from './matches';
+import { acceptChallenge, callMatch, createChallenge, enterGameResult, listMatches, reportPlayersConnected } from './matches';
 import { createSponsor } from './sponsors';
 import { getLeaderboard } from './stats';
 import { saveTournament } from './tournaments';
@@ -203,7 +203,7 @@ describe('the other screens', () => {
         const key = (await getBigScreenKey(pool, semi1.eventId))!;
         const joinCodes = (await pool.query<{ join_code: string }>('SELECT join_code FROM players')).rows.map((r) => r.join_code);
         const secrets = ['OSTAPOPP', key, ...joinCodes];
-        const fields = ['featured', 'others', 'bracket', 'boards', 'sponsors', 'rotation', 'fullBracket', 'upNext', 'foza', 'facts', 'winner'] as const;
+        const fields = ['featured', 'others', 'bracket', 'boards', 'sponsors', 'rotation', 'fullBracket', 'upNext', 'foza', 'facts', 'winner', 'duels'] as const;
         for (const given of [null, 'wrong-key', '', `${key}x`]) {
             const seen = await getBigScreen(pool, null, given);
             expect(seen.eventCode).toBeNull();
@@ -251,6 +251,35 @@ describe('the other screens', () => {
         expect((await getBigScreen(pool, null, (await getBigScreenKey(pool, eventId))!, cache)).eventCode).toBe('OSTAPOPP');
     });
 
+    it('show the 1v1 matches on the floor, the latest 1v1 results and the next tournament matches', async () => {
+        const { eventId, ids, semi1, semi2 } = await setup();
+        const [, , ostebit, kantina] = ids;
+        // Two players outside the tournament, so its matches can be called.
+        const polsa = await addPlayer(eventId, 'Pølsa');
+        const lompa = await addPlayer(eventId, 'Lompa');
+        const first = await createChallenge(pool, polsa, lompa, { bestOf: 3, scoreToWin: 21, speed: 90 });
+        const second = await createChallenge(pool, ostebit, kantina);
+        if (!first.ok || !second.ok) throw new Error('The 1v1 matches were not made.');
+        expect(await acceptChallenge(pool, first.matchId, lompa)).toMatchObject({ ok: true, called: true });
+        expect(await acceptChallenge(pool, second.matchId, kantina)).toMatchObject({ ok: true, called: true });
+        expect(await enterGameResult(pool, second.matchId, { game: 1, winnerSlot: 2, points1: 6, points2: 15 })).toMatchObject({ ok: true });
+        expect(await callMatch(pool, semi2.id)).toMatchObject({ ok: true });
+        expect(await placeBet(pool, kantina, { matchId: first.matchId, onPlayerId: polsa, amount: 120 }, NOW)).toMatchObject({ ok: true });
+
+        const { duels } = await getBigScreen(pool);
+        expect(duels.live).toHaveLength(1);
+        expect(duels.live[0]).toMatchObject({ matchId: first.matchId, state: 'called', label: '1v1', bestOf: 3, scoreToWin: 21, speed: 90, pool: 120, open: true });
+        expect(duels.live[0].sides.map((s) => s.nickname)).toEqual(['Pølsa', 'Lompa']);
+        expect(duels.liveMore).toBe(0);
+        expect(duels.done).toEqual([{ matchId: second.matchId, result: 'played', sides: [{ nickname: 'Ostebit', sets: 0, won: false }, { nickname: 'Kantina', sets: 1, won: true }] }]);
+        // The called semifinal comes first, then the one still to call.
+        expect(duels.coming.map((m) => [m.matchId, m.state, m.label])).toEqual([
+            [semi2.id, 'called', 'Semifinala, kamp 2'],
+            [semi1.id, 'upcoming', 'Semifinala, kamp 1'],
+        ]);
+        expect((await listMatches(pool, eventId)).find((m) => m.id === second.matchId)!.finishedAt).toBeInstanceOf(Date);
+    });
+
     it('follow the rotation the admin saved, and the database refuses a bad one', async () => {
         const { eventId } = await setup();
         expect(await setBigScreenRotation(pool, eventId, { screens: ['stats', 'overview', 'winner'], seconds: 15 })).toBe(true);
@@ -259,6 +288,8 @@ describe('the other screens', () => {
         expect(await setBigScreenRotation(pool, 999_999, { screens: ['overview'], seconds: 60 })).toBe(false);
         await expect(setBigScreenRotation(pool, eventId, { screens: ['overview'], seconds: 9 })).rejects.toThrow(/big_screen_seconds_check/);
         await expect(setBigScreenRotation(pool, eventId, { screens: ['overview'], seconds: 601 })).rejects.toThrow(/big_screen_seconds_check/);
+        expect(await setBigScreenRotation(pool, eventId, { screens: ['duels', 'overview'], seconds: 30 })).toBe(true);
+        expect((await getBigScreen(pool)).rotation).toEqual({ screens: ['duels', 'overview'], seconds: 30 });
         await expect(pool.query(`UPDATE events SET big_screen_screens = ARRAY['tetris'] WHERE id = $1`, [eventId])).rejects.toThrow(/big_screen_screens_check/);
         await expect(pool.query(`UPDATE events SET big_screen_screens = ARRAY[]::text[] WHERE id = $1`, [eventId])).rejects.toThrow(/big_screen_screens_check/);
     });

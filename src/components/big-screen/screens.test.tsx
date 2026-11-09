@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { SCREEN_TYPES, type ScreenType } from '@/lib/big-screen/screens';
 import { EMPTY_SCREEN, type BigScreenData, type ScreenMatch } from '@/lib/big-screen/view';
 import { BigScreen } from './BigScreen';
-import { BracketScreen, FozaScreen, sponsorColumns, SponsorScreen, StatsScreen, UpNextScreen, WinnerScreen } from './screens';
-import { BOARD_TEXT, NO_BRACKET, NO_FACTS, NO_MATCH, NO_SPONSORS } from './text';
+import { BracketScreen, DuelScreen, FozaScreen, sponsorColumns, SponsorScreen, StatsScreen, UpNextScreen, WinnerScreen } from './screens';
+import { BOARD_TEXT, DUEL_TEXT, NO_BRACKET, NO_FACTS, NO_MATCH, NO_SPONSORS } from './text';
 
 const CODE = 'OSTAPOPP-2026';
 
@@ -67,6 +67,18 @@ const full: BigScreenData = {
         podium: [{ place: 2, names: ['Skvett'] }],
         final: { round: 'Finale', sides: [{ name: 'Blobfisk', score: 2 }, { name: 'Skvett', score: 1 }] },
     },
+    duels: {
+        live: [
+            { ...match(7, 'started', ['Pølsa', 'Lompa'], { game: 1, points: [9, 4] }), label: '1v1', tournamentName: null, pool: 400, scoreToWin: 21, speed: 90 },
+            { ...match(8, 'called', ['Taco', 'Nacho']), label: '1v1', tournamentName: null, open: true, scoreToWin: 15, speed: 75, bestOf: 1 },
+        ],
+        liveMore: 2,
+        done: [
+            { matchId: 9, result: 'played', sides: [{ nickname: 'Brunost', sets: 2, won: true }, { nickname: 'Gomme', sets: 1, won: false }] },
+            { matchId: 10, result: 'forfeit', sides: [{ nickname: 'Rakfisk', sets: 0, won: false }, { nickname: 'Lutefisk', sets: 0, won: true }] },
+        ],
+        coming: [match(2, 'called', ['Skvett', 'Ostebit']), match(3, 'upcoming', ['Blobfisk', 'Kantina'])],
+    },
 };
 
 const html = (node: React.ReactElement) => renderToStaticMarkup(node);
@@ -103,6 +115,48 @@ describe('the up next screen', () => {
 
     it('says nothing is on', () => {
         expect(html(<UpNextScreen data={empty} />)).toContain(NO_MATCH.title);
+    });
+});
+
+describe('the 1v1 screen', () => {
+    it('shows the 1v1 matches on the floor, the latest results and the next tournament matches', () => {
+        const out = html(<DuelScreen data={full} />);
+        for (const text of [
+            '1v1 og neste kampa',
+            '1v1 i ringen',
+            'Pølsa',
+            'LIVE',
+            '9–4',
+            'Sett 1 · 1–0 i sett · Best av 3 · først te 21 · 90 fps',
+            '400 Foza i potten',
+            'KLAR',
+            'Taco',
+            'Spelå e åpne · ingen spel ennå',
+            '+ 2 kampa te',
+            'Neste i turneringa',
+            'ROPT OPP',
+            'Semifinala, kamp 1 · Hovedcupen · best av 3',
+            'SNART',
+            'Tidligere kampa',
+            'Brunost',
+            '2–1',
+            'walkover',
+        ])
+            expect(out).toContain(text);
+        expect(out.indexOf('Skvett')).toBeLessThan(out.indexOf('Kantina'));
+    });
+
+    it('says so in one line when a part is empty', () => {
+        const out = html(<DuelScreen data={{ ...full, duels: { ...full.duels, live: [], liveMore: 0, coming: [] } }} />);
+        expect(out).toContain(DUEL_TEXT.noLive(null));
+        expect(out).toContain(DUEL_TEXT.noComing);
+        expect(html(<DuelScreen data={{ ...full, duels: { ...full.duels, done: [] } }} />)).toContain(DUEL_TEXT.noDone);
+    });
+
+    it('says nothing is on at all', () => {
+        const out = html(<DuelScreen data={empty} />);
+        expect(out).toContain(DUEL_TEXT.empty(null).replace('!', ''));
+        expect(out).not.toContain(DUEL_TEXT.live);
     });
 });
 

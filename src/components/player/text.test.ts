@@ -23,6 +23,7 @@ const oneVsOne: MatchSummary = {
     winnerId: null,
     result: null,
     cancelReason: null,
+    finishedAt: null,
 };
 
 describe('player texts', () => {
