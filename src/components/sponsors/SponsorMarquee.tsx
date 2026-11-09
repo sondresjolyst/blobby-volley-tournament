@@ -9,39 +9,58 @@ export interface StripSponsor extends TileSponsor {
 }
 
 /**
- * The tiles of the strip. Still, it is one centred set. Moving, the set comes twice and the track
- * slides by one set, so the end meets the start. Only the first set is read out and reached with
- * Tab. The copy is hidden from screen readers and from the tab order.
+ * How many sets of tiles the track needs so the strip is full at every moment while it slides by
+ * one set: enough sets to cover the box, plus one that slides in. Never fewer than two.
  */
-export function MarqueeTrack({ sponsors, moving, setRef }: { sponsors: StripSponsor[]; moving: boolean; setRef?: Ref<HTMLUListElement> }) {
-    const set = (copy: boolean) => (
-        <ul key={copy ? 'copy' : 'set'} ref={copy ? undefined : setRef} className={copy ? `${styles.set} ${styles.copy}` : styles.set} aria-hidden={copy || undefined}>
-            {sponsors.map((sponsor) => (
-                <li key={sponsor.id}>
-                    <SponsorTile sponsor={sponsor} copy={copy} />
-                </li>
-            ))}
-        </ul>
-    );
+export function setsToFill(boxWidth: number, setWidth: number, gap: number): number {
+    const step = setWidth + gap;
+    if (!(step > 0) || !Number.isFinite(boxWidth)) return 2;
+    return Math.max(2, Math.ceil(boxWidth / step) + 1);
+}
+
+/**
+ * The tiles of the strip. The set comes `sets` times and the track slides by one set, so the end
+ * meets the start. Only the first set is read out and reached with Tab. The copies are hidden from
+ * screen readers and from the tab order.
+ */
+export function MarqueeTrack({ sponsors, sets = 2, setRef }: { sponsors: StripSponsor[]; sets?: number; setRef?: Ref<HTMLUListElement> }) {
+    const set = (n: number) => {
+        const copy = n > 0;
+        return (
+            <ul key={n} ref={copy ? undefined : setRef} className={copy ? `${styles.set} ${styles.copy}` : styles.set} aria-hidden={copy || undefined}>
+                {sponsors.map((sponsor) => (
+                    <li key={sponsor.id}>
+                        <SponsorTile sponsor={sponsor} copy={copy} />
+                    </li>
+                ))}
+            </ul>
+        );
+    };
+    const count = Math.max(2, Math.floor(sets));
     return (
-        <div className={moving ? `${styles.track} ${styles.moving}` : styles.track} style={{ '--tiles': sponsors.length } as CSSProperties}>
-            {set(false)}
-            {moving && set(true)}
+        // data-sponsor-track names the track for tests, since the class name is made at build time.
+        <div className={styles.track} style={{ '--tiles': sponsors.length, '--sets': count } as CSSProperties} data-sponsor-track="">
+            {Array.from({ length: count }, (_, n) => set(n))}
         </div>
     );
 }
 
 /**
- * The sponsor strip: one row of tiles. It moves sideways only when the tiles do not fit, and
- * stops while the pointer or the keyboard focus is on it. On the big screen nobody points or
- * tabs, so there it just moves. With reduced motion it never moves and the tiles wrap.
+ * The sponsor strip: one row of tiles that always moves sideways, at every width and with any
+ * number of sponsors. The set is repeated until the strip is full. It stops while the pointer or
+ * the keyboard focus is on it. On the big screen nobody points or tabs, so there it just moves.
+ * With reduced motion it never moves and the tiles wrap.
  */
 export function SponsorMarquee({ sponsors, className, style }: { sponsors: StripSponsor[]; className?: string; style?: CSSProperties }) {
     const box = useRef<HTMLDivElement>(null);
     const first = useRef<HTMLUListElement>(null);
-    const [moving, setMoving] = useState(false);
+    const [sets, setSets] = useState(2);
     useLayoutEffect(() => {
-        const fit = () => setMoving(!!box.current && !!first.current && first.current.getBoundingClientRect().width > box.current.clientWidth);
+        const fit = () => {
+            if (!box.current || !first.current) return;
+            const gap = parseFloat(getComputedStyle(first.current.parentElement ?? first.current).columnGap) || 0;
+            setSets(setsToFill(box.current.clientWidth, first.current.getBoundingClientRect().width, gap));
+        };
         fit();
         const observer = new ResizeObserver(fit);
         if (box.current) observer.observe(box.current);
@@ -50,7 +69,7 @@ export function SponsorMarquee({ sponsors, className, style }: { sponsors: Strip
     if (sponsors.length === 0) return null;
     return (
         <div ref={box} className={className ? `${styles.marquee} ${className}` : styles.marquee} style={style}>
-            <MarqueeTrack sponsors={sponsors} moving={moving} setRef={first} />
+            <MarqueeTrack sponsors={sponsors} sets={sets} setRef={first} />
         </div>
     );
 }
