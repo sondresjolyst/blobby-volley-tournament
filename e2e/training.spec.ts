@@ -103,7 +103,7 @@ test('a player trains against the bot of the game server, the ring shows it as t
     await expect(page.getByRole('region', { name: 'Treninga dine' })).toContainText('Spelt 1 · vunne 0 · tapt 1');
     await expect(page.getByRole('region', { name: 'Treninga dine' })).toContainText('Du har ikkje slått någen bot ennå.');
     await expect(page.getByRole('table', { name: 'Kem som tren mest' })).toContainText(nickname);
-    await expect(page.getByRole('table', { name: 'Sigra mot kvar bot' })).toContainText('hyp014');
+    await expect(page.getByRole('table', { name: 'Seira mot kvar bot' })).toContainText('hyp014');
 
     // The front page no longer shows it.
     await page.goto('/');

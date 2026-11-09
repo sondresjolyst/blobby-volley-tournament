@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hardestBeatenLine, trainingCounts, trainingErrorMessage, trainingNoticeMessage, trainingSettings, trainingVersus } from './text';
+import { hardestBeatenLine, TRAINING_TEXT, trainingCounts, trainingErrorMessage, trainingNoticeMessage, trainingSettings, trainingVersus } from './text';
 
 describe('training texts', () => {
     it('describes a training match as training against a bot', () => {
@@ -17,5 +17,11 @@ describe('training texts', () => {
         expect(trainingErrorMessage('toString')).toBeNull();
         expect(trainingErrorMessage(['taken'])).toBeNull();
         expect(trainingNoticeMessage(undefined)).toBeNull();
+    });
+});
+
+describe('training stats headings', () => {
+    it('calls wins seira', () => {
+        expect(TRAINING_TEXT.perDifficulty).toBe('Seira mot kvar bot');
     });
 });
