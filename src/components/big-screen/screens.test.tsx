@@ -73,6 +73,7 @@ const full: BigScreenData = {
             { ...match(7, 'started', ['Pølsa', 'Lompa'], { game: 1, points: [9, 4] }), label: '1v1', tournamentName: null, pool: 400, scoreToWin: 21, speed: 90, ruleFile: 'default.lua' },
             { ...match(8, 'called', ['Taco', 'Nacho']), label: '1v1', tournamentName: null, open: true, scoreToWin: 15, speed: 75, bestOf: 1, ruleFile: 'default.lua' },
         ],
+        training: [{ trainingId: 40, nickname: 'Fjert', bot: 'hyp014', difficulty: 13, ruleFile: 'blitz.lua', scoreToWin: 15, state: 'started' }],
         liveMore: 2,
         done: [
             { matchId: 9, result: 'played', sides: [{ nickname: 'Brunost', sets: 2, won: true }, { nickname: 'Gomme', sets: 1, won: false }] },
@@ -147,8 +148,21 @@ describe('the 1v1 screen', () => {
         expect(out.indexOf('Skvett')).toBeLessThan(out.indexOf('Kantina'));
     });
 
+    it('shows training against the bot after the real 1v1 matches, marked and without bets', () => {
+        const out = html(<DuelScreen data={full} />);
+        expect(out).toContain('TRENING');
+        expect(out).toContain('Fjert vs Bot (hyp014, vanskegrad 13)');
+        expect(out).toContain('Lyn · først te 2');
+        expect(out.indexOf('Fjert')).toBeGreaterThan(out.indexOf('Taco'));
+        const row = out.slice(out.indexOf('Fjert vs Bot'), out.indexOf('Neste i turneringa'));
+        expect(row).not.toContain('Foza');
+        expect(row).not.toContain('spel');
+        // a training match is never a finished 1v1
+        expect(out.slice(out.indexOf('Tidligere kampa'))).not.toContain('Fjert');
+    });
+
     it('says so in one line when a part is empty', () => {
-        const out = html(<DuelScreen data={{ ...full, duels: { ...full.duels, live: [], liveMore: 0, coming: [] } }} />);
+        const out = html(<DuelScreen data={{ ...full, duels: { ...full.duels, live: [], training: [], liveMore: 0, coming: [] } }} />);
         expect(out).toContain(DUEL_TEXT.noLive(null));
         expect(out).toContain(DUEL_TEXT.noComing);
         expect(html(<DuelScreen data={{ ...full, duels: { ...full.duels, done: [] } }} />)).toContain(DUEL_TEXT.noDone);

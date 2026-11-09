@@ -46,7 +46,7 @@ export function screenHasContent(type: ScreenType, data: ScreenContent): boolean
         case 'next':
             return data.upNext.length > 0;
         case 'duels':
-            return data.duels.live.length + data.duels.done.length + data.duels.coming.length > 0;
+            return data.duels.live.length + data.duels.training.length + data.duels.done.length + data.duels.coming.length > 0;
         case 'stats':
             return data.facts.length > 0;
         case 'sponsors':

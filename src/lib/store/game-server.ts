@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import type { Pool } from 'pg';
 import { DEFAULT_NEXT_GAME_DELAY } from '@/lib/matches/settings';
 import type { MatchState } from '@/lib/matches/state';
+import { listSyncTraining, type SyncTrainingRow } from './training';
 
 export interface SyncPlayer {
     playerId: number;
@@ -26,8 +27,10 @@ export interface SyncMatch {
     /** The games player 1 and player 2 have won in the series, with the results an admin entered, corrected or set by hand. */
     wins1: number;
     wins2: number;
-    /** Player 1 first. */
-    players: [{ playerId: number; code: string }, { playerId: number; code: string }];
+    /** Player 1 first. A training match has only its one player. */
+    players: [{ playerId: number; code: string }, { playerId: number; code: string }] | [{ playerId: number; code: string }];
+    /** Only on a training match: the bot the game server plays on the right, and its strength from 0, the strongest, to 25. */
+    training?: { bot: string; difficulty: number };
 }
 
 export interface ServerSync {
@@ -85,6 +88,25 @@ export function toSyncMatch(m: SyncMatchRow): SyncMatch {
     };
 }
 
+/** An open training match of the sync. It is one game against the bot of the game server. */
+export function toSyncTraining(t: SyncTrainingRow): SyncMatch {
+    return {
+        matchId: t.id,
+        state: t.state,
+        bestOf: 1,
+        nextGame: 1,
+        ruleFile: t.rule_file,
+        scoreToWin: t.score_to_win,
+        speed: t.game_speed,
+        nextGameDelay: DEFAULT_NEXT_GAME_DELAY,
+        awaitingDecision: false,
+        wins1: 0,
+        wins2: 0,
+        players: [{ playerId: t.player_id, code: t.code }],
+        training: { bot: t.bot, difficulty: t.difficulty },
+    };
+}
+
 const LAST_GAME = `LEFT JOIN LATERAL (SELECT number, status, source FROM match_games g WHERE g.match_id = m.id ORDER BY number DESC LIMIT 1) lg ON true`;
 
 /**
@@ -121,11 +143,13 @@ export async function getServerSync(pool: Pool, now: Date): Promise<ServerSync> 
                               [eventId],
                           )
                       ).rows;
+            const training = eventId === null ? [] : await listSyncTraining(client, eventId);
             await client.query('COMMIT');
             content = {
                 eventId,
                 players: players.map((p) => ({ playerId: p.id, nickname: p.nickname, code: p.join_code })),
-                matches: matches.map(toSyncMatch),
+                // Training matches share the ids of the matches, so the list stays sorted by id.
+                matches: [...matches.map(toSyncMatch), ...training.map(toSyncTraining)].sort((a, b) => a.matchId - b.matchId),
             };
         } catch (error) {
             await client.query('ROLLBACK');

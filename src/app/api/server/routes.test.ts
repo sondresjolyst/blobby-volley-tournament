@@ -12,6 +12,9 @@ const reportPlayersConnected = vi.fn();
 const reportServerGame = vi.fn();
 const listServerSponsors = vi.fn();
 const upgradeGameLogosOnce = vi.fn();
+const isTrainingMatch = vi.fn(async () => false);
+const reportTrainingConnected = vi.fn();
+const reportTrainingGame = vi.fn();
 
 const getStoredGameServerToken = vi.fn();
 const markGameServerTokenUsed = vi.fn();
@@ -30,6 +33,11 @@ vi.mock('@/lib/store/game-server', () => ({
 vi.mock('@/lib/store/sponsors', () => ({
     listServerSponsors: (...args: unknown[]) => listServerSponsors(...args),
     upgradeGameLogosOnce: (...args: unknown[]) => upgradeGameLogosOnce(...args),
+}));
+vi.mock('@/lib/store/training', () => ({
+    isTrainingMatch: (...args: unknown[]) => isTrainingMatch(...(args as [])),
+    reportTrainingConnected: (...args: unknown[]) => reportTrainingConnected(...args),
+    reportTrainingGame: (...args: unknown[]) => reportTrainingGame(...args),
 }));
 vi.mock('@/lib/store/matches', () => ({
     reportPlayersConnected: (...args: unknown[]) => reportPlayersConnected(...args),
@@ -87,7 +95,7 @@ const gameBody = (change: Record<string, unknown> = {}) => ({
 const liveBody = { matchId: 7, game: 2, points: [{ playerId: 12, points: 3 }, { playerId: 17, points: 5 }] };
 
 const stored = (lastUsedAt: Date | null = new Date()): StoredGameServerToken => ({ hash: hashGameServerToken(TOKEN), createdAt: new Date('2026-11-20T12:00:00Z'), lastUsedAt });
-const STORES = [getServerSync, updateLiveScore, getLiveScore, reportPlayersConnected, reportServerGame, listServerSponsors, upgradeGameLogosOnce];
+const STORES = [getServerSync, updateLiveScore, getLiveScore, reportPlayersConnected, reportServerGame, listServerSponsors, upgradeGameLogosOnce, isTrainingMatch, reportTrainingConnected, reportTrainingGame];
 
 // The modules are loaded once before the tests. A first load with a cold transform cache can take
 // longer than the timeout of a single test, and a test that timed out keeps running into the next one.
@@ -287,6 +295,44 @@ describe('POST /api/server/matches/{id}/connected', () => {
             expect(await res.json()).toEqual({ error: 'invalid', field: expect.any(String) });
         }
         expect(reportPlayersConnected).not.toHaveBeenCalled();
+    });
+});
+
+describe('training against the bot of the game server', () => {
+    const postGame = (body: unknown) => games(request('games', body));
+    const postConnected = (body: unknown, id = '40') => connected(request(`matches/${id}/connected`, body), params(id));
+    const trainingBody = (change: Record<string, unknown> = {}) =>
+        gameBody({ matchId: 40, game: 1, training: true, winnerId: 0, points: [{ playerId: 12, points: 4 }, { playerId: 0, points: 15 }], ...change });
+
+    it('sends a training game to the training store, never to the matches', async () => {
+        reportTrainingGame.mockResolvedValueOnce({ status: 'stored' });
+        const res = await postGame(trainingBody());
+        expect(await res.json()).toEqual({ status: 'stored' });
+        expect(reportTrainingGame).toHaveBeenCalledWith({}, expect.objectContaining({ matchId: 40, winnerId: 0, status: 'finished' }));
+        expect(reportServerGame).not.toHaveBeenCalled();
+    });
+
+    it('answers 400 for a training game with two players', async () => {
+        const res = await postGame(trainingBody({ points: [{ playerId: 12, points: 4 }, { playerId: 17, points: 15 }], winnerId: 17 }));
+        expect(res.status).toBe(400);
+        expect(await res.json()).toEqual({ error: 'invalid', field: 'points' });
+        expect(reportTrainingGame).not.toHaveBeenCalled();
+    });
+
+    it('starts a training match with the player and the bot', async () => {
+        isTrainingMatch.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
+        reportTrainingConnected.mockResolvedValueOnce({ ok: true, started: true }).mockResolvedValueOnce({ ok: false, error: 'players' });
+        expect(await (await postConnected({ playerIds: [12, 0] })).json()).toEqual({ status: 'started' });
+        expect(reportTrainingConnected).toHaveBeenCalledWith({}, 40, [12, 0]);
+        expect(await (await postConnected({ playerIds: [17, 0] })).json()).toEqual({ status: 'refused', reason: 'players' });
+        expect(reportPlayersConnected).not.toHaveBeenCalled();
+    });
+
+    it('answers 400 when a training match is not reported with the bot', async () => {
+        isTrainingMatch.mockResolvedValueOnce(true);
+        const res = await postConnected({ playerIds: [12, 17] });
+        expect(res.status).toBe(400);
+        expect(reportTrainingConnected).not.toHaveBeenCalled();
     });
 });
 
