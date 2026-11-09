@@ -13,7 +13,7 @@ export const TRAINING_TEXT = {
     difficulty: 'Vanskegrad',
     difficultyHint: `${MIN_DIFFICULTY} e sterkast, ${MAX_DIFFICULTY} e svakast`,
     difficultyInfo: 'Ka betyr vanskegrad?',
-    difficultyInfoText: `Kor flink boten e. ${MIN_DIFFICULTY} e sterkast og ${MAX_DIFFICULTY} e svakast. Spelet bruke 13 når du spele mot datamaskinå.`,
+    difficultyInfoText: `Kor flink boten e. ${MIN_DIFFICULTY} e sterkast og ${MAX_DIFFICULTY} e svakast. Spelet bruke 13 nÃ¥r du spele mot datamaskinÃ¥.`,
     start: 'Start treninga',
     stop: 'Stopp treninga',
     ready: 'Treninga di e klar',
