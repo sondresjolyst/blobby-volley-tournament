@@ -1,11 +1,24 @@
+import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { BACKGROUND_POST_HEADER } from './background-post';
 
 /**
  * Sends the browser to a path on this site after a form post. The address is relative, so it
- * stays right behind a proxy that changes the host.
+ * stays right behind a proxy that changes the host. A post that the page sent in the background
+ * gets the path as JSON, so the page can load it without moving to the top.
  */
-export function seeOther(path: string): NextResponse {
+export async function seeOther(path: string): Promise<NextResponse> {
+    if (await isBackgroundPost()) return NextResponse.json({ location: path }, { headers: { 'Cache-Control': 'no-store' } });
     return new NextResponse(null, { status: 303, headers: { Location: path } });
+}
+
+async function isBackgroundPost(): Promise<boolean> {
+    try {
+        return (await headers()).get(BACKGROUND_POST_HEADER) === '1';
+    } catch {
+        // Outside a request, as in a unit test, there are no headers.
+        return false;
+    }
 }
 
 /**

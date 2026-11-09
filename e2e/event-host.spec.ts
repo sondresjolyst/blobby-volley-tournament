@@ -40,6 +40,8 @@ test('an admin moves the game server to another PC and the join link follows at 
     const form = asker.page.getByRole('region', { name: 'Utfordra någen te 1v1' });
     await form.getByLabel('Motstandar').selectOption({ label: `Hb${tag}` });
     await form.getByRole('button', { name: 'Send utfordring' }).click();
+    // The form posts in the background, so the test waits for its answer before it moves on.
+    await expect(asker.page.locator('form[aria-busy="true"]')).toHaveCount(0);
     await asked.page.goto('/me');
     await asked.page
         .getByRole('list', { name: 'Utfordringa te deg' })
@@ -69,6 +71,8 @@ test('an admin moves the game server to another PC and the join link follows at 
     await expect(info).toBeFocused();
     await page.getByLabel('Game server host').fill('192.168.1.77');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
+    // The form posts in the background, and the notice can be there from the last save.
+    await expect(page.locator('form[aria-busy="true"]')).toHaveCount(0);
     await expect(page.getByRole('status')).toHaveText('Saved the event.');
     await expect(page.getByLabel('Game server host')).toHaveValue('192.168.1.77');
 

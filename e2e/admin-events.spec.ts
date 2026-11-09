@@ -64,6 +64,8 @@ test('an admin creates an event with a generated code and edits it', async ({ pa
     // An empty port is the default port.
     await page.getByLabel('Game server port').fill('');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
+    // The form posts in the background, and the notice can be there from the last save.
+    await expect(page.locator('form[aria-busy="true"]')).toHaveCount(0);
     await expect(page.getByRole('status')).toHaveText('Saved the event.');
     await expect(page.getByLabel('Game server port')).toHaveValue('1234');
 
@@ -130,6 +132,8 @@ test('an admin sees the wrong PINs of a player and unlocks a locked player', asy
         await playerPage.getByLabel('Kallenavn').fill(nickname);
         await playerPage.getByLabel('PIN-kode', { exact: true }).fill(pin);
         await playerPage.getByRole('button', { name: 'Logg inn', exact: true }).click();
+        // The form posts in the background, so the test waits for its answer before it moves on.
+        await expect(playerPage.locator('form[aria-busy="true"]')).toHaveCount(0);
     };
 
     await page.goto('/admin/events');

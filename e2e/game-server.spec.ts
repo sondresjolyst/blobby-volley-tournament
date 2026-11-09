@@ -101,6 +101,8 @@ test('the game server syncs a called match, starts it, sends a live score and re
     await expect(page.getByLabel('Pause between games in seconds')).toHaveValue('10');
     await page.getByLabel('Pause between games in seconds').fill('30');
     await page.getByRole('button', { name: 'Save pause' }).click();
+    // The form posts in the background, and the notice can be there from the last save.
+    await expect(page.locator('form[aria-busy="true"]')).toHaveCount(0);
     await expect(page.getByRole('status')).toHaveText('Saved the tournament.');
     await expect(page.getByLabel('Pause between games in seconds')).toHaveValue('30');
 

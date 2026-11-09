@@ -112,8 +112,11 @@ test('the 1v1 form and the bet form on /me have help, and the leaderboard has th
 
     await form.getByLabel('Motstandar').selectOption({ label: `Ib${tag}` });
     await form.getByRole('button', { name: 'Send utfordring' }).click();
+    // The form posts in the background, so the test waits for its answer before it moves on.
+    await expect(asker.page.locator('form[aria-busy="true"]')).toHaveCount(0);
     await asked.page.goto('/me');
     await asked.page.getByRole('list', { name: 'Utfordringa te deg' }).getByRole('listitem').filter({ hasText: `Ia${tag} utfordre deg!` }).getByRole('button', { name: 'Godta' }).click();
+    await expect(asked.page.locator('form[aria-busy="true"]')).toHaveCount(0);
 
     await asker.page.goto('/me');
     const form2 = asker.page.getByRole('region', { name: 'Utfordra någen te 1v1' });

@@ -1,0 +1,28 @@
+/* A notice that a form result put outside the screen, at the bottom of the screen. Select it to close it.
+   The page styles of the notice stay, and the colours below are only for a notice without its own. */
+[role].floating {
+    position: fixed;
+    left: 50%;
+    z-index: 30;
+    box-sizing: border-box;
+    width: min(560px, calc(100vw - 32px));
+    max-width: none;
+    margin: 0;
+    transform: translateX(-50%);
+    box-shadow: 0 6px 24px rgb(42 26 18 / 0.25);
+    cursor: pointer;
+}
+
+:where(.floating) {
+    padding: 12px 16px;
+    border: 2px solid #f6c445;
+    border-radius: 14px;
+    background: #fcebc0;
+    color: #2a1a12;
+    font-weight: 600;
+}
+
+/* A closed notice takes no room, so the page does not move under the reader. */
+[role].closed {
+    display: none;
+}
