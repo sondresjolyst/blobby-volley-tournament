@@ -7,6 +7,7 @@ import { fitsScoreToWin, realScoreToWin } from '@/lib/matches/rules';
 import { DEFAULT_GAME_SPEED, DEFAULT_SCORE_TO_WIN, isGameSpeed, isPoints, isScoreToWin, isWinningScore } from '@/lib/matches/settings';
 import { isOpenForBets, isValidSeriesScore, nextState, seriesScore, type GameResult, type MatchAction, type MatchState } from '@/lib/matches/state';
 import { handleMatchEvents, type MatchEvent } from './match-events';
+import { replaceTraining } from './training';
 import { inTransaction } from './transaction';
 
 export type { MatchEvent } from './match-events';
@@ -436,10 +437,14 @@ async function playersBusy(tx: MatchTx): Promise<boolean> {
     return (busy.rowCount ?? 0) > 0;
 }
 
-/** Calls the locked upcoming match when both players are free. Returns false and changes nothing when one is busy. */
+/**
+ * Calls the locked upcoming match when both players are free. Returns false and changes nothing when one is busy.
+ * A player has one live match at a time, so an open training match of a called player ends.
+ */
 async function callIfFree(tx: MatchTx): Promise<boolean> {
     if (await playersBusy(tx)) return false;
     await tx.transition('call');
+    await replaceTraining(tx.client, bothPlayers(tx.match));
     return true;
 }
 

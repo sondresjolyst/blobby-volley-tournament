@@ -131,5 +131,72 @@ export function parseLive(body: unknown): Parsed<LiveInputBody> {
     return { ok: true, value: { matchId: body.matchId, game: body.game, points } };
 }
 
+/** The player id the game server gives its bot in a training match. */
+const BOT_ID = 0;
+
+/** Two entries: one player and the bot, which has id 0. */
+function readTrainingPoints(value: unknown): PlayerPoints[] | null {
+    if (!Array.isArray(value) || value.length !== 2) return null;
+    const points: PlayerPoints[] = [];
+    for (const entry of value) {
+        if (!isObject(entry) || !(isId(entry.playerId) || entry.playerId === BOT_ID) || !isPoints(entry.points)) return null;
+        points.push({ playerId: entry.playerId as number, points: entry.points });
+    }
+    return points.filter((p) => p.playerId === BOT_ID).length === 1 ? points : null;
+}
+
+/** True for the body of a game report of a training match, which has `"training": true`. */
+export const isTrainingBody = (body: unknown): boolean => isObject(body) && body.training === true;
+
+/** Body of POST /api/server/matches/{id}/connected for a training match: the player and 0 for the bot. */
+export function parseTrainingConnected(body: unknown): Parsed<{ playerIds: [number, number] }> {
+    if (!isObject(body)) return { ok: false, field: 'body' };
+    const ids = body.playerIds;
+    if (!Array.isArray(ids) || ids.length !== 2 || ids.filter((id) => id === BOT_ID).length !== 1 || !ids.some(isId)) return { ok: false, field: 'playerIds' };
+    return { ok: true, value: { playerIds: [ids[0], ids[1]] } };
+}
+
+export interface TrainingReportInput {
+    reportId: string;
+    matchId: number;
+    game: number;
+    status: 'finished' | 'abandoned';
+    /** The player, or 0 when the bot won. Null for an abandoned game. */
+    winnerId: number | null;
+    points: PlayerPoints[];
+    startedAt: Date;
+    endedAt: Date;
+}
+
+/**
+ * Body of POST /api/server/games for a training match, marked with `"training": true`. The bot of
+ * the game server has player id 0 in the points and as the winner.
+ */
+export function parseTrainingReport(body: unknown): Parsed<TrainingReportInput> {
+    if (!isObject(body)) return { ok: false, field: 'body' };
+    if (typeof body.reportId !== 'string' || !UUID.test(body.reportId)) return { ok: false, field: 'reportId' };
+    if (!isId(body.matchId)) return { ok: false, field: 'matchId' };
+    if (!isId(body.game)) return { ok: false, field: 'game' };
+    const status = body.status;
+    if (status !== 'finished' && status !== 'abandoned') return { ok: false, field: 'status' };
+    const points = readTrainingPoints(body.points);
+    if (!points) return { ok: false, field: 'points' };
+    let winnerId: number | null = null;
+    if (status === 'finished') {
+        const winner = points.find((p) => p.playerId === body.winnerId);
+        const loser = points.find((p) => p.playerId !== body.winnerId);
+        if (!winner || !loser) return { ok: false, field: 'winnerId' };
+        if (winner.points <= loser.points) return { ok: false, field: 'points' };
+        winnerId = winner.playerId;
+    } else if (body.winnerId !== undefined && body.winnerId !== null) {
+        return { ok: false, field: 'winnerId' };
+    }
+    const startedAt = readTime(body.startedAt);
+    if (!startedAt) return { ok: false, field: 'startedAt' };
+    const endedAt = readTime(body.endedAt);
+    if (!endedAt || endedAt < startedAt) return { ok: false, field: 'endedAt' };
+    return { ok: true, value: { reportId: body.reportId.toLowerCase(), matchId: body.matchId, game: body.game, status, winnerId, points, startedAt, endedAt } };
+}
+
 /** The 400 answer for a body that could not be read. */
 export const badRequest = (field: string) => Response.json({ error: 'invalid', field }, { status: 400 });
