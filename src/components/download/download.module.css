@@ -1,0 +1,139 @@
+/* The download page. It sits in the site shell, so it shares the colours and fonts of the player pages.
+   The link buttons name the parent class too, to win over `.shell a`. */
+
+h1.title {
+    font-size: 72px;
+}
+
+.primary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px 24px;
+    margin-top: 6px;
+}
+
+.primaryItem {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    min-width: 0;
+}
+
+.primaryMeta {
+    font-size: 14px;
+    color: var(--chip);
+    overflow-wrap: anywhere;
+}
+
+.section {
+    gap: 16px;
+}
+
+.cards {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+}
+
+.card {
+    background: var(--white);
+    border: 2px solid var(--line);
+    border-radius: 20px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.cardTitle {
+    font-family: var(--display);
+    font-size: 24px;
+}
+
+.cardMeta {
+    font-size: 13px;
+    color: var(--muted);
+    overflow-wrap: anywhere;
+}
+
+.card a.cardButton {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    margin-top: 8px;
+    padding: 0 20px;
+    border-radius: 12px;
+    background: var(--red);
+    color: var(--white);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.card a.cardButton:hover {
+    background: var(--red-dark);
+    color: var(--white);
+}
+
+.install {
+    background: var(--white);
+    border: 2px solid var(--line);
+    border-radius: 20px;
+    padding: 20px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.h3 {
+    margin: 0;
+    font-family: var(--display);
+    font-weight: 400;
+    font-size: 24px;
+}
+
+.steps {
+    margin: 0;
+    padding-left: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.note {
+    margin: 0;
+    font-size: 14px;
+    color: var(--muted);
+    overflow-wrap: anywhere;
+}
+
+.ui {
+    font-weight: 700;
+}
+
+.code {
+    font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+    font-size: 14px;
+    background: var(--chip);
+    border-radius: 6px;
+    padding: 1px 6px;
+    overflow-wrap: anywhere;
+}
+
+.scripts {
+    margin: 0;
+    padding-left: 20px;
+    font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+    font-size: 14px;
+}
+
+@media (max-width: 760px) {
+    h1.title {
+        font-size: 48px;
+    }
+}

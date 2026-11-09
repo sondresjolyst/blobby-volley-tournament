@@ -92,10 +92,11 @@ test('a player challenges another to a 1v1, the other sees it and accepts withou
         await expect(hero.getByRole('link', { name: 'Opne lenkjå direkte' })).toHaveAttribute('href', link);
         await expect(hero.getByRole('list', { name: 'Sånn kjem du inn' }).getByRole('listitem')).toHaveText([
             'Kopier lenkjå med knappen.',
-            'Opne Blobby Volley.',
+            'Opne Blobby Volley. Har du det ikkje? Last det ned.',
             'Trykk på "join link" øvst i hovudmenyen.',
             'Svar Yes.',
         ]);
+        await expect(hero.getByRole('link', { name: 'Last det ned' })).toHaveAttribute('href', '/last-ned');
         // The server and the own code, for typing in by hand.
         await expect(hero).toContainText('"online game" eller "lan game", så "direct connect"');
         await expect(hero.getByRole('definition').filter({ hasText: 'e2e-server.lan:1234' })).toBeVisible();

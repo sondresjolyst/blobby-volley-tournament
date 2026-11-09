@@ -20,6 +20,7 @@ export function PlayerShell({ page, eventName, nickname, balance, children }: Sh
         { href: '/bracket', text: 'Kampoppsett', current: page === 'bracket' },
         { href: '/trening', text: 'Trening', current: page === 'training' },
         { href: '/leaderboard', text: 'Toppliste' },
+        { href: '/last-ned', text: 'Last ned' },
     ];
     return (
         <div className={styles.shell} lang="nn">

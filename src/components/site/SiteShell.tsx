@@ -11,7 +11,7 @@ interface ShellProps {
     /** The signed in player of the active event, or null. */
     player: { nickname: string; balance: number } | null;
     /** The page of the menu that is open, if it has a link there. */
-    current?: '/leaderboard' | '/trening';
+    current?: '/leaderboard' | '/trening' | '/last-ned';
     children: ReactNode;
 }
 
@@ -31,6 +31,7 @@ export function SiteShell({ eventName, player, current, children }: ShellProps) 
         { href: '/leaderboard', text: 'Toppliste', current: current === '/leaderboard' },
         ...(eventName ? [{ href: '/trening', text: 'Trening', current: current === '/trening' }] : []),
         ...(eventName ? [{ href: '/big', text: 'Storskjermen' }] : []),
+        { href: '/last-ned', text: 'Last ned', current: current === '/last-ned' },
     ];
     return (
         <div className={`${p.shell} ${s.site}`}>

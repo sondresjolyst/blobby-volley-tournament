@@ -217,7 +217,9 @@ export default async function Home() {
                     <ol className={s.steps}>
                         <li>Bli med: skriv LAN-koden, eit kallenavn og ein PIN-kode.</li>
                         <li>Sats Foza på kampane du trur du kan lesa.</li>
-                        <li>Når kampen din e klar, kopiere du lenkjå på sidå di og hoppe inn i Blobby Volley.</li>
+                        <li>
+                            Når kampen din e klar, kopiere du lenkjå på sidå di og hoppe inn i Blobby Volley. Har du ikkje spelet, <Link href="/last-ned">last det ned her</Link>.
+                        </li>
                     </ol>
                 </section>
             </aside>

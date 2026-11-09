@@ -16,6 +16,8 @@ const appPort = process.env.E2E_APP_PORT ?? '3100';
 const databaseUrl = `postgres://postgres:test@127.0.0.1:${dbPort}/bvt_e2e`;
 const baseUrl = `http://localhost:${appPort}`;
 const secret = 'e2e-placeholder-secret';
+// The download page reads the latest game release from here instead of GitHub.
+const releasePort = process.env.E2E_RELEASE_PORT ?? '3101';
 const adminId = '1';
 
 // The event the tests sign up to. The code is invented.
@@ -57,8 +59,10 @@ async function seed() {
 }
 
 let server = null;
+let releases = null;
 let code = 1;
 try {
+    releases = spawn(process.execPath, ['scripts/serve-release-fixture.mjs', releasePort], { cwd: root, stdio: 'inherit' });
     cleanupDb();
     const started = docker(
         'run', '--detach', '--name', name,
@@ -96,6 +100,7 @@ try {
             // The site takes 50 sign-ups an hour from one network. A test that sends this header gets its
             // own limit. Every other request has no such header and shares one limit, as before.
             TRUSTED_PROXY_IP_HEADER: 'x-e2e-client',
+            GAME_RELEASE_API_URL: `http://127.0.0.1:${releasePort}/releases/latest`,
         },
     });
     await waitFor(async () => {
@@ -113,6 +118,7 @@ try {
     console.error(error instanceof Error ? error.message : 'The check failed.');
 } finally {
     server?.kill();
+    releases?.kill();
     cleanupDb();
 }
 process.exit(code);

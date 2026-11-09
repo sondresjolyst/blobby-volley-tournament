@@ -74,6 +74,9 @@ export default async function Join({ searchParams }: { searchParams: Promise<{ e
             <p className={s.authSwitch}>
                 Allerede med? <Link href="/login">Logg inn</Link>
             </p>
+            <p className={s.authSwitch}>
+                Har du ikkje spelet ennå? <Link href="/last-ned">Last det ned</Link>
+            </p>
         </AuthPage>
     );
 }
