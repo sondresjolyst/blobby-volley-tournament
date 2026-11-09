@@ -4,8 +4,9 @@ import { expect, test, type Browser } from '@playwright/test';
 // This file changes the game server host of the active event, which the join links of the other
 // tests use. So it runs after them, and it always puts the host back, also when a test fails.
 
+// These sign-ups come from their own made-up network, as this file runs after the others have used up the shared limit.
 async function signUp(browser: Browser, nickname: string) {
-    const context = await browser.newContext({ baseURL: process.env.E2E_BASE_URL });
+    const context = await browser.newContext({ baseURL: process.env.E2E_BASE_URL, extraHTTPHeaders: { 'x-e2e-client': '192.0.2.40' } });
     const page = await context.newPage();
     await page.goto('/join');
     await page.getByLabel('LAN-kode').fill(process.env.E2E_EVENT_CODE ?? '');

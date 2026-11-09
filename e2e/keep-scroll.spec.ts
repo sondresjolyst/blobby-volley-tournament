@@ -149,3 +149,27 @@ test('saving the game server settings of an event keeps the scroll, also on a pa
     await expect(plainPage.getByLabel('Game server port')).toHaveValue('1301');
     await plain.close();
 });
+
+test('a post that fails shows an error once and is not sent again', async ({ browser }) => {
+    const { context, page } = await signUp(browser, `Sf${randomBytes(2).toString('hex')}`);
+    let posts = 0;
+    await page.route('**/api/player/signout', (route) => {
+        posts += 1;
+        return route.fulfill({ status: 500, body: 'Internal Server Error' });
+    });
+    await page.getByRole('button', { name: 'Logg ut' }).first().click();
+    const alert = page.getByRole('alert').filter({ hasText: 'Noko gjekk gale' });
+    await expect(alert).toBeInViewport();
+    await expect(page).toHaveURL(/\/me$/);
+    expect(posts).toBe(1);
+    await page.keyboard.press('Escape');
+    await expect(alert).toBeHidden();
+
+    // The sign-out still works when the route answers, and its cookie is kept.
+    await page.unroute('**/api/player/signout');
+    await page.getByRole('button', { name: 'Logg ut' }).first().click();
+    await expect(page).toHaveURL(/\/$/);
+    await page.goto('/me');
+    await expect(page).not.toHaveURL(/\/me$/);
+    await context.close();
+});
