@@ -1,8 +1,8 @@
 // The words of the big screen, in the same jokey Rogaland dialect as the player pages.
-import type { BoardKey, ScreenMatch } from '@/lib/big-screen/view';
+import type { BoardKey, ScreenDuel, ScreenDuelResult, ScreenMatch } from '@/lib/big-screen/view';
 import type { MatchState } from '@/lib/matches/state';
-import { calledText, STATE_TAGS } from '@/lib/tournaments/board';
-import { foza, payout } from '@/components/player/text';
+import { BETS_OPEN, calledText, STATE_TAGS } from '@/lib/tournaments/board';
+import { foza, matchSettings, payout } from '@/components/player/text';
 import { SPONSORS_LABEL } from '@/components/site/text';
 import { NO_LAN } from '@/lib/texts';
 
@@ -61,6 +61,7 @@ export const SCREEN_LABELS = {
     bracket: 'Heile kampoppsettet',
     foza: 'Foza-toppen',
     next: 'Snart i ringen',
+    duels: '1v1 og neste kampa',
     stats: 'Rekorda',
     sponsors: 'Sponsorane',
     winner: 'Vinnaren',
@@ -94,3 +95,30 @@ export function nextCaption(match: Pick<ScreenMatch, 'live' | 'bestOf' | 'sides'
     if (match.live) return `Sett ${match.live.game} · ${match.sides[0].sets}–${match.sides[1].sets} i sett · best av ${match.bestOf}`;
     return `Best av ${match.bestOf}`;
 }
+
+/** The words of the 1v1 screen. */
+export const DUEL_TEXT = {
+    live: '1v1 i ringen',
+    done: 'Nyss ferdig',
+    coming: 'Neste i turneringa',
+    noLive: (site: string | null) => `Ingen 1v1 i gang. Utfordra någen på ${siteAddress(site, '/me')}!`,
+    noDone: 'Ingen 1v1 e ferdigspelt ennå.',
+    noComing: 'Ingen turneringskampa på vei ennå.',
+    empty: (site: string | null) => `Ingen 1v1 og ingen kampa på vei ennå. Utfordra någen på ${siteAddress(site, '/me')}, då!`,
+    walkover: 'walkover',
+};
+
+/** The settings and the state of a 1v1 on the floor, such as `Sett 2 · 1–0 i sett · Best av 3 · først te 15 · 75 fps`. */
+export function duelCaption(duel: Pick<ScreenDuel, 'live' | 'sides' | 'bestOf' | 'scoreToWin' | 'speed'>): string {
+    const settings = matchSettings(duel);
+    return duel.live ? `Sett ${duel.live.game} · ${duel.sides[0].sets}–${duel.sides[1].sets} i sett · ${settings}` : settings;
+}
+
+/** The bets on a 1v1, such as `Spelå e åpne · 120 Foza i potten · 1,50× / 3,00×`. Null when there is nothing to say. */
+export function duelBets(duel: Pick<ScreenDuel, 'open' | 'pool' | 'sides'>): string | null {
+    if (duel.open) return duel.pool > 0 ? `${BETS_OPEN} · ${foza(duel.pool)} i potten · ${matchOdds(duel)}` : `${BETS_OPEN} · ingen spel ennå`;
+    return duel.pool > 0 ? `${foza(duel.pool)} i potten` : null;
+}
+
+/** The score of a finished 1v1, such as `2–1`, or `walkover`. */
+export const duelResult = (result: Pick<ScreenDuelResult, 'result' | 'sides'>) => (result.result === 'forfeit' ? DUEL_TEXT.walkover : `${result.sides[0].sets}–${result.sides[1].sets}`);

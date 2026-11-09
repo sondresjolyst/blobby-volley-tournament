@@ -30,6 +30,12 @@ export const UP_NEXT = 8;
 export const FOZA_ROWS = 8;
 /** How many of the biggest wins the Foza screen lists. */
 export const FOZA_WINS = 5;
+/** How many 1v1 matches on the floor the 1v1 screen lists. */
+export const DUELS_LIVE = 4;
+/** How many finished 1v1 matches the 1v1 screen lists. */
+export const DUELS_DONE = 3;
+/** How many tournament matches the 1v1 screen lists as next. */
+export const DUELS_COMING = 4;
 
 export interface ScreenSide {
     nickname: string;
@@ -122,6 +128,35 @@ export interface ScreenWinner {
     final: { round: string; sides: [{ name: string; score: number }, { name: string; score: number }] } | null;
 }
 
+/** A 1v1 match on the floor, with its settings. */
+export interface ScreenDuel extends ScreenMatch {
+    /** Points that win a game. */
+    scoreToWin: number;
+    /** Game speed in frames per second. */
+    speed: number;
+}
+
+/** A finished 1v1 match. */
+export interface ScreenDuelResult {
+    matchId: number;
+    /** `forfeit` when one player won on a walkover. */
+    result: 'played' | 'forfeit';
+    /** Games won by each player, and who won the match. */
+    sides: [{ nickname: string; sets: number; won: boolean }, { nickname: string; sets: number; won: boolean }];
+}
+
+/** The 1v1 screen: the 1v1 matches on the floor, the latest results, and the next tournament matches. */
+export interface ScreenDuels {
+    /** Started first, then the ready ones. At most DUELS_LIVE. */
+    live: ScreenDuel[];
+    /** The 1v1 matches on the floor left out to keep the rows readable. */
+    liveMore: number;
+    /** The latest finished first. At most DUELS_DONE. */
+    done: ScreenDuelResult[];
+    /** The called matches of the shown tournament, then the next ones to call. At most DUELS_COMING. */
+    coming: ScreenMatch[];
+}
+
 export type BoardKey = 'foza' | 'sigra' | 'elo';
 
 export interface ScreenBoard {
@@ -163,6 +198,7 @@ export interface BigScreenData {
     facts: ScreenFact[];
     /** The champion of a tournament. Null until a tournament has one. */
     winner: ScreenWinner | null;
+    duels: ScreenDuels;
 }
 
 export const EMPTY_SCREEN: BigScreenData = {
@@ -180,6 +216,7 @@ export const EMPTY_SCREEN: BigScreenData = {
     foza: { bettors: [], wins: [] },
     facts: [],
     winner: null,
+    duels: { live: [], liveMore: 0, done: [], coming: [] },
 };
 
 export interface ScreenTournament {
@@ -352,6 +389,37 @@ export function upNextMatches(matches: readonly MatchSummary[], live: readonly L
     return [...floorMatches(matches, live), ...next].slice(0, UP_NEXT);
 }
 
+/**
+ * True for a 1v1 match, which players set up themselves. This is the one place the 1v1 screen picks
+ * its matches, so another kind of match without a tournament can be left out here.
+ */
+export const isDuel = (match: Pick<MatchSummary, 'tournamentId'>) => match.tournamentId === null;
+
+/** The latest finished 1v1 matches with a winner, at most `max`. */
+export function finishedDuels(matches: readonly MatchSummary[], max = DUELS_DONE): ScreenDuelResult[] {
+    const time = (m: MatchSummary) => m.finishedAt?.getTime() ?? 0;
+    return matches
+        .filter((m) => isDuel(m) && m.state === 'finished' && m.winnerId !== null && m.players[0] && m.players[1])
+        .sort((a, b) => time(b) - time(a) || b.id - a.id)
+        .slice(0, max)
+        .map((m) => {
+            const side = (slot: 0 | 1) => ({ nickname: m.players[slot]!.nickname, sets: slot === 0 ? m.score1 : m.score2, won: m.winnerId === m.players[slot]!.id });
+            return { matchId: m.id, result: m.result === 'forfeit' ? 'forfeit' : 'played', sides: [side(0), side(1)] };
+        });
+}
+
+/**
+ * The matches of a tournament to get ready for: the called ones, then the next ones to call in
+ * bracket order. A match needs both players. It is the tournament the bracket shows, so the screen
+ * follows the tournament on the floor, or the one picked with `?t=`.
+ */
+export function comingTournamentMatches(matches: readonly MatchSummary[], tournamentId: number | null, max = DUELS_COMING): MatchSummary[] {
+    const ready = (m: MatchSummary) => tournamentId !== null && m.tournamentId === tournamentId && m.players[0] !== null && m.players[1] !== null;
+    const called = matches.filter((m) => ready(m) && m.state === 'called');
+    const next = matches.filter((m) => ready(m) && m.state === 'upcoming');
+    return [...called, ...next].slice(0, max);
+}
+
 /** The best bettors by Foza won net, and the biggest single wins, one per bettor. */
 export function screenFoza(leaderboard: Leaderboard): ScreenFoza {
     const name = nicknameOf(leaderboard.nicknames);
@@ -446,5 +514,17 @@ export function buildBigScreen(input: ScreenInput): BigScreenData {
         foza: screenFoza(input.leaderboard),
         facts: screenFacts(input.leaderboard, input.series),
         winner: screenWinner(input.leaderboard, input.matches, input.tournament?.id ?? null),
+        duels: screenDuels(input.matches, input.live, input.tournament?.id ?? null, show),
+    };
+}
+
+/** The 1v1 screen, from every match of the event and the shown tournament. `show` turns a match into a screen match. */
+function screenDuels(matches: readonly MatchSummary[], live: readonly LiveScore[], tournamentId: number | null, show: (m: MatchSummary) => ScreenMatch): ScreenDuels {
+    const floor = floorMatches(matches, live).filter(isDuel);
+    return {
+        live: floor.slice(0, DUELS_LIVE).map((m) => ({ ...show(m), scoreToWin: m.scoreToWin, speed: m.speed })),
+        liveMore: Math.max(0, floor.length - DUELS_LIVE),
+        done: finishedDuels(matches),
+        coming: comingTournamentMatches(matches, tournamentId).map(show),
     };
 }

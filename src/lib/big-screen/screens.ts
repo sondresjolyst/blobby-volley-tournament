@@ -2,7 +2,7 @@
 // access, so it can be tested on its own.
 
 /** Every screen, in the order the admin page lists them first. */
-export const SCREEN_TYPES = ['overview', 'bracket', 'foza', 'next', 'stats', 'sponsors', 'winner'] as const;
+export const SCREEN_TYPES = ['overview', 'bracket', 'foza', 'next', 'duels', 'stats', 'sponsors', 'winner'] as const;
 export type ScreenType = (typeof SCREEN_TYPES)[number];
 
 /** How long each screen stays up, in seconds. */
