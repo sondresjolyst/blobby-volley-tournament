@@ -116,7 +116,7 @@ test('the 1v1 screen shows a live 1v1, a finished 1v1 and the next tournament ma
     await expect(liveRow).toContainText('Sett 1 · 0–0 i sett · Best av 3 · først te 21 · 90 fps');
     await expect(liveRow).toContainText('120 Foza i potten');
 
-    const doneRow = region.getByRole('region', { name: 'Nyss ferdig' }).getByRole('listitem', { name: `${doneA} mot ${doneB}` });
+    const doneRow = region.getByRole('region', { name: 'Tidligere kampa' }).getByRole('listitem', { name: `${doneA} mot ${doneB}` });
     await expect(doneRow).toContainText('0–1');
 
     // The seeding may put either player first.
@@ -196,7 +196,7 @@ test('a busy 1v1 screen trims the lists and fits the TV', async ({ browser, base
     await expect(region).toContainText('ROPT OPP');
     const size = await page.evaluate(() => ({ w: document.documentElement.scrollWidth, h: document.documentElement.scrollHeight }));
     expect(size).toEqual({ w: 1920, h: 1080 });
-    for (const name of ['1v1 i ringen', 'Neste i turneringa', 'Nyss ferdig']) {
+    for (const name of ['1v1 i ringen', 'Neste i turneringa', 'Tidligere kampa']) {
         const box = (await region.getByRole('region', { name }).boundingBox())!;
         const strip = (await page.locator('main > footer').boundingBox())!;
         expect(box.y + box.height, name).toBeLessThanOrEqual(strip.y + 1);

@@ -137,7 +137,7 @@ describe('the 1v1 screen', () => {
             'ROPT OPP',
             'Semifinala, kamp 1 · Hovedcupen · best av 3',
             'SNART',
-            'Nyss ferdig',
+            'Tidligere kampa',
             'Brunost',
             '2–1',
             'walkover',

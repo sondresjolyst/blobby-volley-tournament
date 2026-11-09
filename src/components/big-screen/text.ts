@@ -99,7 +99,7 @@ export function nextCaption(match: Pick<ScreenMatch, 'live' | 'bestOf' | 'sides'
 /** The words of the 1v1 screen. */
 export const DUEL_TEXT = {
     live: '1v1 i ringen',
-    done: 'Nyss ferdig',
+    done: 'Tidligere kampa',
     coming: 'Neste i turneringa',
     noLive: (site: string | null) => `Ingen 1v1 i gang. Utfordra någen på ${siteAddress(site, '/me')}!`,
     noDone: 'Ingen 1v1 e ferdigspelt ennå.',
