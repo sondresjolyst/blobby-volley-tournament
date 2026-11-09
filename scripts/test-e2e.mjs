@@ -1,8 +1,6 @@
 // Runs the Playwright checks against the production build with a seeded Postgres.
 // Run `npm run build` first. Every value here is invented for the test.
 import { spawn, spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
-import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { encode } from 'next-auth/jwt';
 import pg from 'pg';
@@ -20,7 +18,6 @@ const baseUrl = `http://localhost:${appPort}`;
 const secret = 'e2e-placeholder-secret';
 // The download page reads the latest game release from here instead of GitHub.
 const releasePort = process.env.E2E_RELEASE_PORT ?? '3101';
-const releaseFixture = readFileSync(new URL('../e2e/fixtures/game-release.json', import.meta.url));
 const adminId = '1';
 
 // The event the tests sign up to. The code is invented.
@@ -65,11 +62,7 @@ let server = null;
 let releases = null;
 let code = 1;
 try {
-    releases = createServer((req, res) => {
-        res.writeHead(200, { 'content-type': 'application/json' });
-        res.end(releaseFixture);
-    });
-    await new Promise((resolve) => releases.listen(Number(releasePort), '127.0.0.1', resolve));
+    releases = spawn(process.execPath, ['scripts/serve-release-fixture.mjs', releasePort], { cwd: root, stdio: 'inherit' });
     cleanupDb();
     const started = docker(
         'run', '--detach', '--name', name,
@@ -125,7 +118,7 @@ try {
     console.error(error instanceof Error ? error.message : 'The check failed.');
 } finally {
     server?.kill();
-    releases?.close();
+    releases?.kill();
     cleanupDb();
 }
 process.exit(code);
