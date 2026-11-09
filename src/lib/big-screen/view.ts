@@ -9,6 +9,7 @@ import type { MatchPool } from '@/lib/store/bets';
 import type { LiveScore } from '@/lib/store/game-server';
 import type { MatchSummary } from '@/lib/store/matches';
 import type { SponsorRow } from '@/lib/store/sponsors';
+import type { LiveTraining } from '@/lib/store/training';
 import type { Leaderboard } from '@/lib/store/stats';
 import { signed } from '@/lib/format';
 import { compareNet } from '@/lib/stats/betting';
@@ -150,11 +151,25 @@ export interface ScreenDuelResult {
     sides: [{ nickname: string; sets: number; won: boolean }, { nickname: string; sets: number; won: boolean }];
 }
 
+/** An open training match against the bot of the game server. It never has bets. */
+export interface ScreenTrainingDuel {
+    trainingId: number;
+    nickname: string;
+    bot: string;
+    /** 0 is the strongest bot and 25 the weakest. */
+    difficulty: number;
+    ruleFile: string;
+    scoreToWin: number;
+    state: 'called' | 'started';
+}
+
 /** The 1v1 screen: the 1v1 matches on the floor, the latest results, and the next tournament matches. */
 export interface ScreenDuels {
     /** Started first, then the ready ones. At most DUELS_LIVE. */
     live: ScreenDuel[];
-    /** The 1v1 matches on the floor left out to keep the rows readable. */
+    /** The open training matches, after the real 1v1 matches in the same list. Together with live at most DUELS_LIVE. */
+    training: ScreenTrainingDuel[];
+    /** The 1v1 and training matches on the floor left out to keep the rows readable. */
     liveMore: number;
     /** The latest finished first. At most DUELS_DONE. */
     done: ScreenDuelResult[];
@@ -221,7 +236,7 @@ export const EMPTY_SCREEN: BigScreenData = {
     foza: { bettors: [], wins: [] },
     facts: [],
     winner: null,
-    duels: { live: [], liveMore: 0, done: [], coming: [] },
+    duels: { live: [], training: [], liveMore: 0, done: [], coming: [] },
 };
 
 export interface ScreenTournament {
@@ -245,6 +260,8 @@ export interface ScreenInput {
     /** The played series of the event, for the records. */
     series: readonly PlayedSeries[];
     rotation: ScreenRotation;
+    /** The open training matches against the bot of the game server, oldest first. */
+    training?: readonly LiveTraining[];
 }
 
 const STATE_ORDER: Partial<Record<MatchState, number>> = { started: 0, called: 1 };
@@ -520,16 +537,27 @@ export function buildBigScreen(input: ScreenInput): BigScreenData {
         foza: screenFoza(input.leaderboard),
         facts: screenFacts(input.leaderboard, input.series),
         winner: screenWinner(input.leaderboard, input.matches, input.tournament?.id ?? null),
-        duels: screenDuels(input.matches, input.live, input.tournament?.id ?? null, show),
+        duels: screenDuels(input.matches, input.live, input.tournament?.id ?? null, show, input.training ?? []),
     };
 }
 
 /** The 1v1 screen, from every match of the event and the shown tournament. `show` turns a match into a screen match. */
-function screenDuels(matches: readonly MatchSummary[], live: readonly LiveScore[], tournamentId: number | null, show: (m: MatchSummary) => ScreenMatch): ScreenDuels {
+function screenDuels(
+    matches: readonly MatchSummary[],
+    live: readonly LiveScore[],
+    tournamentId: number | null,
+    show: (m: MatchSummary) => ScreenMatch,
+    training: readonly LiveTraining[],
+): ScreenDuels {
     const floor = floorMatches(matches, live).filter(isDuel);
+    const shown = floor.slice(0, DUELS_LIVE);
+    // Training comes after the real 1v1 matches and only takes the rows they leave.
+    const playing = [...training].sort((a, b) => (a.state === b.state ? a.id - b.id : a.state === 'started' ? -1 : 1));
+    const trainingShown = playing.slice(0, DUELS_LIVE - shown.length);
     return {
-        live: floor.slice(0, DUELS_LIVE).map((m) => ({ ...show(m), scoreToWin: m.scoreToWin, speed: m.speed, ruleFile: m.ruleFile })),
-        liveMore: Math.max(0, floor.length - DUELS_LIVE),
+        live: shown.map((m) => ({ ...show(m), scoreToWin: m.scoreToWin, speed: m.speed, ruleFile: m.ruleFile })),
+        training: trainingShown.map((t) => ({ trainingId: t.id, nickname: t.nickname, bot: t.bot, difficulty: t.difficulty, ruleFile: t.ruleFile, scoreToWin: t.scoreToWin, state: t.state })),
+        liveMore: floor.length - shown.length + playing.length - trainingShown.length,
         done: finishedDuels(matches),
         coming: comingTournamentMatches(matches, tournamentId).map(show),
     };

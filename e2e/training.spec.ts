@@ -1,8 +1,11 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { expect, test, type Browser } from '@playwright/test';
 
+// These sign-ups come from their own made-up network, so they do not use up the limit the other tests share.
+const network = { 'x-e2e-client': '192.0.2.40' };
+
 async function signUp(browser: Browser, nickname: string) {
-    const context = await browser.newContext({ baseURL: process.env.E2E_BASE_URL });
+    const context = await browser.newContext({ baseURL: process.env.E2E_BASE_URL, extraHTTPHeaders: network });
     const page = await context.newPage();
     await page.goto('/join');
     await page.getByLabel('LAN-kode').fill(process.env.E2E_EVENT_CODE ?? '');
@@ -51,12 +54,30 @@ test('a player trains against the bot of the game server, the ring shows it as t
     await expect(card).toContainText('TRENING');
     await expect(card).toContainText('LIVE');
     await expect(card).toContainText(`${nickname} vs Bot (hyp014, vanskegrad 13)`);
-    await expect(card).toContainText('Regla default.lua · først te 5');
+    await expect(card).toContainText('Vanlig · først te 5');
     await expect(card).not.toContainText('Potten');
     await expect(card.getByRole('link')).toHaveCount(0);
     const cards = ring.locator('article');
     const positions = await cards.evaluateAll((all) => all.map((a) => (a.hasAttribute('data-training') ? 'training' : 'match')));
     expect(positions.indexOf('training')).toBeGreaterThanOrEqual(positions.lastIndexOf('match'));
+
+    // The 1v1 screen of the big screen lists it as training too, after the real 1v1 matches. When
+    // those fill every row, it is counted among the ones left out. The screen data is cached for a
+    // few seconds, so it is read until it shows up.
+    await expect
+        .poll(
+            async () => {
+                const { duels } = await (await page.request.get('/api/big')).json();
+                const listed = duels.training.find((t: { trainingId: number }) => t.trainingId === training.matchId);
+                if (listed) return listed;
+                return duels.live.length + duels.training.length === 4 && duels.liveMore > 0 ? 'left out' : null;
+            },
+            { timeout: 15_000 },
+        )
+        .toEqual(expect.anything());
+    const { duels } = await (await page.request.get('/api/big')).json();
+    const listed = duels.training.find((t: { trainingId: number }) => t.trainingId === training.matchId);
+    if (listed) expect(listed).toMatchObject({ nickname, bot: 'hyp014', difficulty: 13, state: 'started' });
 
     // The bot wins the game.
     const report = await page.request.post('/api/server/games', {

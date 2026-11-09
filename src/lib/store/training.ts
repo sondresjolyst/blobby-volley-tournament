@@ -2,9 +2,9 @@
 // never reach Foza, bets, the leaderboards, Elo, tournaments or the big screen. A training match
 // is one game. The game server reports it like a match, with player id 0 for the bot.
 import type { Pool, PoolClient } from 'pg';
-import { isWinningScore } from '@/lib/matches/settings';
-import { TRAINING_SPEED, isDifficulty, isTrainingBot, isTrainingRule, type TrainingOptions } from '@/lib/training/settings';
-import { isScoreToWin } from '@/lib/matches/settings';
+import { realScoreToWin } from '@/lib/matches/rules';
+import { isScoreToWin, isWinningScore } from '@/lib/matches/settings';
+import { TRAINING_SPEED, isDifficulty, isTrainingBot, isTrainingRules, type TrainingOptions } from '@/lib/training/settings';
 import { lockEventMatches } from './matches';
 import { inTransaction } from './transaction';
 
@@ -87,7 +87,7 @@ const isOpen = (state: TrainingState) => state === 'called' || state === 'starte
  * match cannot train, and a player has one open training match.
  */
 export async function createTraining(pool: Pool, playerId: number, options: TrainingOptions): Promise<{ ok: true; id: number } | { ok: false; error: TrainingError }> {
-    if (!isTrainingBot(options.bot) || !isDifficulty(options.difficulty) || !isTrainingRule(options.ruleFile) || !isScoreToWin(options.scoreToWin)) return { ok: false, error: 'settings' };
+    if (!isTrainingBot(options.bot) || !isDifficulty(options.difficulty) || !isScoreToWin(options.scoreToWin) || !isTrainingRules(options.ruleFile, options.scoreToWin)) return { ok: false, error: 'settings' };
     const found = await pool.query<{ event_id: number }>('SELECT event_id FROM players WHERE id = $1', [playerId]);
     const eventId = found.rows[0]?.event_id;
     if (eventId === undefined) return { ok: false, error: 'no-event' };
@@ -239,7 +239,8 @@ export async function reportTrainingGame(pool: Pool, report: TrainingReport): Pr
             return { status: 'stored' };
         }
         const won = report.winnerId === match.player_id;
-        if (!isWinningScore(won ? 1 : 2, playerPoints, botPoints, match.score_to_win)) return { status: 'refused', reason: 'score' };
+        // Lyn always plays to 2 and Brannmur to 10 times the points, like for a match.
+        if (!isWinningScore(won ? 1 : 2, playerPoints, botPoints, realScoreToWin(match.rule_file, match.score_to_win))) return { status: 'refused', reason: 'score' };
         await client.query(
             `UPDATE training_matches SET state = 'finished', finished_at = now(), started_at = coalesce(started_at, $3), report_id = $2,
                  player_points = $4, bot_points = $5, won = $6, game_started_at = $3, game_ended_at = $7

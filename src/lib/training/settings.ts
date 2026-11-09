@@ -1,5 +1,6 @@
 // The settings of a training match against a bot that the game server runs.
 import { DEFAULT_RULES } from '@/lib/bracket';
+import { fitsScoreToWin, isGameRules } from '@/lib/matches/rules';
 import { DEFAULT_GAME_SPEED, DEFAULT_SCORE_TO_WIN, formNumber, isScoreToWin } from '@/lib/matches/settings';
 
 /** The bot scripts in data/scripts of the game, without .lua. */
@@ -18,26 +19,12 @@ export const DEFAULT_DIFFICULTY = 15;
 /** Training always runs at normal speed. */
 export const TRAINING_SPEED = DEFAULT_GAME_SPEED;
 
-// TODO: switch to the shared rules list from feat/rules-dropdown once it is merged.
-/** The rule files in data/rules of the game. */
-export const TRAINING_RULES = [
-    'default.lua',
-    'classic.lua',
-    'blitz.lua',
-    'back_defence.lua',
-    'firewall.lua',
-    'jumping_jack.lua',
-    'one_hit_wonder.lua',
-    'sticky_mode.lua',
-    'tennis.lua',
-    'the_double.lua',
-] as const;
-
 export const isTrainingBot = (value: unknown): value is TrainingBot => typeof value === 'string' && (TRAINING_BOTS as readonly string[]).includes(value);
 
 export const isDifficulty = (n: unknown): n is number => Number.isInteger(n) && (n as number) >= MIN_DIFFICULTY && (n as number) <= MAX_DIFFICULTY;
 
-export const isTrainingRule = (value: unknown): value is string => typeof value === 'string' && (TRAINING_RULES as readonly string[]).includes(value);
+/** The rules a training match can use: the same list as a 1v1 match, with points the game server can report. */
+export const isTrainingRules = (ruleFile: unknown, scoreToWin: number): ruleFile is string => isGameRules(ruleFile) && fitsScoreToWin(ruleFile, scoreToWin);
 
 export interface TrainingOptions {
     bot: TrainingBot;
@@ -52,6 +39,6 @@ export function parseTrainingForm(form: Record<string, string>): TrainingOptions
     const ruleFile = (form.ruleFile ?? '').trim() || DEFAULT_RULES;
     const difficulty = formNumber(form.difficulty ?? '', DEFAULT_DIFFICULTY);
     const scoreToWin = formNumber(form.scoreToWin ?? '', DEFAULT_SCORE_TO_WIN);
-    if (!isTrainingBot(bot) || !isTrainingRule(ruleFile) || !isDifficulty(difficulty) || !isScoreToWin(scoreToWin)) return null;
+    if (!isTrainingBot(bot) || !isDifficulty(difficulty) || !isScoreToWin(scoreToWin) || !isTrainingRules(ruleFile, scoreToWin)) return null;
     return { bot, difficulty, ruleFile, scoreToWin };
 }

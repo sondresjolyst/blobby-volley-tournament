@@ -1,5 +1,6 @@
 // The words of training against the bot of the game server, in the Rogaland dialect of the LAN.
 import { MAX_DIFFICULTY, MIN_DIFFICULTY } from '@/lib/training/settings';
+import { realScoreToWin, rulesName } from '@/lib/matches/rules';
 import { MAX_SCORE_TO_WIN, MIN_SCORE_TO_WIN } from '@/lib/matches/settings';
 
 /** The badge on every training match, so nobody takes it for a real match. */
@@ -11,9 +12,6 @@ export const TRAINING_TEXT = {
     bot: 'Bot',
     difficulty: 'Vanskegrad',
     difficultyHint: `${MIN_DIFFICULTY} e sterkast, ${MAX_DIFFICULTY} e svakast`,
-    rules: 'Regla',
-    scoreToWin: 'Først te',
-    scoreToWinHint: `poeng, ${MIN_SCORE_TO_WIN} te ${MAX_SCORE_TO_WIN}`,
     start: 'Start treninga',
     stop: 'Stopp treninga',
     ready: 'Treninga di e klar',
@@ -49,8 +47,8 @@ export const hardestBeatenLine = (bot: string, difficulty: number) => `Tøffaste
 /** Such as `Ola vs Bot (hyp014, vanskegrad 13)`. */
 export const trainingVersus = (nickname: string, bot: string, difficulty: number) => `${nickname} vs Bot (${bot}, vanskegrad ${difficulty})`;
 
-/** Such as `Regla default.lua · først te 15`. */
-export const trainingSettings = (ruleFile: string, scoreToWin: number) => `Regla ${ruleFile} · først te ${scoreToWin}`;
+/** Such as `Vanlig · først te 15`, with the points the rules really play to. */
+export const trainingSettings = (ruleFile: string, scoreToWin: number) => `${rulesName(ruleFile)} · først te ${realScoreToWin(ruleFile, scoreToWin)}`;
 
 const SETTINGS = `Velg ein bot, ein vanskegrad frå ${MIN_DIFFICULTY} te ${MAX_DIFFICULTY}, regla og poeng frå ${MIN_SCORE_TO_WIN} te ${MAX_SCORE_TO_WIN}.`;
 

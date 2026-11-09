@@ -1,21 +1,20 @@
 import { connection } from 'next/server';
 import { CopyJoinLink } from '@/components/player/CopyJoinLink';
+import { RulesFields } from '@/components/player/RulesFields';
 import { PlayerShell } from '@/components/player/PlayerShell';
 import p from '@/components/player/player.module.css';
 import { LiveRefresh } from '@/components/LiveRefresh';
 import { SiteShell } from '@/components/site/SiteShell';
 import { TRAINING_TAG, TRAINING_TEXT, trainingErrorMessage, trainingNoticeMessage, trainingSettings, trainingVersus } from '@/components/training/text';
 import { OwnTrainingStats, TrainingOverviewSection } from '@/components/training/TrainingStats';
-import { DEFAULT_RULES } from '@/lib/bracket';
 import { getPool } from '@/lib/db';
-import { DEFAULT_SCORE_TO_WIN, MAX_SCORE_TO_WIN, MIN_SCORE_TO_WIN } from '@/lib/matches/settings';
 import { getActivePlayer } from '@/lib/players/current';
 import { joinLink } from '@/lib/players/join-code';
 import { getActiveEvent } from '@/lib/store/events';
 import { liveStamp } from '@/lib/store/live';
 import { getJoinCode } from '@/lib/store/players';
 import { getOpenTraining, getPlayerTrainingStats, getTrainingOverview } from '@/lib/store/training';
-import { DEFAULT_BOT, DEFAULT_DIFFICULTY, MAX_DIFFICULTY, MIN_DIFFICULTY, TRAINING_BOTS, TRAINING_RULES } from '@/lib/training/settings';
+import { DEFAULT_BOT, DEFAULT_DIFFICULTY, MAX_DIFFICULTY, MIN_DIFFICULTY, TRAINING_BOTS } from '@/lib/training/settings';
 import { NO_LAN } from '@/lib/texts';
 
 type Search = { training?: string | string[]; trainingError?: string | string[] };
@@ -143,7 +142,7 @@ export default async function Training({ searchParams }: { searchParams: Promise
                                 ))}
                             </select>
                         </label>
-                        <div className={p.fieldRow}>
+                        <RulesFields>
                             <label className={p.field}>
                                 {TRAINING_TEXT.difficulty}
                                 <input name="difficulty" type="number" className={p.input} min={MIN_DIFFICULTY} max={MAX_DIFFICULTY} step={1} defaultValue={DEFAULT_DIFFICULTY} required aria-describedby="difficulty-hint" />
@@ -151,24 +150,7 @@ export default async function Training({ searchParams }: { searchParams: Promise
                                     {TRAINING_TEXT.difficultyHint}
                                 </span>
                             </label>
-                            <label className={p.field}>
-                                {TRAINING_TEXT.scoreToWin}
-                                <input name="scoreToWin" type="number" className={p.input} min={MIN_SCORE_TO_WIN} max={MAX_SCORE_TO_WIN} step={1} defaultValue={DEFAULT_SCORE_TO_WIN} required aria-describedby="training-score-hint" />
-                                <span id="training-score-hint" className={p.hint}>
-                                    {TRAINING_TEXT.scoreToWinHint}
-                                </span>
-                            </label>
-                        </div>
-                        <label className={p.field}>
-                            {TRAINING_TEXT.rules}
-                            <select name="ruleFile" className={p.input} defaultValue={DEFAULT_RULES}>
-                                {TRAINING_RULES.map((rule) => (
-                                    <option key={rule} value={rule}>
-                                        {rule}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
+                        </RulesFields>
                         <button type="submit" className={p.button} disabled={open !== null}>
                             {TRAINING_TEXT.start}
                         </button>

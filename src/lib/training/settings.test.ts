@@ -20,6 +20,9 @@ describe('parseTrainingForm', () => {
         expect(parseTrainingForm({ bot: 'nosuchbot' })).toBeNull();
         expect(parseTrainingForm({ ruleFile: '../x.lua' })).toBeNull();
         expect(parseTrainingForm({ ruleFile: 'other.lua' })).toBeNull();
+        // Brannmur plays to 10 times the points, which must stay below the most a report takes
+        expect(parseTrainingForm({ ruleFile: 'firewall.lua', scoreToWin: '95' })).toBeNull();
+        expect(parseTrainingForm({ ruleFile: 'firewall.lua', scoreToWin: '90' })).not.toBeNull();
         expect(parseTrainingForm({ difficulty: '26' })).toBeNull();
         expect(parseTrainingForm({ difficulty: '-1' })).toBeNull();
         expect(parseTrainingForm({ difficulty: '1.5' })).toBeNull();
