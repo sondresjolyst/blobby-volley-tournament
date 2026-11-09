@@ -4,7 +4,7 @@ import styles from './download.module.css';
 const q = (text: string) => <span className={styles.ui}>{text}</span>;
 
 /** How to unpack and start the game on one system, from the README of the game. */
-export function InstallSteps({ os, linuxFile }: { os: GameOs; linuxFile?: string }) {
+export function InstallSteps({ os, linuxFile, macApp }: { os: GameOs; linuxFile?: string; macApp: string }) {
     if (os === 'windows') {
         return (
             <section className={styles.install} aria-labelledby="install-windows">
@@ -33,7 +33,7 @@ export function InstallSteps({ os, linuxFile }: { os: GameOs; linuxFile?: string
                 <ol className={styles.steps}>
                     <li>Dobbeltklikk på zip-fila, så pakke Macen den ut.</li>
                     <li>
-                        Appen e ikkje signert hos Apple ennå, så macOS stoppe første start. Høgreklikk på {q('Blobby Volley.app')}, velg {q('Open')} og trykk {q('Open')} igjen.
+                        Appen e ikkje signert hos Apple ennå, så macOS stoppe første start. Høgreklikk på {q(macApp)}, velg {q('Open')} og trykk {q('Open')} igjen.
                     </li>
                     <li>
                         Ser du ingen {q('Open')}-knapp? Gå te {q('System Settings')}, {q('Privacy & Security')} og trykk {q('Open Anyway')}.

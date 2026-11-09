@@ -33,6 +33,17 @@ const SERVER_SCRIPTS = new Set(['tournament-server.ps1', 'tournament-server.sh']
 /** The order the packages are listed in. */
 const ORDER = ['windows-x64', 'macos-arm64', 'macos-x64', 'linux-x64', 'windows-arm64', 'linux-arm64'];
 
+const NEW_PREFIX = 'blobbyvolley2-tournament-';
+
+/**
+ * The name of the Mac app inside a package. From 0.1.1 the app is named after the tournament fork.
+ * Without a package name it gives the new name, since every coming release uses it.
+ */
+export function macAppName(packageName?: string): string {
+    if (packageName && !packageName.startsWith(NEW_PREFIX)) return 'Blobby Volley.app';
+    return 'Blobby Volley 2 Tournament.app';
+}
+
 /** The game package a file name is, or null for any other file. */
 export function packageOf(asset: ReleaseAsset): GamePackage | null {
     const match = PACKAGE.exec(asset.name);

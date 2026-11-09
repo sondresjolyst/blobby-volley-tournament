@@ -9,7 +9,7 @@ import { siteHeader } from '@/components/site/header';
 import { SiteShell } from '@/components/site/SiteShell';
 import s from '@/components/site/site.module.css';
 import { getPool } from '@/lib/db';
-import type { GameOs, GamePackage } from '@/lib/game-release/assets';
+import { macAppName, type GameOs, type GamePackage } from '@/lib/game-release/assets';
 import { detectOs } from '@/lib/game-release/platform';
 import { getLatestRelease, RELEASES_PAGE } from '@/lib/game-release/release';
 import { getActiveEvent } from '@/lib/store/events';
@@ -45,6 +45,7 @@ export default async function DownloadPage() {
     const others = packages.filter((pkg) => !mine.includes(pkg));
     const installOrder = os ? [os, ...OS_ORDER.filter((o) => o !== os)] : OS_ORDER;
     const linuxFile = packages.find((pkg) => pkg.os === 'linux')?.name;
+    const macApp = macAppName(packages.find((pkg) => pkg.os === 'macos')?.name);
 
     return (
         <SiteShell {...header} current="/last-ned">
@@ -99,7 +100,7 @@ export default async function DownloadPage() {
                     {T.install}
                 </h2>
                 {installOrder.map((o) => (
-                    <InstallSteps key={o} os={o} linuxFile={linuxFile} />
+                    <InstallSteps key={o} os={o} linuxFile={linuxFile} macApp={macApp} />
                 ))}
             </section>
 

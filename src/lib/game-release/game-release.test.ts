@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { packageOf, sortAssets } from './assets';
+import { macAppName, packageOf, sortAssets } from './assets';
 import { detectOs } from './platform';
 import { getLatestRelease, readRelease, RELEASES_PAGE } from './release';
 
@@ -31,6 +31,14 @@ describe('packageOf', () => {
         'blobbyvolley2-tournament-0.1.1-windows-x64.zip.sig',
     ])('leaves out %s', (name) => {
         expect(packageOf(asset(name))).toBeNull();
+    });
+});
+
+describe('macAppName', () => {
+    it('names the app after the package names', () => {
+        expect(macAppName('blobby-volley-2-0.1.0-macos-arm64.zip')).toBe('Blobby Volley.app');
+        expect(macAppName('blobbyvolley2-tournament-0.1.1-macos-arm64.zip')).toBe('Blobby Volley 2 Tournament.app');
+        expect(macAppName(undefined)).toBe('Blobby Volley 2 Tournament.app');
     });
 });
 
