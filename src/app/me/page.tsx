@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { InfoButton, InfoLabel } from '@/components/InfoButton';
 import { CopyJoinLink } from '@/components/player/CopyJoinLink';
 import { FIELD_INFO } from '@/components/player/info';
@@ -115,7 +116,13 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                                 <CopyJoinLink link={join} />
                                 <ol className={styles.joinSteps} aria-label="Sånn kjem du inn">
                                     <li>Kopier lenkjå med knappen.</li>
-                                    <li>Opne Blobby Volley.</li>
+                                    <li>
+                                        Opne Blobby Volley. Har du det ikkje?{' '}
+                                        <Link className={styles.heroLink} href="/last-ned">
+                                            Last det ned
+                                        </Link>
+                                        .
+                                    </li>
                                     <li>Trykk på &quot;join link&quot; øvst i hovudmenyen.</li>
                                     <li>Svar Yes.</li>
                                 </ol>

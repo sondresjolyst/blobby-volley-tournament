@@ -1,6 +1,8 @@
 // Runs the Playwright checks against the production build with a seeded Postgres.
 // Run `npm run build` first. Every value here is invented for the test.
 import { spawn, spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { encode } from 'next-auth/jwt';
 import pg from 'pg';
@@ -16,6 +18,9 @@ const appPort = process.env.E2E_APP_PORT ?? '3100';
 const databaseUrl = `postgres://postgres:test@127.0.0.1:${dbPort}/bvt_e2e`;
 const baseUrl = `http://localhost:${appPort}`;
 const secret = 'e2e-placeholder-secret';
+// The download page reads the latest game release from here instead of GitHub.
+const releasePort = process.env.E2E_RELEASE_PORT ?? '3101';
+const releaseFixture = readFileSync(new URL('../e2e/fixtures/game-release.json', import.meta.url));
 const adminId = '1';
 
 // The event the tests sign up to. The code is invented.
@@ -57,8 +62,14 @@ async function seed() {
 }
 
 let server = null;
+let releases = null;
 let code = 1;
 try {
+    releases = createServer((req, res) => {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(releaseFixture);
+    });
+    await new Promise((resolve) => releases.listen(Number(releasePort), '127.0.0.1', resolve));
     cleanupDb();
     const started = docker(
         'run', '--detach', '--name', name,
@@ -96,6 +107,7 @@ try {
             // The site takes 50 sign-ups an hour from one network. A test that sends this header gets its
             // own limit. Every other request has no such header and shares one limit, as before.
             TRUSTED_PROXY_IP_HEADER: 'x-e2e-client',
+            GAME_RELEASE_API_URL: `http://127.0.0.1:${releasePort}/releases/latest`,
         },
     });
     await waitFor(async () => {
@@ -113,6 +125,7 @@ try {
     console.error(error instanceof Error ? error.message : 'The check failed.');
 } finally {
     server?.kill();
+    releases?.close();
     cleanupDb();
 }
 process.exit(code);
