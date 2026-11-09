@@ -23,7 +23,7 @@ export const GAME_RULES: readonly GameRules[] = [
     { file: 'jumping_jack.lua', name: 'Hoppetusse', description: 'Blobbane hoppe heile tida. Du styre bare sidelengs.' },
     { file: 'sticky_mode.lua', name: 'Limfot', description: 'Ingen hopping mens ballen e i spel. Føtene står limt te bakken.' },
     { file: 'back_defence.lua', name: 'Bakforsvar', description: 'Før du har touchet ballen, kan du ikkje hoppa på den delen av banen din som e nærmast nettet.' },
-    { file: 'firewall.lua', name: 'Brannmur', description: 'Ballen i veggen gir motstandaren 1 poeng. Andre feil koste 10. Dåkke spele te 10 gonga så mange poeng.' },
+    { file: 'firewall.lua', name: 'Brannmur', description: 'Vanlige poeng tel 10. Treff du veggen, får motstandaren 1 poeng. Først te 15 blir først te 150.' },
 ];
 
 const BY_FILE = new Map(GAME_RULES.map((r) => [r.file, r]));
