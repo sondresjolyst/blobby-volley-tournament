@@ -6,7 +6,6 @@ import {
     generateBracket,
     isBestOf,
     isFormatId,
-    isRuleFile,
     MAX_PLAYERS,
     MAX_RANDOM_SEED,
     MIN_PLAYERS,
@@ -19,6 +18,7 @@ import {
     type SeedingMethod,
 } from '@/lib/bracket';
 import { parseId } from '@/lib/http';
+import { fitsScoreToWin, isGameRules, MAX_REAL_SCORE_TO_WIN } from '@/lib/matches/rules';
 import { DEFAULT_GAME_SPEED, DEFAULT_SCORE_TO_WIN, formNumber, isGameSpeed, isScoreToWin, MAX_GAME_SPEED, MAX_SCORE_TO_WIN, MIN_GAME_SPEED, MIN_SCORE_TO_WIN } from '@/lib/matches/settings';
 
 export const SEEDING_LABELS: Record<SeedingMethod, string> = { random: 'Random', manual: 'By hand', elo: 'By Elo rating' };
@@ -59,7 +59,7 @@ export interface TournamentDraft {
     roundsFor: string;
 }
 
-export type DraftError = 'name' | 'format' | 'seeding' | 'random-seed' | 'players' | 'seeds' | 'third-place' | 'best-of' | 'rules' | 'score-to-win' | 'speed';
+export type DraftError = 'name' | 'format' | 'seeding' | 'random-seed' | 'players' | 'seeds' | 'third-place' | 'best-of' | 'rules' | 'rules-points' | 'score-to-win' | 'speed';
 
 export type DraftResult = { ok: true; value: TournamentDraft } | { ok: false; error: DraftError };
 
@@ -125,7 +125,8 @@ export function parseTournamentDraft(read: FieldReader): DraftResult {
             const bestOf = Number(bestOfText || '1');
             if (!/^[0-9]$/.test(bestOfText || '1') || !isBestOf(bestOf)) return { ok: false, error: 'best-of' };
             const ruleFile = rulesText || DEFAULT_RULES;
-            if (!isRuleFile(ruleFile)) return { ok: false, error: 'rules' };
+            if (!isGameRules(ruleFile)) return { ok: false, error: 'rules' };
+            if (!fitsScoreToWin(ruleFile, scoreToWin)) return { ok: false, error: 'rules-points' };
             rounds[key] = { bestOf, ruleFile };
         }
     }
@@ -172,7 +173,8 @@ const DRAFT_ERRORS: Record<string, string> = {
     'third-place': `A third place match needs at least ${THIRD_PLACE_MIN_PLAYERS} players.`,
     rounds: 'The players or the format changed after the preview. Select Preview and check the rounds again before you save.',
     'best-of': BEST_OF_ERROR,
-    rules: 'A rule file must be a file name that ends in .lua, such as default.lua.',
+    rules: 'Pick the rules of each round from the list.',
+    'rules-points': `Brannmur plays to 10 times the points to win, so with Brannmur the points to win can be at most ${MAX_REAL_SCORE_TO_WIN / 10}.`,
     'score-to-win': `Points to win a game must be a whole number from ${MIN_SCORE_TO_WIN} to ${MAX_SCORE_TO_WIN}.`,
     speed: `Game speed must be a whole number from ${MIN_GAME_SPEED} to ${MAX_GAME_SPEED} frames per second.`,
     'no-event': NO_ACTIVE_EVENT,

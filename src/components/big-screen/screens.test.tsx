@@ -15,6 +15,7 @@ const match = (matchId: number, state: ScreenMatch['state'], names: [string, str
     label: 'Semifinala, kamp 1',
     tournamentName: 'Hovedcupen',
     bestOf: 3,
+    rules: 'Tennis',
     live,
     pool: 0,
     open: state === 'upcoming',
@@ -69,8 +70,8 @@ const full: BigScreenData = {
     },
     duels: {
         live: [
-            { ...match(7, 'started', ['Pølsa', 'Lompa'], { game: 1, points: [9, 4] }), label: '1v1', tournamentName: null, pool: 400, scoreToWin: 21, speed: 90 },
-            { ...match(8, 'called', ['Taco', 'Nacho']), label: '1v1', tournamentName: null, open: true, scoreToWin: 15, speed: 75, bestOf: 1 },
+            { ...match(7, 'started', ['Pølsa', 'Lompa'], { game: 1, points: [9, 4] }), label: '1v1', tournamentName: null, pool: 400, scoreToWin: 21, speed: 90, ruleFile: 'default.lua' },
+            { ...match(8, 'called', ['Taco', 'Nacho']), label: '1v1', tournamentName: null, open: true, scoreToWin: 15, speed: 75, bestOf: 1, ruleFile: 'default.lua' },
         ],
         liveMore: 2,
         done: [
@@ -109,7 +110,7 @@ describe('the Foza screen', () => {
 describe('the up next screen', () => {
     it('lists the matches with the live score of the running one', () => {
         const out = html(<UpNextScreen data={full} />);
-        for (const text of ['Snart i ringen', 'LIVE', '11–8', 'Sett 2 · 1–0 i sett · best av 3', 'SNART', 'Blobfisk', 'Ingen spel ennå']) expect(out).toContain(text);
+        for (const text of ['Snart i ringen', 'LIVE', '11–8', 'Sett 2 · 1–0 i sett · best av 3 · Tennis', 'SNART', 'Blobfisk', 'Ingen spel ennå']) expect(out).toContain(text);
         expect(out.indexOf('Skvett')).toBeLessThan(out.indexOf('Blobfisk'));
     });
 
@@ -127,7 +128,7 @@ describe('the 1v1 screen', () => {
             'Pølsa',
             'LIVE',
             '9–4',
-            'Sett 1 · 1–0 i sett · Best av 3 · først te 21 · 90 fps',
+            'Sett 1 · 1–0 i sett · Best av 3 · Vanlig · først te 21 · 90 fps',
             '400 Foza i potten',
             'KLAR',
             'Taco',

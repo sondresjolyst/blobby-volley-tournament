@@ -113,7 +113,7 @@ test('the 1v1 screen shows a live 1v1, a finished 1v1 and the next tournament ma
     const liveRow = region.getByRole('region', { name: '1v1 i ringen' }).getByRole('listitem', { name: `${liveA} mot ${liveB}` });
     await expect(liveRow).toContainText('LIVE');
     await expect(liveRow).toContainText('7–3');
-    await expect(liveRow).toContainText('Sett 1 · 0–0 i sett · Best av 3 · først te 21 · 90 fps');
+    await expect(liveRow).toContainText('Sett 1 · 0–0 i sett · Best av 3 · Vanlig · først te 21 · 90 fps');
     await expect(liveRow).toContainText('120 Foza i potten');
 
     const doneRow = region.getByRole('region', { name: 'Tidligere kampa' }).getByRole('listitem', { name: `${doneA} mot ${doneB}` });

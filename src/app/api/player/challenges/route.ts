@@ -11,7 +11,7 @@ export async function POST(req: Request) {
     if (!player) return seeOther('/login');
     const input = parseChallengeForm(await readForm(req));
     if (!input) return seeOther('/me?challengeError=form#utfordringa');
-    const result = await createChallenge(getPool(), player.id, input.opponentId, { bestOf: input.bestOf, scoreToWin: input.scoreToWin, speed: input.speed });
+    const result = await createChallenge(getPool(), player.id, input.opponentId, { bestOf: input.bestOf, ruleFile: input.ruleFile, scoreToWin: input.scoreToWin, speed: input.speed });
     if (!result.ok) return seeOther(`/me?challengeError=${result.error}#utfordringa`);
     return seeOther('/me?challenge=sent#utfordringa');
 }

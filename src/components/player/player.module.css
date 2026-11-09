@@ -711,6 +711,14 @@
     flex: none;
 }
 
+.rulesList {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    padding-left: 18px;
+}
+
 .fieldRow {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));

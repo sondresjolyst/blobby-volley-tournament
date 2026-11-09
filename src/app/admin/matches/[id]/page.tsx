@@ -6,6 +6,7 @@ import { requireAdmin } from '@/lib/auth/options';
 import { getPool } from '@/lib/db';
 import { parseId } from '@/lib/http';
 import { matchErrorMessage, STATE_LABELS } from '@/lib/matches/input';
+import { realScoreToWin, rulesName } from '@/lib/matches/rules';
 import { winsNeeded } from '@/lib/matches/state';
 import { getMatch } from '@/lib/store/matches';
 
@@ -60,10 +61,11 @@ export default async function AdminMatch({ params, searchParams }: { params: Pro
             <p>{matchPlayers(match, 'admin')}</p>
             <p>State: {STATE_LABELS[match.state]}</p>
             <p>
-                Best of {match.bestOf}, first to win {winsNeeded(match.bestOf)} games. Rules: {match.ruleFile}
+                Best of {match.bestOf}, first to win {winsNeeded(match.bestOf)} games. Rules: {rulesName(match.ruleFile)} ({match.ruleFile})
             </p>
             <p>
-                Games to {match.scoreToWin} points at {match.speed} frames per second.
+                Games to {realScoreToWin(match.ruleFile, match.scoreToWin)} points at {match.speed} frames per second.
+                {realScoreToWin(match.ruleFile, match.scoreToWin) !== match.scoreToWin && ` The match was set to ${match.scoreToWin}, and the rules change that.`}
             </p>
             <p>Series: {matchOutcome(match)}</p>
             {match.manualScore && (

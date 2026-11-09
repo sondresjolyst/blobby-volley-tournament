@@ -33,9 +33,20 @@ describe('parseMatchForm', () => {
 
 describe('parseChallengeForm', () => {
     it('reads the opponent and the settings, with 1, 15 and 75 for empty fields', () => {
-        expect(parseChallengeForm({ opponent: '7', bestOf: '3', scoreToWin: '21', speed: '100' })).toEqual({ opponentId: 7, bestOf: 3, scoreToWin: 21, speed: 100 });
-        expect(parseChallengeForm({ opponent: '7', bestOf: '', scoreToWin: ' ', speed: '' })).toEqual({ opponentId: 7, bestOf: 1, scoreToWin: 15, speed: 75 });
-        expect(parseChallengeForm({ opponent: '7' })).toEqual({ opponentId: 7, bestOf: 1, scoreToWin: 15, speed: 75 });
+        expect(parseChallengeForm({ opponent: '7', bestOf: '3', ruleFile: 'tennis.lua', scoreToWin: '21', speed: '100' })).toEqual({ opponentId: 7, bestOf: 3, ruleFile: 'tennis.lua', scoreToWin: 21, speed: 100 });
+        expect(parseChallengeForm({ opponent: '7', bestOf: '', ruleFile: '', scoreToWin: ' ', speed: '' })).toEqual({ opponentId: 7, bestOf: 1, ruleFile: 'default.lua', scoreToWin: 15, speed: 75 });
+        expect(parseChallengeForm({ opponent: '7' })).toEqual({ opponentId: 7, bestOf: 1, ruleFile: 'default.lua', scoreToWin: 15, speed: 75 });
+    });
+
+    it('takes only the rules the game ships', () => {
+        for (const ruleFile of ['classic.lua', 'blitz.lua', 'one_hit_wonder.lua', 'jumping_jack.lua', 'back_defence.lua']) expect(parseChallengeForm({ opponent: '7', ruleFile })).toMatchObject({ ruleFile });
+        for (const ruleFile of ['fun.lua', '../default.lua', 'default', 'TENNIS.lua']) expect(parseChallengeForm({ opponent: '7', ruleFile })).toBeNull();
+    });
+
+    it('keeps Brannmur below the points a report takes, and lets Lyn ignore the points', () => {
+        expect(parseChallengeForm({ opponent: '7', ruleFile: 'firewall.lua', scoreToWin: '90' })).toMatchObject({ scoreToWin: 90 });
+        expect(parseChallengeForm({ opponent: '7', ruleFile: 'firewall.lua', scoreToWin: '91' })).toBeNull();
+        expect(parseChallengeForm({ opponent: '7', ruleFile: 'blitz.lua' })).toMatchObject({ ruleFile: 'blitz.lua', scoreToWin: 15 });
     });
 
     it('takes the bounds of the game', () => {
