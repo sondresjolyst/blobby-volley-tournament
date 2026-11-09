@@ -1,4 +1,5 @@
 import { connection } from 'next/server';
+import { InfoLabel } from '@/components/InfoButton';
 import { CopyJoinLink } from '@/components/player/CopyJoinLink';
 import { RulesFields } from '@/components/player/RulesFields';
 import { PlayerShell } from '@/components/player/PlayerShell';
@@ -143,13 +144,15 @@ export default async function Training({ searchParams }: { searchParams: Promise
                             </select>
                         </label>
                         <RulesFields>
-                            <label className={p.field}>
-                                {TRAINING_TEXT.difficulty}
-                                <input name="difficulty" type="number" className={p.input} min={MIN_DIFFICULTY} max={MAX_DIFFICULTY} step={1} defaultValue={DEFAULT_DIFFICULTY} required aria-describedby="difficulty-hint" />
+                            <div className={p.field}>
+                                <InfoLabel htmlFor="difficulty" text={TRAINING_TEXT.difficulty} info={TRAINING_TEXT.difficultyInfo}>
+                                    <p>{TRAINING_TEXT.difficultyInfoText}</p>
+                                </InfoLabel>
+                                <input id="difficulty" name="difficulty" type="number" className={p.input} min={MIN_DIFFICULTY} max={MAX_DIFFICULTY} step={1} defaultValue={DEFAULT_DIFFICULTY} required aria-describedby="difficulty-hint difficulty-help" />
                                 <span id="difficulty-hint" className={p.hint}>
                                     {TRAINING_TEXT.difficultyHint}
                                 </span>
-                            </label>
+                            </div>
                         </RulesFields>
                         <button type="submit" className={p.button} disabled={open !== null}>
                             {TRAINING_TEXT.start}
