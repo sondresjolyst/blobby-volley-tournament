@@ -15,7 +15,7 @@ import { getActiveEvent } from '@/lib/store/events';
 import { liveStamp } from '@/lib/store/live';
 import { getJoinCode } from '@/lib/store/players';
 import { getOpenTraining, getPlayerTrainingStats, getTrainingOverview } from '@/lib/store/training';
-import { DEFAULT_BOT, DEFAULT_DIFFICULTY, MAX_DIFFICULTY, MIN_DIFFICULTY, TRAINING_BOTS } from '@/lib/training/settings';
+import { BOT_LEVEL, DEFAULT_BOT, DEFAULT_DIFFICULTY, MAX_DIFFICULTY, MIN_DIFFICULTY, TRAINING_BOTS } from '@/lib/training/settings';
 import { NO_LAN } from '@/lib/texts';
 
 type Search = { training?: string | string[]; trainingError?: string | string[] };
@@ -138,7 +138,7 @@ export default async function Training({ searchParams }: { searchParams: Promise
                             <select name="bot" className={p.input} defaultValue={DEFAULT_BOT}>
                                 {TRAINING_BOTS.map((bot) => (
                                     <option key={bot} value={bot}>
-                                        {bot}
+                                        {bot} ({BOT_LEVEL[bot]})
                                     </option>
                                 ))}
                             </select>

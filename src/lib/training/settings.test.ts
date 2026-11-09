@@ -11,7 +11,7 @@ describe('parseTrainingForm', () => {
     });
 
     it('knows the bot scripts of the game', () => {
-        expect(TRAINING_BOTS).toEqual(['reduced', 'axji-0-2', 'com_11', 'gintonicV9', 'hyp014', 'Union']);
+        expect(TRAINING_BOTS).toEqual(['axji-0-2', 'com_11', 'Union', 'hyp014', 'reduced', 'gintonicV9']);
         for (const bot of TRAINING_BOTS) expect(parseTrainingForm({ bot })).not.toBeNull();
     });
 

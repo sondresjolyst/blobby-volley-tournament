@@ -3,12 +3,22 @@ import { DEFAULT_RULES } from '@/lib/bracket';
 import { fitsScoreToWin, isGameRules } from '@/lib/matches/rules';
 import { DEFAULT_GAME_SPEED, DEFAULT_SCORE_TO_WIN, formNumber, isScoreToWin } from '@/lib/matches/settings';
 
-/** The bot scripts in data/scripts of the game, without .lua. */
-export const TRAINING_BOTS = ['reduced', 'axji-0-2', 'com_11', 'gintonicV9', 'hyp014', 'Union'] as const;
+/** The bot scripts in data/scripts of the game, without .lua, from easy to hard at the weakest difficulty. */
+export const TRAINING_BOTS = ['axji-0-2', 'com_11', 'Union', 'hyp014', 'reduced', 'gintonicV9'] as const;
 export type TrainingBot = (typeof TRAINING_BOTS)[number];
 
+/** How hard each bot is, measured bot against bot. */
+export const BOT_LEVEL: Record<TrainingBot, string> = {
+    'axji-0-2': 'Veldig lett',
+    com_11: 'Lett',
+    Union: 'Middels',
+    hyp014: 'Middels',
+    reduced: 'Vanskelig',
+    gintonicV9: 'Veldig vanskelig',
+};
+
 /** The bot a new training match gets. */
-export const DEFAULT_BOT: TrainingBot = 'reduced';
+export const DEFAULT_BOT: TrainingBot = 'com_11';
 
 /** 0 is the strongest bot and 25 the weakest, as in the options of the game. */
 export const MIN_DIFFICULTY = 0;
