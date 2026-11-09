@@ -24,7 +24,7 @@ test('a player trains against the bot of the game server, the ring shows it as t
 
     await page.goto('/trening');
     const form = page.getByRole('region', { name: 'Tren mot bot' });
-    await expect(form.getByLabel('Bot')).toHaveValue('reduced');
+    await expect(form.getByLabel('Bot')).toHaveValue('com_11');
     await expect(form.getByLabel('Regla')).toHaveValue('default.lua');
     await form.getByLabel('Bot').selectOption('hyp014');
     await form.getByLabel('Vanskegrad', { exact: true }).fill('13');
