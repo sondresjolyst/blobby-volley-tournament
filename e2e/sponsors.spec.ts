@@ -85,6 +85,23 @@ test('an admin adds, orders, turns off and deletes sponsors, and the footer and 
     await expect.poll(() => footer.getByRole('img', { name: first }).evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(300);
     const alts = await footer.getByRole('img').evaluateAll((imgs) => imgs.map((img) => img.getAttribute('alt')));
     expect(alts.indexOf(first)).toBeLessThan(alts.indexOf(second));
+
+    // The strip always moves, also on wide screens where both tiles fit, and the sets cover it while it slides.
+    for (const width of [375, 1920, 2560]) {
+        await homePage.setViewportSize({ width, height: 900 });
+        const track = footer.locator('[data-sponsor-track]');
+        await expect
+            .poll(() =>
+                track.evaluate((el) => {
+                    const box = el.parentElement!.clientWidth;
+                    const step = el.firstElementChild!.getBoundingClientRect().width + parseFloat(getComputedStyle(el).columnGap);
+                    const running = el.getAnimations().some((a) => a.playState === 'running');
+                    return running && el.getBoundingClientRect().width - step >= box;
+                }),
+            )
+            .toBe(true);
+    }
+    await homePage.setViewportSize({ width: 1280, height: 720 });
     const src = await footer.getByRole('img', { name: first }).getAttribute('src');
     const logo = await homePage.request.get(src!);
     expect(logo.status()).toBe(200);

@@ -38,33 +38,25 @@ a.tile:focus-visible {
     outline-offset: 2px;
 }
 
-/* The strip: one row. When the tiles do not fit it moves sideways forever. The track then holds
-   the tiles twice, so moving it by half its width and the half gap lands on the same picture. The
+/* The strip: one row that always moves sideways. The track holds the tiles --sets times, enough
+   to cover the strip, and slides by one set and one gap, which lands on the same picture. The
    padding and the negative margin leave room for the focus ring, which overflow would cut. */
 .marquee {
     display: flex;
-    justify-content: center;
     overflow: hidden;
     padding: 5px;
     margin: -5px;
-}
-
-.marquee:has(.moving) {
-    justify-content: flex-start;
 }
 
 .track {
     display: flex;
     gap: var(--strip-gap, 12px);
     width: max-content;
-}
-
-.moving {
     animation: sponsor-scroll calc(var(--tiles, 6) * 4.5s) linear infinite;
 }
 
-.marquee:hover .moving,
-.marquee:focus-within .moving {
+.marquee:hover .track,
+.marquee:focus-within .track {
     animation-play-state: paused;
 }
 
@@ -87,17 +79,18 @@ a.tile:focus-visible {
         transform: translateX(0);
     }
     to {
-        transform: translateX(calc(-50% - var(--strip-gap, 12px) / 2));
+        transform: translateX(calc((100% + var(--strip-gap, 12px)) / var(--sets, 2) * -1));
     }
 }
 
 /* Without motion the strip stands still: one set of tiles, wrapped and centred. */
 @media (prefers-reduced-motion: reduce) {
-    .moving {
-        animation: none;
+    .marquee {
+        justify-content: center;
     }
 
     .track {
+        animation: none;
         width: auto;
         flex-wrap: wrap;
         justify-content: center;
