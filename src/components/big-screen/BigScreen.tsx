@@ -64,6 +64,7 @@ function Hero({ match }: { match: ScreenMatch | null }) {
             </div>
             <p className={styles.heroCaption}>
                 {match.live ? `Sett ${match.live.game} · best av ${match.bestOf}` : match.state === 'started' ? `Sett vunne · best av ${match.bestOf}` : `Best av ${match.bestOf}`}
+                {` · ${match.rules}`}
                 {match.tournamentName ? ` · ${match.tournamentName}` : ''}
             </p>
             <div className={styles.pool}>

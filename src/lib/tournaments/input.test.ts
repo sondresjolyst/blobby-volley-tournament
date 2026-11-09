@@ -72,11 +72,23 @@ describe('parseTournamentDraft', () => {
     });
 
     it('reads best-of and rules per round', () => {
-        const result = parseTournamentDraft(form([['bestOf_winners-2', '5'], ['rules_winners-2', 'fast.lua'], ['rules_winners-1', '']]));
-        expect(result).toMatchObject({ ok: true, value: { rounds: { 'winners-2': { bestOf: 5, ruleFile: 'fast.lua' } } } });
+        const result = parseTournamentDraft(form([['bestOf_winners-2', '5'], ['rules_winners-2', 'tennis.lua'], ['rules_winners-1', '']]));
+        expect(result).toMatchObject({ ok: true, value: { rounds: { 'winners-2': { bestOf: 5, ruleFile: 'tennis.lua' } } } });
         expect(parseTournamentDraft(form([['bestOf_winners-1', '2']]))).toEqual({ ok: false, error: 'best-of' });
         expect(parseTournamentDraft(form([['bestOf_final-1', '9']]))).toEqual({ ok: false, error: 'best-of' });
         expect(parseTournamentDraft(form([['rules_losers-3', '../etc/x.lua']]))).toEqual({ ok: false, error: 'rules' });
+    });
+
+    it('takes only the rules the game ships', () => {
+        expect(parseTournamentDraft(form([['rules_final-1', 'fast.lua']]))).toEqual({ ok: false, error: 'rules' });
+        expect(parseTournamentDraft(form([['rules_final-1', 'Default.lua']]))).toEqual({ ok: false, error: 'rules' });
+        for (const file of ['default.lua', 'blitz.lua', 'firewall.lua', 'sticky_mode.lua']) expect(parseTournamentDraft(form([['rules_final-1', file]]))).toMatchObject({ ok: true, value: { rounds: { 'final-1': { ruleFile: file } } } });
+    });
+
+    it('refuses Brannmur when 10 times the points would go past what a report takes', () => {
+        expect(parseTournamentDraft(form([['scoreToWin', '90'], ['rules_final-1', 'firewall.lua']]))).toMatchObject({ ok: true });
+        expect(parseTournamentDraft(form([['scoreToWin', '91'], ['rules_final-1', 'firewall.lua']]))).toEqual({ ok: false, error: 'rules-points' });
+        expect(parseTournamentDraft(form([['scoreToWin', '99'], ['rules_final-1', 'blitz.lua']]))).toMatchObject({ ok: true });
     });
 });
 
@@ -111,7 +123,7 @@ describe('helpers', () => {
     });
 
     it('has a message for each error and none for unknown codes', () => {
-        for (const code of ['name', 'format', 'seeding', 'random-seed', 'players', 'seeds', 'third-place', 'rounds', 'best-of', 'rules', 'no-event']) expect(tournamentErrorMessage(code)).toBeTruthy();
+        for (const code of ['name', 'format', 'seeding', 'random-seed', 'players', 'seeds', 'third-place', 'rounds', 'best-of', 'rules', 'rules-points', 'no-event']) expect(tournamentErrorMessage(code)).toBeTruthy();
         expect(tournamentErrorMessage('toString')).toBeNull();
         expect(tournamentErrorMessage(undefined)).toBeNull();
     });

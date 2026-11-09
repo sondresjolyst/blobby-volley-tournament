@@ -640,4 +640,24 @@ describe('a 1v1 match in the sync', () => {
             expect.objectContaining({ matchId: made.matchId, state: 'called', bestOf: 1, ruleFile: 'fun.lua', scoreToWin: 7, speed: 120, players: [expect.objectContaining({ playerId: s.players[1] }), expect.objectContaining({ playerId: s.players[2] })] }),
         ]);
     });
+
+    it('takes a Lyn game that ends at 2 points, since the rules play to 2', async () => {
+        const s = await setup();
+        const [a, b] = [s.players[1], s.players[2]];
+        const made = await createChallenge(pool, a, b, { bestOf: 1, ruleFile: 'blitz.lua', scoreToWin: 15 });
+        if (!made.ok) throw new Error(made.error);
+        await acceptChallenge(pool, made.matchId, b);
+        expect(await reportServerGame(pool, serverReport(made.matchId, 1, a, [a, 1, b, 0]))).toEqual({ ok: false, error: 'score' });
+        expect(await reportServerGame(pool, serverReport(made.matchId, 1, a, [a, 2, b, 0]))).toMatchObject({ ok: true, status: 'applied' });
+    });
+
+    it('wants 10 times the points for a Brannmur game', async () => {
+        const s = await setup();
+        const [a, b] = [s.players[1], s.players[2]];
+        const made = await createChallenge(pool, a, b, { bestOf: 1, ruleFile: 'firewall.lua', scoreToWin: 15 });
+        if (!made.ok) throw new Error(made.error);
+        await acceptChallenge(pool, made.matchId, b);
+        expect(await reportServerGame(pool, serverReport(made.matchId, 1, a, [a, 140, b, 120]))).toEqual({ ok: false, error: 'score' });
+        expect(await reportServerGame(pool, serverReport(made.matchId, 1, a, [a, 150, b, 121]))).toMatchObject({ ok: true, status: 'applied' });
+    });
 });

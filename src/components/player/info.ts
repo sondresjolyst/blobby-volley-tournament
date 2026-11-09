@@ -8,7 +8,8 @@ export const FIELD_INFO = {
     signInNickname: { label: 'Ka navn?', text: 'Kallenavnet du valgte då du blei med. Store og små bokstava e det same.' },
     signInPin: { label: 'Glømt PIN-koden?', text: 'Spør ein admin, så får du ein ny.' },
     bestOf: { label: 'Kor mange sett?', text: 'Kor mange sett dåkke kan spela. Best av 3 betyr at den som vinne 2 sett, vinne kampen.' },
-    scoreToWin: { label: 'Kor mange poeng?', text: 'Kor mange poeng som trengs for å vinna eit sett. Den som når talet først, vinne settet.' },
+    ruleFile: { label: 'Ka betyr dei?', text: 'Vanlig e vanlig Blobby Volley. Resten e tulleregla som følge med spelet. Motstandaren ser reglå før utfordringå blir godtatt.' },
+    scoreToWin: { label: 'Kor mange poeng?', text: 'Kor mange poeng som trengs for å vinna eit sett. Den som når talet først med minst 2 poengs leiing, vinne settet.' },
     speed: { label: 'Kor fort?', text: 'Kor fort Blobby Volley går, i bilde i sekundet. Høgare tal går fortare.' },
     stake: { label: 'Koss funke potten?', text: 'Vinne spelaren du satsa på, får du ein del av heile potten. Jo meir du satsa, jo større del. Tape spelaren, e innsatsen borte.' },
 } as const;

@@ -32,7 +32,7 @@ export function currentBoard(boards: readonly ScreenBoard[], current: BoardKey |
 }
 
 /** What decides which screens can show. */
-export type ScreenContent = Pick<BigScreenData, 'rotation' | 'fullBracket' | 'upNext' | 'foza' | 'facts' | 'sponsors' | 'winner'>;
+export type ScreenContent = Pick<BigScreenData, 'rotation' | 'fullBracket' | 'upNext' | 'foza' | 'facts' | 'sponsors' | 'winner' | 'duels'>;
 
 /** True when the screen has something to show. The overview always has. */
 export function screenHasContent(type: ScreenType, data: ScreenContent): boolean {
@@ -45,6 +45,8 @@ export function screenHasContent(type: ScreenType, data: ScreenContent): boolean
             return data.foza.bettors.length > 0;
         case 'next':
             return data.upNext.length > 0;
+        case 'duels':
+            return data.duels.live.length + data.duels.done.length + data.duels.coming.length > 0;
         case 'stats':
             return data.facts.length > 0;
         case 'sponsors':

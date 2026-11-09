@@ -33,6 +33,9 @@ test('an admin calls a tournament match, enters the result and sees the placings
 
     await page.goto('/admin');
     await page.getByRole('link', { name: 'Matches' }).click();
+    // The list has 10 matches a page, so the search finds the match of this test.
+    await page.getByLabel('Search by match, tournament or player').fill(name);
+    await page.getByRole('button', { name: 'Search', exact: true }).click();
     const row = page.getByRole('region', { name: 'Upcoming' }).getByRole('row', { name: new RegExp(name) });
     await row.getByRole('checkbox').check();
     await page.getByRole('button', { name: 'Call selected matches' }).click();
@@ -78,7 +81,7 @@ async function signUp(browser: Browser, nickname: string) {
 }
 
 async function openMatch(page: Page, title: string) {
-    await page.goto('/admin/matches');
+    await page.goto(`/admin/matches?q=${encodeURIComponent(title)}`);
     await page.getByRole('link', { name: new RegExp(`${title}$`) }).click();
     await expect(page.getByRole('heading', { level: 1, name: /^Match \d+$/ })).toBeVisible();
 }
@@ -131,4 +134,55 @@ test('a correction blocked by a called later match links to it, and works after 
     await enterGame(page, 2);
     await expect(page.getByRole('status')).toHaveText('The game result is saved.');
     await expect(page.getByText('Series: 0-1')).toBeVisible();
+});
+
+test('an admin pages through each match section and stays on the page after calling a match', async ({ page, request }) => {
+    const tag = randomBytes(2).toString('hex');
+    // Two cups of 8 players have 7 matches each. The search finds both, so Upcoming has 14 matches,
+    // and the first match of the second cup that can be called is on page 2.
+    const cups = ['A', 'B'].map((cup) => ({ name: `Page cup ${tag} ${cup}`, nicknames: Array.from({ length: 8 }, (_, i) => `Pc${tag}${cup}${i}`) }));
+    for (const cup of cups) {
+        for (const nickname of cup.nicknames) {
+            const res = await request.post('/api/player/signup', {
+                form: { code: process.env.E2E_EVENT_CODE ?? '', nickname, pin: '1234' },
+                headers: { 'sec-fetch-site': 'same-origin', 'x-e2e-client': '192.0.2.31' },
+                maxRedirects: 0,
+            });
+            expect(res.status(), nickname).toBe(303);
+        }
+        await page.goto('/admin/tournaments/new');
+        await page.getByLabel('Name').fill(cup.name);
+        for (const nickname of cup.nicknames) await page.getByRole('checkbox', { name: nickname }).check();
+        await page.getByRole('button', { name: 'Preview' }).click();
+        await page.getByRole('button', { name: 'Save tournament' }).click();
+        await expect(page.getByRole('heading', { level: 1, name: cup.name })).toBeVisible();
+    }
+
+    await page.goto('/admin/matches');
+    await page.getByLabel('Search by match, tournament or player').fill(`Page cup ${tag}`);
+    await page.getByRole('button', { name: 'Search', exact: true }).click();
+    const upcoming = page.getByRole('region', { name: 'Upcoming' });
+    const pager = page.getByRole('navigation', { name: 'Pages of upcoming matches' });
+    await expect(upcoming.getByRole('heading', { level: 2 })).toHaveText('Upcoming (14)');
+    await expect(upcoming.getByRole('row')).toHaveCount(11);
+    await expect(pager).toContainText('1 to 10 of 14 matches');
+    // A section that fits on one page has no page links.
+    await expect(page.getByRole('navigation', { name: 'Pages of called matches' })).toHaveCount(0);
+
+    await pager.getByRole('link', { name: 'Page 2' }).click();
+    await expect(page).toHaveURL(/\?upcoming=2&q=Page\+cup\+[0-9a-f]{4}#upcoming$/);
+    await expect(pager).toContainText('11 to 14 of 14 matches');
+    const row = upcoming.getByRole('row', { name: new RegExp(`${cups[1].name}, Round 1, match 4`) });
+    await row.getByRole('checkbox').check();
+    await upcoming.getByRole('button', { name: 'Call selected matches' }).click();
+    await expect(page.getByRole('status')).toHaveText(/^Called match \d+\.$/);
+    // The page and the search stay, and the called match moved to its section.
+    await expect(page).toHaveURL(/\?upcoming=2&q=Page\+cup\+[0-9a-f]{4}&called=\d+$/);
+    await expect(upcoming.getByRole('heading', { level: 2 })).toHaveText('Upcoming (13)');
+    await expect(pager).toContainText('11 to 13 of 13 matches');
+    await expect(page.getByRole('region', { name: 'Called' }).getByRole('link', { name: new RegExp(`${cups[1].name}, Round 1, match 4$`) })).toBeVisible();
+
+    // A reload keeps the page.
+    await page.reload();
+    await expect(pager.getByRole('link', { name: 'Page 2' })).toHaveAttribute('aria-current', 'page');
 });

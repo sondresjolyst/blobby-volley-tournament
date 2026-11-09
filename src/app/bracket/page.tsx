@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { LiveRefresh } from '@/components/LiveRefresh';
+import { DEFAULT_SCORE_TO_WIN } from '@/lib/matches/settings';
 import { BracketBoard } from '@/components/player/BracketBoard';
 import { NO_BRACKET, SIDE_NAMES } from '@/components/big-screen/text';
 import { Pizza } from '@/components/pizza/Pizza';
@@ -80,7 +81,7 @@ export default async function BracketPage({ searchParams }: { searchParams: Prom
                         <h2 id={`side-${section.key}`} className={sections.length > 1 ? styles.h2 : styles.srOnly}>
                             {section.key === 'losers' ? SIDE_NAMES.losers : sections.length > 1 ? SIDE_NAMES.main : 'Kampane'}
                         </h2>
-                        <BracketBoard rounds={section.rounds} champion={section.key === 'main' ? { name: champion ? nickname(champion.playerId) : null } : undefined} />
+                        <BracketBoard rounds={section.rounds} scoreToWin={tournament?.scoreToWin ?? DEFAULT_SCORE_TO_WIN} champion={section.key === 'main' ? { name: champion ? nickname(champion.playerId) : null } : undefined} />
                     </section>
                 ))}
 

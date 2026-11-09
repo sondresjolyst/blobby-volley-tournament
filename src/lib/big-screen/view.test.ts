@@ -7,7 +7,7 @@ import type { MatchSummary } from '@/lib/store/matches';
 import type { Leaderboard } from '@/lib/store/stats';
 import { DEFAULT_ROTATION } from './screens';
 import { compareNet } from '@/lib/stats/betting';
-import { buildBigScreen, floorMatches, focusMatches, pickSide, pickTournament, roundWindow, screenBoards, screenFoza, type ScreenInput } from './view';
+import { buildBigScreen, comingTournamentMatches, DUELS_LIVE, finishedDuels, floorMatches, focusMatches, isDuel, pickSide, pickTournament, roundWindow, screenBoards, screenFoza, type ScreenInput } from './view';
 
 const names: Record<number, string> = { 11: 'Blobfisk', 12: 'Skvett', 13: 'Ostebit', 14: 'Kantina' };
 
@@ -33,6 +33,7 @@ function match(id: number, state: MatchState, players: [number | null, number | 
         winnerId: null,
         result: null,
         cancelReason: null,
+        finishedAt: null,
         ...extra,
     };
 }
@@ -333,5 +334,69 @@ describe('buildBigScreen', () => {
     it('links the sponsor logos with their hash', () => {
         const sponsor = { id: 3, eventId: 1, libraryId: 3, name: 'Pizzabakeren', link: null, position: 1, enabled: true, gameBackground: null, logoType: 'image/png' as const, logoWidth: 300, logoHeight: 100, logoHash: 'ab12', gameLogoHash: 'cd34' };
         expect(buildBigScreen(input({ sponsors: [sponsor] })).sponsors).toEqual([{ id: 3, name: 'Pizzabakeren', src: '/api/sponsors/3/logo?v=ab12', width: 300, height: 100, background: null }]);
+    });
+});
+
+describe('the 1v1 screen', () => {
+    const at = (minute: number) => new Date(Date.UTC(2026, 10, 20, 18, minute));
+    const cup = { tournamentId: 5, tournamentName: 'Hovedcupen' };
+
+    it('counts only matches without a tournament as 1v1', () => {
+        expect(isDuel(match(1, 'started', [11, 12]))).toBe(true);
+        expect(isDuel(match(2, 'started', [11, 12], cup))).toBe(false);
+    });
+
+    it('lists the latest finished 1v1 matches first, with the winner and a walkover', () => {
+        const matches = [
+            match(1, 'finished', [11, 12], { score1: 2, score2: 1, winnerId: 11, result: 'played', finishedAt: at(5) }),
+            match(2, 'finished', [13, 14], { score1: 0, score2: 0, winnerId: 14, result: 'forfeit', finishedAt: at(20) }),
+            match(3, 'finished', [11, 13], { score1: 1, score2: 0, winnerId: 11, result: 'played', finishedAt: at(10), ...cup }),
+            match(4, 'cancelled', [12, 13]),
+            match(5, 'finished', [12, 14], { score1: 0, score2: 1, winnerId: 14, result: 'played', finishedAt: at(1) }),
+        ];
+        const done = finishedDuels(matches, 2);
+        expect(done.map((d) => d.matchId)).toEqual([2, 1]);
+        expect(done[0]).toEqual({ matchId: 2, result: 'forfeit', sides: [{ nickname: 'Ostebit', sets: 0, won: false }, { nickname: 'Kantina', sets: 0, won: true }] });
+        expect(done[1].sides).toEqual([{ nickname: 'Blobfisk', sets: 2, won: true }, { nickname: 'Skvett', sets: 1, won: false }]);
+    });
+
+    it('lists the called matches of the tournament first, then the next ones with both players', () => {
+        const matches = [
+            match(1, 'upcoming', [11, 12], cup),
+            match(2, 'upcoming', [13, null], cup),
+            match(3, 'called', [13, 14], cup),
+            match(4, 'started', [11, 14], cup),
+            match(5, 'called', [12, 13]),
+            match(6, 'upcoming', [12, 14], cup),
+            match(7, 'called', [11, 12], { tournamentId: 6, tournamentName: 'Bonuscupen' }),
+        ];
+        expect(comingTournamentMatches(matches, 5).map((m) => m.id)).toEqual([3, 1, 6]);
+        expect(comingTournamentMatches(matches, 5, 2).map((m) => m.id)).toEqual([3, 1]);
+        expect(comingTournamentMatches(matches, 6).map((m) => m.id)).toEqual([7]);
+        expect(comingTournamentMatches(matches, null)).toEqual([]);
+    });
+
+    it('shows the 1v1 matches on the floor with their score, settings and bets, and counts the ones left out', () => {
+        const floor = Array.from({ length: DUELS_LIVE + 2 }, (_, i) => match(10 + i, 'called', [11, 12], { acceptedAt: at(0) }));
+        const matches = [match(1, 'started', [13, 14], { score1: 1, scoreToWin: 21, speed: 90 }), match(2, 'started', [11, 12], cup), ...floor];
+        const data = buildBigScreen({
+            event: { id: 1, name: 'JulaLAN' },
+            matches,
+            pools: [pool(1, false, [300, 100], [13, 14]), pool(10, true, [50, 0], [11, 12])],
+            live: [live(1, [7, 3])],
+            leaderboard: leaderboard(),
+            tournament: null,
+            sponsors: [],
+            series: [],
+            rotation: DEFAULT_ROTATION,
+        });
+        const [first, second] = data.duels.live;
+        expect(data.duels.live.map((m) => m.matchId)).toEqual([1, 10, 11, 12]);
+        expect(first).toMatchObject({ state: 'started', label: '1v1', live: { game: 2, points: [7, 3] }, pool: 400, open: false, scoreToWin: 21, speed: 90 });
+        expect(first.sides[0]).toMatchObject({ nickname: 'Ostebit', sets: 1 });
+        expect(second).toMatchObject({ state: 'called', pool: 50, open: true });
+        expect(data.duels.liveMore).toBe(3);
+        expect(data.duels.coming).toEqual([]);
+        expect(data.duels.done).toEqual([]);
     });
 });

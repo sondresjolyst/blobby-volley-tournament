@@ -711,6 +711,14 @@
     flex: none;
 }
 
+.rulesList {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    padding-left: 18px;
+}
+
 .fieldRow {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1031,5 +1039,65 @@
     .button,
     .shell .joinButton {
         transition: background-color 120ms ease;
+    }
+}
+
+/* The sponsor strip stays at the bottom of the window. Its height is fixed by the values below, and
+   the page gets the same room at the bottom, so the strip never covers the last content. With
+   reduced motion the tiles wrap, so there the strip stays at the end of the page as before. */
+@media (prefers-reduced-motion: no-preference) {
+    :global(body):has(.shell) {
+        --strip-pad-top: 12px;
+        --strip-pad-bottom: 14px;
+        --strip-label: 16px;
+        --strip-label-gap: 8px;
+        --strip-tile-h: var(--sponsor-tile-h);
+        --strip-h: calc(var(--strip-pad-top) + var(--strip-label) + var(--strip-label-gap) + var(--strip-tile-h) + var(--strip-pad-bottom));
+    }
+
+    :global(body):has(.shell):has(> :global(footer)) {
+        padding-bottom: calc(var(--strip-h) + env(safe-area-inset-bottom, 0px));
+    }
+
+    :global(body):has(.shell) > :global(footer) {
+        position: fixed;
+        inset: auto 0 0;
+        z-index: 10;
+        box-sizing: border-box;
+        height: calc(var(--strip-h) + env(safe-area-inset-bottom, 0px));
+        padding: var(--strip-pad-top) max(32px, env(safe-area-inset-right, 0px)) calc(var(--strip-pad-bottom) + env(safe-area-inset-bottom, 0px)) max(32px, env(safe-area-inset-left, 0px));
+        overflow: hidden;
+        --tile-h: var(--strip-tile-h);
+    }
+
+    :global(body):has(.shell) > :global(footer)::before {
+        margin-bottom: var(--strip-label-gap);
+        font-size: 12px;
+        line-height: var(--strip-label);
+    }
+}
+
+/* On phones the strip is lower and the tiles smaller, so it takes little of the screen. */
+@media (prefers-reduced-motion: no-preference) and (max-width: 760px) {
+    :global(body):has(.shell) {
+        --strip-pad-top: 8px;
+        --strip-pad-bottom: 10px;
+        --strip-label: 12px;
+        --strip-label-gap: 6px;
+        --strip-tile-h: 44px;
+    }
+
+    :global(body):has(.shell) > :global(footer) {
+        padding-left: max(16px, env(safe-area-inset-left, 0px));
+        padding-right: max(16px, env(safe-area-inset-right, 0px));
+        --tile-w: 132px;
+        --tile-radius: 8px;
+        --logo-inset: 8px;
+        --strip-gap: 8px;
+    }
+
+    :global(body):has(.shell) > :global(footer)::before {
+        font-size: 10px;
+        letter-spacing: 1px;
     }
 }

@@ -5,7 +5,7 @@ import { useState, type FormEvent, type ReactNode } from 'react';
 import { serverRunCommand, SERVER_REMOVE } from '@/lib/game-server/commands';
 import { CopyButton } from '../CopyButton';
 
-const RELEASES = 'https://github.com/sondresjolyst/blobbyvolley2/releases/latest';
+const RELEASES = 'https://github.com/sondresjolyst/blobbyvolley2-tournament/releases/latest';
 import { ManageServer, OtherWays } from './SetupGuide';
 
 /**

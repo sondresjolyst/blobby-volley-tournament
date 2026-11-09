@@ -61,13 +61,34 @@ export async function creditDaily(client: PoolClient, playerId: number, now: Dat
     );
 }
 
-/** The balance of a player after the daily Foza for today is paid. Null when there is no such player. */
-export async function getBalance(pool: Pool, playerId: number, now: Date): Promise<number | null> {
+export interface Wallet {
+    balance: number;
+    /** The daily Foza paid for today in Europe/Oslo time, or null when none was paid today. */
+    dailyToday: number | null;
+}
+
+/**
+ * The balance of a player after the daily Foza for today is paid, and the daily Foza of today.
+ * Null when there is no such player.
+ */
+export async function getWallet(pool: Pool, playerId: number, now: Date): Promise<Wallet | null> {
     return inTransaction(pool, async (client) => {
         await creditDaily(client, playerId, now);
-        const { rows } = await client.query<{ foza_balance: number }>('SELECT foza_balance FROM players WHERE id = $1', [playerId]);
-        return rows[0]?.foza_balance ?? null;
+        const { rows } = await client.query<{ foza_balance: number; daily: number | null }>(
+            `SELECT p.foza_balance, l.amount AS daily
+             FROM players p
+             LEFT JOIN foza_ledger l ON l.player_id = p.id AND l.type = 'daily' AND l.day = ($2::timestamptz AT TIME ZONE 'Europe/Oslo')::date
+             WHERE p.id = $1`,
+            [playerId, now],
+        );
+        const row = rows[0];
+        return row ? { balance: row.foza_balance, dailyToday: row.daily } : null;
     });
+}
+
+/** The balance of a player after the daily Foza for today is paid. Null when there is no such player. */
+export async function getBalance(pool: Pool, playerId: number, now: Date): Promise<number | null> {
+    return (await getWallet(pool, playerId, now))?.balance ?? null;
 }
 
 export type AdjustResult = { ok: true; eventId: number; balance: number } | { ok: false; error: 'not-found' | 'amount' | 'reason' | 'balance' };

@@ -3,6 +3,7 @@
 // same transaction.
 import type { Pool, PoolClient } from 'pg';
 import { DEFAULT_RULES, finalPlacings, isBestOf, isRuleFile, roundName, type FormatId, type MatchLink, type Placing, type Section } from '@/lib/bracket';
+import { fitsScoreToWin, realScoreToWin } from '@/lib/matches/rules';
 import { DEFAULT_GAME_SPEED, DEFAULT_SCORE_TO_WIN, isGameSpeed, isPoints, isScoreToWin, isWinningScore } from '@/lib/matches/settings';
 import { isOpenForBets, isValidSeriesScore, nextState, seriesScore, type GameResult, type MatchAction, type MatchState } from '@/lib/matches/state';
 import { handleMatchEvents, type MatchEvent } from './match-events';
@@ -90,6 +91,7 @@ export interface MatchSummary {
     winnerId: number | null;
     result: 'played' | 'forfeit' | null;
     cancelReason: 'admin' | 'declined' | 'withdrawn' | null;
+    finishedAt: Date | null;
 }
 
 export interface BracketRound {
@@ -111,7 +113,6 @@ export interface MatchDetails extends MatchSummary {
     awaitingDecision: boolean;
     calledAt: Date | null;
     startedAt: Date | null;
-    finishedAt: Date | null;
     cancelledAt: Date | null;
 }
 
@@ -706,8 +707,8 @@ const isValidReport = (report: GameReport) =>
 
 /** Stores one report on the locked match and applies it when it is for the next game. */
 async function storeReport(tx: MatchTx, report: GameReport, times: { startedAt: Date; endedAt: Date } | null): Promise<ReportStatus> {
-    // A finished game from the game server ends at the points to win of the match or later.
-    if (!isWinningScore(report.winnerSlot, report.points1, report.points2, tx.match.score_to_win)) throw new Refused('score');
+    // A finished game from the game server ends at the points to win of the match or later. The rules can change those points.
+    if (!isWinningScore(report.winnerSlot, report.points1, report.points2, realScoreToWin(tx.match.rule_file, tx.match.score_to_win))) throw new Refused('score');
     const games = await readGames(tx.client, tx.match.id);
     const last = lastGame(tx.match, games);
     let decision: ReportStatus;
@@ -826,7 +827,7 @@ export async function createChallenge(pool: Pool, challengerId: number, opponent
     const ruleFile = options.ruleFile ?? DEFAULT_RULES;
     const scoreToWin = options.scoreToWin ?? DEFAULT_SCORE_TO_WIN;
     const speed = options.speed ?? DEFAULT_GAME_SPEED;
-    if (!isBestOf(bestOf) || !isRuleFile(ruleFile) || !isScoreToWin(scoreToWin) || !isGameSpeed(speed)) return { ok: false, error: 'settings' };
+    if (!isBestOf(bestOf) || !isRuleFile(ruleFile) || !isScoreToWin(scoreToWin) || !fitsScoreToWin(ruleFile, scoreToWin) || !isGameSpeed(speed)) return { ok: false, error: 'settings' };
     if (challengerId === opponentId) return { ok: false, error: 'players' };
     try {
         const matchId = await inTransaction(pool, async (client) => {
@@ -947,6 +948,7 @@ function toSummary(row: SummaryRecord): MatchSummary {
         winnerId: row.winner_id,
         result: row.result,
         cancelReason: row.cancel_reason,
+        finishedAt: row.finished_at,
     };
 }
 

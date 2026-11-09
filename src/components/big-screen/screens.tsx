@@ -10,11 +10,16 @@ import { BoardPanel, BracketPanel, RankRows, ScreenTop } from './parts';
 import { useSite } from './site';
 import {
     correctLine,
+    DUEL_TEXT,
+    duelBets,
+    duelCaption,
+    duelResult,
     FOZA_TEXT,
     joinChip,
     livePoints,
     matchOdds,
     matchPill,
+    moreMatches,
     nextCaption,
     NO_BRACKET,
     NO_FACTS,
@@ -144,6 +149,105 @@ export function UpNextScreen({ data }: { data: BigScreenData }) {
     );
 }
 
+/** A part of the 1v1 screen under its own small heading. */
+function DuelPart({ label, children }: { label: string; children: ReactNode }) {
+    return (
+        <section className={own.duelPart} aria-label={label}>
+            <h3 className={own.duelHead}>{label}</h3>
+            {children}
+        </section>
+    );
+}
+
+/**
+ * The 1v1 matches on the floor with their score, settings and bets, the latest 1v1 results, and the
+ * tournament matches that are called or next to be called, so the players are ready for them.
+ */
+export function DuelScreen({ data }: { data: BigScreenData }) {
+    const site = useSite();
+    const { live, liveMore, done, coming } = data.duels;
+    return (
+        <Frame data={data} label={SCREEN_LABELS.duels} title={SCREEN_LABELS.duels}>
+            {live.length + done.length + coming.length === 0 ? (
+                <Empty text={DUEL_TEXT.empty(site)} />
+            ) : (
+                <div className={own.duels}>
+                    <DuelPart label={DUEL_TEXT.live}>
+                        {live.length === 0 ? (
+                            <p className={own.duelNone}>{DUEL_TEXT.noLive(site)}</p>
+                        ) : (
+                            <ol className={own.duelList}>
+                                {live.map((m) => {
+                                    const [a, b] = m.sides;
+                                    const started = m.state === 'started';
+                                    const bets = duelBets(m);
+                                    return (
+                                        <li key={m.matchId} className={`${own.nextRow} ${own.duelRow} ${started ? own.nextLive : ''}`} aria-label={`${a.nickname} mot ${b.nickname}`}>
+                                            <span className={`${styles.tag} ${own.nextTag} ${started ? styles.tagLive : ''}`}>{matchPill(m).state}</span>
+                                            <span className={own.nextMain}>
+                                                <span className={own.nextNames}>
+                                                    {a.nickname} <span className={styles.muted}>vs</span> {b.nickname}
+                                                </span>
+                                                <span className={styles.muted}>{duelCaption(m)}</span>
+                                                {bets && <span className={own.duelBets}>{bets}</span>}
+                                            </span>
+                                            {started && <span className={own.nextScore}>{m.live ? livePoints(m.live) : `${a.sets}–${b.sets}`}</span>}
+                                        </li>
+                                    );
+                                })}
+                            </ol>
+                        )}
+                        {liveMore > 0 && <p className={own.duelMore}>{moreMatches(liveMore)}</p>}
+                    </DuelPart>
+                    <div className={own.duelSide}>
+                        <DuelPart label={DUEL_TEXT.coming}>
+                            {coming.length === 0 ? (
+                                <p className={own.duelNone}>{DUEL_TEXT.noComing}</p>
+                            ) : (
+                                <ol className={own.duelList}>
+                                    {coming.map((m) => {
+                                        const [a, b] = m.sides;
+                                        const called = m.state === 'called';
+                                        return (
+                                            <li key={m.matchId} className={`${own.comingRow} ${called ? own.comingCalled : ''}`} aria-label={`${a.nickname} mot ${b.nickname}`}>
+                                                <span className={`${styles.tag} ${own.comingTag} ${called ? own.tagCalled : ''}`}>{matchPill(m).state}</span>
+                                                <span className={own.nextMain}>
+                                                    <span className={own.comingNames}>
+                                                        {a.nickname} <span className={styles.muted}>vs</span> {b.nickname}
+                                                    </span>
+                                                    <span className={styles.muted}>
+                                                        {m.label}
+                                                        {m.tournamentName ? ` · ${m.tournamentName}` : ''} · best av {m.bestOf}
+                                                    </span>
+                                                </span>
+                                            </li>
+                                        );
+                                    })}
+                                </ol>
+                            )}
+                        </DuelPart>
+                        <DuelPart label={DUEL_TEXT.done}>
+                            {done.length === 0 ? (
+                                <p className={own.duelNone}>{DUEL_TEXT.noDone}</p>
+                            ) : (
+                                <ol className={own.duelList}>
+                                    {done.map((r) => (
+                                        <li key={r.matchId} className={own.doneRow} aria-label={`${r.sides[0].nickname} mot ${r.sides[1].nickname}`}>
+                                            <span className={`${own.doneName} ${r.sides[0].won ? own.doneWon : ''}`}>{r.sides[0].nickname}</span>
+                                            <strong className={own.doneScore}>{duelResult(r)}</strong>
+                                            <span className={`${own.doneName} ${own.doneRight} ${r.sides[1].won ? own.doneWon : ''}`}>{r.sides[1].nickname}</span>
+                                        </li>
+                                    ))}
+                                </ol>
+                            )}
+                        </DuelPart>
+                    </div>
+                </div>
+            )}
+        </Frame>
+    );
+}
+
 /** The records of the event. Only those with something to show are in the data. */
 export function StatsScreen({ data }: { data: BigScreenData }) {
     return (
@@ -221,6 +325,7 @@ const SCREENS: Record<Exclude<ScreenType, 'overview'>, (props: { data: BigScreen
     bracket: BracketScreen,
     foza: FozaScreen,
     next: UpNextScreen,
+    duels: DuelScreen,
     stats: StatsScreen,
     sponsors: SponsorScreen,
     winner: WinnerScreen,

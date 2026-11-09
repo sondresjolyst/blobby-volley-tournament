@@ -593,6 +593,7 @@ describe('1v1 matches', () => {
         expect(await createChallenge(pool, players[0], stranger)).toEqual({ ok: false, error: 'no-event' });
         expect(await createChallenge(pool, players[0], players[1], { bestOf: 2 })).toEqual({ ok: false, error: 'settings' });
         expect(await createChallenge(pool, players[0], players[1], { ruleFile: '../x.lua' })).toEqual({ ok: false, error: 'settings' });
+        expect(await createChallenge(pool, players[0], players[1], { ruleFile: 'firewall.lua', scoreToWin: 91 })).toEqual({ ok: false, error: 'settings' });
         const created = await createChallenge(pool, players[0], players[1]);
         if (!created.ok) throw new Error(created.error);
         await pool.query('UPDATE events SET is_active = false');

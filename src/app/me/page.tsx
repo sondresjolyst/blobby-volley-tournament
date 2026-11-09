@@ -5,18 +5,20 @@ import { MatchCard } from '@/components/player/MatchCard';
 import { LiveRefresh } from '@/components/LiveRefresh';
 import { Pizza } from '@/components/pizza/Pizza';
 import { PlayerShell } from '@/components/player/PlayerShell';
+import { RulesFields } from '@/components/player/RulesFields';
 import styles from '@/components/player/player.module.css';
 import { matchPlayers, matchTitle } from '@/components/matches/describe';
-import { BET_STATUS, challengeErrorMessage, dailyFozaLine, foza, matchSettings, noticeMessage } from '@/components/player/text';
+import { BET_STATUS, challengeErrorMessage, dailyFozaLine, dailyFozaNotice, foza, matchSettings, noticeMessage } from '@/components/player/text';
 import { BEST_OF } from '@/lib/bracket';
 import { betErrorMessage } from '@/lib/betting/input';
 import { getPool } from '@/lib/db';
-import { DEFAULT_GAME_SPEED, DEFAULT_SCORE_TO_WIN, MAX_GAME_SPEED, MAX_SCORE_TO_WIN, MIN_GAME_SPEED, MIN_SCORE_TO_WIN } from '@/lib/matches/settings';
+import { DEFAULT_GAME_SPEED, MAX_GAME_SPEED, MIN_GAME_SPEED } from '@/lib/matches/settings';
+import { rulesNote } from '@/lib/matches/rules';
 import { requireActivePlayer } from '@/lib/players/current';
 import { joinLink } from '@/lib/players/join-code';
 import { listMatchPools, listPlayerBets } from '@/lib/store/bets';
 import { getEvent } from '@/lib/store/events';
-import { getBalance } from '@/lib/store/foza';
+import { getWallet } from '@/lib/store/foza';
 import { liveStamp } from '@/lib/store/live';
 import { listMatches, type MatchSummary } from '@/lib/store/matches';
 import { getJoinCode, listPlayers } from '@/lib/store/players';
@@ -35,7 +37,9 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
     const pool = getPool();
     // The stamp is read before the data, so a change that commits during the reads loads the page once more.
     const stamp = await liveStamp(pool, player.eventId);
-    const balance = (await getBalance(pool, player.id, new Date())) ?? player.fozaBalance;
+    const wallet = await getWallet(pool, player.id, new Date());
+    const balance = wallet?.balance ?? player.fozaBalance;
+    const dailyToday = wallet?.dailyToday ?? 0;
     const [matches, pools, bets, players, event] = await Promise.all([
         listMatches(pool, player.eventId),
         listMatchPools(pool, player.eventId),
@@ -69,7 +73,13 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
             {stamp !== null && <LiveRefresh eventId={player.eventId} stamp={stamp} />}
             <div className={styles.column}>
                 <h1 className={styles.h1}>Hei, {player.nickname}!</h1>
-                {event && event.dailyFoza > 0 && <p className={styles.muted}>{dailyFozaLine(event.dailyFoza)}</p>}
+                {dailyToday > 0 ? (
+                    <p role="status" className={styles.notice}>
+                        {dailyFozaNotice(dailyToday)}
+                    </p>
+                ) : (
+                    event && event.dailyFoza > 0 && <p className={styles.muted}>{dailyFozaLine(event.dailyFoza)}</p>
+                )}
                 {betError && (
                     <p role="alert" className={styles.alert}>
                         {betError}
@@ -227,6 +237,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                                 <li key={m.id} className={styles.challenge}>
                                     <strong>{m.players[0]?.nickname} utfordre deg!</strong>
                                     <span className={styles.meta}>{matchSettings(m)}</span>
+                                    {rulesNote(m.ruleFile) && <span className={styles.meta}>{rulesNote(m.ruleFile)}</span>}
                                     <div className={styles.challengeButtons}>
                                         <form method="post" action={`/api/player/challenges/${m.id}`}>
                                             <input type="hidden" name="answer" value="accept" />
@@ -296,16 +307,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                                     ))}
                                 </select>
                             </div>
-                            <div className={styles.fieldRow}>
-                                <div className={styles.field}>
-                                    <InfoLabel htmlFor="scoreToWin" text="Først te" info={FIELD_INFO.scoreToWin.label}>
-                                        <p>{FIELD_INFO.scoreToWin.text}</p>
-                                    </InfoLabel>
-                                    <input id="scoreToWin" name="scoreToWin" type="number" className={styles.input} min={MIN_SCORE_TO_WIN} max={MAX_SCORE_TO_WIN} step={1} defaultValue={DEFAULT_SCORE_TO_WIN} required aria-describedby="scoreToWin-hint scoreToWin-help" />
-                                    <span id="scoreToWin-hint" className={styles.hint}>
-                                        poeng i kvart sett, {MIN_SCORE_TO_WIN} te {MAX_SCORE_TO_WIN}, vanleg e {DEFAULT_SCORE_TO_WIN}
-                                    </span>
-                                </div>
+                            <RulesFields>
                                 <div className={styles.field}>
                                     <InfoLabel htmlFor="speed" text="Fart" info={FIELD_INFO.speed.label}>
                                         <p>{FIELD_INFO.speed.text}</p>
@@ -315,7 +317,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                                         bilde i sekundet, {MIN_GAME_SPEED} te {MAX_GAME_SPEED}, vanleg e {DEFAULT_GAME_SPEED}
                                     </span>
                                 </div>
-                            </div>
+                            </RulesFields>
                             <button type="submit" className={styles.button}>
                                 Send utfordring
                             </button>

@@ -22,6 +22,7 @@ export interface BoardBracketMatch {
     round: number;
     position: number;
     bestOf: number;
+    ruleFile: string;
     winnerTo: MatchLink | null;
     loserTo: MatchLink | null;
 }
@@ -80,6 +81,7 @@ export interface BoardRound {
     key: string;
     name: string;
     bestOf: number;
+    ruleFile: string;
     matches: BoardMatch[];
 }
 
@@ -143,7 +145,7 @@ export function buildBoard(
         const key = `${m.section}-${m.round}`;
         let round = rounds.get(key);
         if (!round) {
-            round = { key, section: m.section, name: boardRoundName(format, m.section, m.round, lastRound.get(m.section)!), bestOf: m.bestOf, matches: [] };
+            round = { key, section: m.section, name: boardRoundName(format, m.section, m.round, lastRound.get(m.section)!), bestOf: m.bestOf, ruleFile: m.ruleFile, matches: [] };
             rounds.set(key, round);
         }
         const showScore = played.result !== 'forfeit' && (played.state === 'started' || played.state === 'finished');
@@ -172,7 +174,7 @@ export function buildBoard(
     }
 
     const all = [...rounds.values()];
-    const strip = (r: BoardRound): BoardRound => ({ key: r.key, name: r.name, bestOf: r.bestOf, matches: r.matches });
+    const strip = (r: BoardRound): BoardRound => ({ key: r.key, name: r.name, bestOf: r.bestOf, ruleFile: r.ruleFile, matches: r.matches });
     const main = SECTION_ORDER.flatMap((section) => all.filter((r) => r.section === section)).map(strip);
     const losers = all.filter((r) => r.section === 'losers').map(strip);
     return losers.length > 0 ? [{ key: 'main', rounds: main }, { key: 'losers', rounds: losers }] : [{ key: 'main', rounds: main }];

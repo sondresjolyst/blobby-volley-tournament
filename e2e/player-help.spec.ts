@@ -105,6 +105,7 @@ test('the 1v1 form and the bet form on /me have help, and the leaderboard has th
     await asker.page.goto('/me');
     const form = asker.page.getByRole('region', { name: 'Utfordra någen te 1v1' });
     await checkHelp(form, 'Kor mange sett?', 'Best av 3 betyr at den som vinne 2 sett, vinne kampen.');
+    await checkHelp(form, 'Ka betyr dei?', 'Vanlig e vanlig Blobby Volley.');
     await checkHelp(form, 'Kor mange poeng?', 'Kor mange poeng som trengs for å vinna eit sett.');
     await checkHelp(form, 'Kor fort?', 'Kor fort Blobby Volley går, i bilde i sekundet.');
     await expect(form.getByLabel('Best av')).toHaveValue('1');
