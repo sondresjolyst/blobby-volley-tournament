@@ -101,6 +101,27 @@ test('an admin adds, orders, turns off and deletes sponsors, and the footer and 
             )
             .toBe(true);
     }
+
+    // The strip stays at the bottom of the window, at the top of the page and at the end of it, and the
+    // page has room under its last content, so the strip covers nothing.
+    for (const { width, height } of [
+        { width: 375, height: 700 },
+        { width: 1920, height: 1080 },
+    ]) {
+        await homePage.setViewportSize({ width, height });
+        await homePage.evaluate(() => window.scrollTo(0, 0));
+        await expect(footer).toBeInViewport({ ratio: 1 });
+        const atTop = await footer.boundingBox();
+        expect(Math.round(atTop!.y + atTop!.height)).toBe(height);
+        await homePage.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+        await expect(footer).toBeInViewport({ ratio: 1 });
+        const admin = homePage.getByRole('link', { name: 'Admin' });
+        await expect(admin).toBeInViewport({ ratio: 1 });
+        const [link, strip] = await Promise.all([admin.boundingBox(), footer.boundingBox()]);
+        expect(link!.y + link!.height).toBeLessThanOrEqual(strip!.y);
+        // On phones the strip stays low, so the page keeps most of the screen.
+        if (width === 375) expect(strip!.height).toBeLessThanOrEqual(90);
+    }
     await homePage.setViewportSize({ width: 1280, height: 720 });
     const src = await footer.getByRole('img', { name: first }).getAttribute('src');
     const logo = await homePage.request.get(src!);
