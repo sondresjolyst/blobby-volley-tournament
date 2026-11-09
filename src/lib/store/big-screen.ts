@@ -1,4 +1,5 @@
 // The data of the big screen. It only reads, through the other stores.
+import { listLiveTraining } from './training';
 import type { Pool } from 'pg';
 import { bigScreenKeyMatches } from '@/lib/big-screen/key';
 import { buildBigScreen, EMPTY_SCREEN, pickTournament, type BigScreenData } from '@/lib/big-screen/view';
@@ -23,13 +24,14 @@ export const screenCache = new TtlCache<BigScreenData>(SCREEN_CACHE_MS);
 
 /** Builds the screen data of the event without the event code. This is the costly part. */
 async function buildScreen(pool: Pool, event: EventRow, wanted: number | null): Promise<BigScreenData> {
-    const [matches, pools, leaderboard, tournaments, sponsors, series] = await Promise.all([
+    const [matches, pools, leaderboard, tournaments, sponsors, series, training] = await Promise.all([
         listMatches(pool, event.id),
         listMatchPools(pool, event.id),
         getLeaderboard(pool, event.id),
         listTournaments(pool, event.id),
         listShownSponsors(pool),
         listPlayedSeries(pool, event.id),
+        listLiveTraining(pool, event.id),
     ]);
     // Only a few matches are on the floor at once, so one read each is fine.
     const floor = matches.filter((m) => m.state === 'called' || m.state === 'started');
@@ -51,6 +53,7 @@ async function buildScreen(pool: Pool, event: EventRow, wanted: number | null): 
         sponsors,
         series,
         rotation: event.bigScreen,
+        training,
     });
 }
 

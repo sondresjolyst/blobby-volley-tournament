@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_BODY_BYTES, parseConnected, parseGameReport, parseLive, readJsonBody } from './input';
+import { isTrainingBody, MAX_BODY_BYTES, parseConnected, parseGameReport, parseLive, parseTrainingConnected, parseTrainingReport, readJsonBody } from './input';
 
 const REPORT_ID = '0b6f2f4e-8a51-4d4c-9a0e-5d2b8c3f1a77';
 
@@ -218,5 +218,55 @@ describe('parseLive', () => {
 
     it('names the body when it is not an object', () => {
         expect(parseLive(null)).toEqual({ ok: false, field: 'body' });
+    });
+});
+
+describe('training reports', () => {
+    const training = (change: Record<string, unknown> = {}) =>
+        report({
+            training: true,
+            winnerId: 0,
+            points: [
+                { playerId: 12, points: 4 },
+                { playerId: 0, points: 15 },
+            ],
+            ...change,
+        });
+
+    it('knows a training body by its flag', () => {
+        expect(isTrainingBody(training())).toBe(true);
+        expect(isTrainingBody(report())).toBe(false);
+        expect(isTrainingBody({ ...report(), training: 'yes' })).toBe(false);
+        expect(isTrainingBody(null)).toBe(false);
+    });
+
+    it('reads a game the bot won, with the bot as player 0', () => {
+        const parsed = parseTrainingReport(training());
+        expect(parsed).toMatchObject({ ok: true, value: { matchId: 7, status: 'finished', winnerId: 0 } });
+    });
+
+    it('reads a game the player won and an abandoned game', () => {
+        expect(parseTrainingReport(training({ winnerId: 12, points: [{ playerId: 12, points: 15 }, { playerId: 0, points: 3 }] }))).toMatchObject({ ok: true, value: { winnerId: 12 } });
+        expect(parseTrainingReport(training({ status: 'abandoned', winnerId: null }))).toMatchObject({ ok: true, value: { status: 'abandoned', winnerId: null } });
+    });
+
+    it('needs exactly one bot and a winner with more points', () => {
+        expect(parseTrainingReport(training({ points: [{ playerId: 12, points: 4 }, { playerId: 17, points: 15 }] }))).toEqual({ ok: false, field: 'points' });
+        expect(parseTrainingReport(training({ points: [{ playerId: 0, points: 4 }, { playerId: 0, points: 15 }] }))).toEqual({ ok: false, field: 'points' });
+        expect(parseTrainingReport(training({ winnerId: 12 }))).toEqual({ ok: false, field: 'points' });
+        expect(parseTrainingReport(training({ winnerId: 99 }))).toEqual({ ok: false, field: 'winnerId' });
+        expect(parseTrainingReport(training({ status: 'abandoned', winnerId: 0 }))).toEqual({ ok: false, field: 'winnerId' });
+    });
+
+    it('still refuses the bot in a normal report', () => {
+        expect(parseGameReport(training())).toEqual({ ok: false, field: 'points' });
+    });
+
+    it('reads the player and the bot as connected', () => {
+        expect(parseTrainingConnected({ playerIds: [12, 0] })).toEqual({ ok: true, value: { playerIds: [12, 0] } });
+        expect(parseTrainingConnected({ playerIds: [12, 17] })).toEqual({ ok: false, field: 'playerIds' });
+        expect(parseTrainingConnected({ playerIds: [0, 0] })).toEqual({ ok: false, field: 'playerIds' });
+        expect(parseTrainingConnected({ playerIds: [12] })).toEqual({ ok: false, field: 'playerIds' });
+        expect(parseConnected({ playerIds: [12, 0] })).toEqual({ ok: false, field: 'playerIds' });
     });
 });

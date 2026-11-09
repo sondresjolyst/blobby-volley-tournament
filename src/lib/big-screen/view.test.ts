@@ -398,5 +398,34 @@ describe('the 1v1 screen', () => {
         expect(data.duels.liveMore).toBe(3);
         expect(data.duels.coming).toEqual([]);
         expect(data.duels.done).toEqual([]);
+        expect(data.duels.training).toEqual([]);
+    });
+
+    it('puts the training matches after the real 1v1 matches in the rows they leave, started ones first', () => {
+        const training = (id: number, state: 'called' | 'started') => ({ id, playerId: 13, nickname: 'Ostebit', bot: 'hyp014', difficulty: 13, ruleFile: 'default.lua', scoreToWin: 15, state });
+        const base = {
+            event: { id: 1, name: 'JulaLAN' },
+            pools: [],
+            live: [],
+            leaderboard: leaderboard(),
+            tournament: null,
+            sponsors: [],
+            series: [],
+            rotation: DEFAULT_ROTATION,
+        };
+        const one = buildBigScreen({ ...base, matches: [match(1, 'started', [11, 12])], training: [training(40, 'called'), training(41, 'started')] });
+        expect(one.duels.live.map((m) => m.matchId)).toEqual([1]);
+        expect(one.duels.training.map((t) => [t.trainingId, t.state])).toEqual([
+            [41, 'started'],
+            [40, 'called'],
+        ]);
+        expect(one.duels.liveMore).toBe(0);
+        // a finished training is never in the list of latest results
+        expect(one.duels.done).toEqual([]);
+
+        const full = Array.from({ length: DUELS_LIVE }, (_, i) => match(10 + i, 'called', [11, 12], { acceptedAt: at(0) }));
+        const crowded = buildBigScreen({ ...base, matches: full, training: [training(40, 'started')] });
+        expect(crowded.duels.training).toEqual([]);
+        expect(crowded.duels.liveMore).toBe(1);
     });
 });

@@ -59,7 +59,7 @@ describe('the screen rotation', () => {
             facts: has('stats') ? [fact] : [],
             sponsors: has('sponsors') ? [sponsor] : [],
             winner: has('winner') ? winner : null,
-            duels: { live: [], liveMore: 0, done: [], coming: has('duels') ? [match] : [] },
+            duels: { live: [], training: [], liveMore: 0, done: [], coming: has('duels') ? [match] : [] },
         };
     }
     const ALL_EMPTY: ScreenType[] = ['bracket', 'next', 'foza', 'duels', 'stats', 'sponsors', 'winner'];
@@ -136,7 +136,7 @@ describe('startScreenTurns', () => {
         facts: [{ key: 'wins', label: 'Flest seira', value: '3 seira', who: 'Ostebit' }],
         sponsors: [],
         winner: null,
-        duels: { live: [], liveMore: 0, done: [], coming: [] },
+        duels: { live: [], training: [], liveMore: 0, done: [], coming: [] },
     });
 
     /** Runs the turns like the page does, with the turn in a plain variable. */
