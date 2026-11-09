@@ -29,7 +29,7 @@ test('a finished match shows on the leaderboards and the player stats', async ({
     await adminPage.getByRole('button', { name: 'Preview' }).click();
     await adminPage.getByRole('button', { name: 'Save tournament' }).click();
     await expect(adminPage.getByRole('heading', { level: 1, name })).toBeVisible();
-    await adminPage.goto('/admin/matches');
+    await adminPage.goto(`/admin/matches?q=${encodeURIComponent(name)}`);
     await adminPage.getByRole('region', { name: 'Upcoming' }).getByRole('row', { name: new RegExp(name) }).getByRole('checkbox').check();
     await adminPage.getByRole('button', { name: 'Call selected matches' }).click();
     await adminPage.getByRole('region', { name: 'Called' }).getByRole('link', { name: new RegExp(name) }).click();

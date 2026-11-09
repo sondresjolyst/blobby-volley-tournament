@@ -104,7 +104,7 @@ test('the game server syncs a called match, starts it, sends a live score and re
     await expect(page.getByRole('status')).toHaveText('Saved the tournament.');
     await expect(page.getByLabel('Pause between games in seconds')).toHaveValue('30');
 
-    await page.goto('/admin/matches');
+    await page.goto(`/admin/matches?q=${encodeURIComponent(name)}`);
     const row = page.getByRole('region', { name: 'Upcoming' }).getByRole('row', { name: new RegExp(name) });
     await row.getByRole('checkbox').check();
     await page.getByRole('button', { name: 'Call selected matches' }).click();
@@ -155,6 +155,8 @@ test('an admin gives a player a new join code', async ({ page, browser, request 
 
     await page.goto('/admin/events');
     await page.getByRole('row', { name: /E2E LAN/ }).getByRole('link').click();
+    await page.getByLabel('Search by nickname').fill(nickname);
+    await page.getByRole('button', { name: 'Search', exact: true }).click();
     await page.getByRole('button', { name: `New join code for ${nickname}` }).click();
     await expect(page.getByRole('status')).toHaveText(`${nickname} has a new join code. The old join link stops working.`);
     // The admin page does not show codes.
@@ -179,7 +181,7 @@ test('an abandoned game with the player who left waits for the admin on the admi
     await page.getByRole('button', { name: 'Save tournament' }).click();
     await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
 
-    await page.goto('/admin/matches');
+    await page.goto(`/admin/matches?q=${encodeURIComponent(name)}`);
     const row = page.getByRole('region', { name: 'Upcoming' }).getByRole('row', { name: new RegExp(name) });
     await row.getByRole('checkbox').check();
     await page.getByRole('button', { name: 'Call selected matches' }).click();
