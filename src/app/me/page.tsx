@@ -67,6 +67,11 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
     const matchOf = new Map(matches.map((m) => [m.id, m]));
     // A match with no player known yet is only shown on the bracket page.
     const ahead = matches.filter((m) => STATE_ORDER[m.state] < 3 && !isPending(m) && m.players.some((p) => p !== null)).sort((a, b) => STATE_ORDER[a.state] - STATE_ORDER[b.state] || a.id - b.id);
+    // Started matches and trainings are in the ring now, the rest is coming up.
+    const inRing = ahead.filter((m) => m.state === 'started');
+    const soon = ahead.filter((m) => m.state !== 'started');
+    const trainingInRing = training.filter((t) => t.state === 'started');
+    const trainingSoon = training.filter((t) => t.state !== 'started');
     const incoming = matches.filter((m) => isPending(m) && m.players[1]?.id === player.id);
     const outgoing = matches.filter((m) => isPending(m) && m.players[0]?.id === player.id);
     const opponents = players.filter((p) => p.id !== player.id);
@@ -169,6 +174,25 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                     </section>
                 )}
 
+                <section className={styles.section} aria-labelledby="i-ringen">
+                    <h2 id="i-ringen" className={styles.h2}>
+                        I ringen nå
+                    </h2>
+                    {inRing.length === 0 && trainingInRing.length === 0 ? (
+                        <p className={styles.empty}>Ingen kampa e i gang akkurat nå.</p>
+                    ) : (
+                        <div className={styles.cards}>
+                            {inRing.map((m) => (
+                                <MatchCard key={m.id} match={m} pool={poolOf.get(m.id)} viewerId={player.id} balance={balance} bet={liveBet.get(m.id)} />
+                            ))}
+                            {/* Training comes after the real matches and has no pool or bets. */}
+                            {trainingInRing.map((t) => (
+                                <TrainingCard key={`trening-${t.id}`} training={t} />
+                            ))}
+                        </div>
+                    )}
+                </section>
+
                 <section className={styles.section} aria-labelledby="snart">
                     <div className={styles.sectionHead}>
                         <h2 id="snart" className={styles.h2}>
@@ -178,15 +202,15 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                             Utfordra någen te 1v1
                         </a>
                     </div>
-                    {ahead.length === 0 && training.length === 0 ? (
+                    {soon.length === 0 && trainingSoon.length === 0 ? (
                         <p className={styles.empty}>Ingen kampa ennå. Ta deg ei øl og någen nædæ.</p>
                     ) : (
                         <div className={styles.cards}>
-                            {ahead.map((m) => (
+                            {soon.map((m) => (
                                 <MatchCard key={m.id} match={m} pool={poolOf.get(m.id)} viewerId={player.id} balance={balance} bet={liveBet.get(m.id)} />
                             ))}
                             {/* Training comes after the real matches and has no pool or bets. */}
-                            {training.map((t) => (
+                            {trainingSoon.map((t) => (
                                 <TrainingCard key={`trening-${t.id}`} training={t} />
                             ))}
                         </div>
