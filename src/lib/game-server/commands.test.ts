@@ -77,12 +77,12 @@ describe('startScripts', () => {
     it('link the scripts in the game repository and start them', () => {
         const START_SCRIPTS = startScripts(LATEST);
         expect(START_SCRIPTS.map((s) => s.href)).toEqual([
-            'https://raw.githubusercontent.com/sondresjolyst/blobbyvolley2/main/scripts/tournament-server.ps1',
-            'https://raw.githubusercontent.com/sondresjolyst/blobbyvolley2/main/scripts/tournament-server.sh',
+            'https://raw.githubusercontent.com/sondresjolyst/blobbyvolley2-tournament/main/scripts/tournament-server.ps1',
+            'https://raw.githubusercontent.com/sondresjolyst/blobbyvolley2-tournament/main/scripts/tournament-server.sh',
         ]);
         expect(START_SCRIPTS.map((s) => s.download)).toEqual([
-            'iwr https://raw.githubusercontent.com/sondresjolyst/blobbyvolley2/main/scripts/tournament-server.ps1 -OutFile tournament-server.ps1',
-            'curl -fsSLO https://raw.githubusercontent.com/sondresjolyst/blobbyvolley2/main/scripts/tournament-server.sh',
+            'iwr https://raw.githubusercontent.com/sondresjolyst/blobbyvolley2-tournament/main/scripts/tournament-server.ps1 -OutFile tournament-server.ps1',
+            'curl -fsSLO https://raw.githubusercontent.com/sondresjolyst/blobbyvolley2-tournament/main/scripts/tournament-server.sh',
         ]);
         expect(START_SCRIPTS.map((s) => s.command)).toEqual(['powershell -ExecutionPolicy Bypass -File .\\tournament-server.ps1 start', 'bash tournament-server.sh start']);
         expect(START_SCRIPTS.map((s) => s.update)).toEqual(['powershell -ExecutionPolicy Bypass -File .\\tournament-server.ps1 update', 'bash tournament-server.sh update']);
