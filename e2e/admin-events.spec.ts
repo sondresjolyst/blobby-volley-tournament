@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { expect, test } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 
 // Chromium stores a Secure cookie for http://localhost, so the admin session can be a real cookie.
 // A header would not be sent again after the redirect that follows a form post.
@@ -10,6 +10,25 @@ test.beforeEach(async ({ context, baseURL }) => {
 });
 
 // These tests never change which event is active, so the player tests can run at the same time.
+
+/** Searches the player list of the open event page, which shows 10 players a page. */
+async function searchPlayers(page: Page, nickname: string) {
+    await page.getByLabel('Search by nickname').fill(nickname);
+    await page.getByRole('button', { name: 'Search', exact: true }).click();
+    await expect(page.getByRole('row', { name: new RegExp(nickname) })).toBeVisible();
+}
+
+/** Signs up players straight through the sign-up route, from a made-up network with its own limit. */
+async function signUpMany(request: APIRequestContext, nicknames: string[], network: string) {
+    for (const nickname of nicknames) {
+        const res = await request.post('/api/player/signup', {
+            form: { code: process.env.E2E_EVENT_CODE ?? '', nickname, pin: '1234' },
+            headers: { 'sec-fetch-site': 'same-origin', 'x-e2e-client': network },
+            maxRedirects: 0,
+        });
+        expect(res.status(), nickname).toBe(303);
+    }
+}
 
 test('an admin creates an event with a generated code and edits it', async ({ page }) => {
     const tag = randomBytes(3).toString('hex');
@@ -97,6 +116,7 @@ test('an admin resets the PIN of a player', async ({ page, browser }) => {
 
     await page.goto('/admin/events');
     await page.getByRole('row', { name: /E2E LAN/ }).getByRole('link').click();
+    await searchPlayers(page, nickname);
     const row = page.getByRole('row', { name: new RegExp(nickname) });
     await expect(row).toContainText('1000');
     await row.getByLabel(`New PIN for ${nickname}`).fill('5678');
@@ -134,9 +154,11 @@ test('an admin sees the wrong PINs of a player and unlocks a locked player', asy
 
     await page.goto('/admin/events');
     await page.getByRole('row', { name: /E2E LAN/ }).getByRole('link').click();
+    await searchPlayers(page, nickname);
     const row = page.getByRole('row', { name: new RegExp(nickname) });
     await expect(row).toBeVisible();
-    const eventPage = page.url();
+    // Without the #players of the search, so a goto loads the page again.
+    const eventPage = page.url().split('#')[0];
     // Without wrong PINs there is nothing to unlock.
     await expect(row.getByRole('button', { name: `Unlock ${nickname}` })).toHaveCount(0);
 
@@ -160,4 +182,53 @@ test('an admin sees the wrong PINs of a player and unlocks a locked player', asy
     await page.getByRole('button', { name: 'Reset network PIN limit' }).click();
     await expect(page.getByRole('status')).toHaveText('Reset the network PIN limit. Every network can try PINs again.');
     await expect(page.getByText(/The busiest network has \d+ of 40 wrong PINs this hour\./)).toBeVisible();
+});
+
+test('an admin pages through the players, searches them and stays on the page after an action', async ({ page, request }) => {
+    const tag = randomBytes(3).toString('hex');
+    const nicknames = Array.from({ length: 12 }, (_, i) => `Pg${tag}${String(i).padStart(2, '0')}`);
+    await signUpMany(request, nicknames, '192.0.2.30');
+
+    await page.goto('/admin/events');
+    await page.getByRole('row', { name: /E2E LAN/ }).getByRole('link').click();
+    const players = page.getByRole('region', { name: 'Players', exact: true });
+    const pager = page.getByRole('navigation', { name: 'Pages of players' });
+    // Without a search the list shows the first 10 players of the event.
+    await expect(players.getByRole('row')).toHaveCount(11);
+    await expect(pager).toContainText(/^1 to 10 of \d+ players/);
+
+    // The search finds nicknames in any case, 10 a page.
+    const search = `pg${tag.toUpperCase()}`;
+    await players.getByLabel('Search by nickname').fill(search);
+    await players.getByRole('button', { name: 'Search', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`\\?q=${search}#players$`));
+    await expect(pager).toContainText('1 to 10 of 12 players');
+    await expect(players.getByRole('row', { name: new RegExp(nicknames[0]) })).toBeVisible();
+    await expect(players.getByRole('row', { name: new RegExp(nicknames[11]) })).toHaveCount(0);
+
+    await pager.getByRole('link', { name: 'Next' }).click();
+    await expect(page).toHaveURL(new RegExp(`\\?players=2&q=${search}#players$`));
+    await expect(pager).toContainText('11 to 12 of 12 players');
+    await expect(pager.getByRole('link', { name: 'Page 2' })).toHaveAttribute('aria-current', 'page');
+
+    // An action on page 2 comes back to page 2 with the same search.
+    const row = players.getByRole('row', { name: new RegExp(nicknames[11]) });
+    await row.getByLabel(`Foza change for ${nicknames[11]}, such as 50 or -50`).fill('-50');
+    await row.getByLabel(`Reason for ${nicknames[11]}`).fill('Paging test');
+    await row.getByRole('button', { name: 'Adjust Foza' }).click();
+    await expect(page.getByRole('status')).toHaveText(`The Foza of ${nicknames[11]} is now 950.`);
+    await expect(page).toHaveURL(new RegExp(`\\?players=2&q=${search}&adjusted=\\d+$`));
+    await expect(pager).toContainText('11 to 12 of 12 players');
+    await expect(row).toContainText('950');
+
+    // A reload keeps the page and the search.
+    await page.reload();
+    await expect(pager).toContainText('11 to 12 of 12 players');
+    await expect(players.getByLabel('Search by nickname')).toHaveValue(search);
+
+    await pager.getByRole('link', { name: 'Previous' }).click();
+    await expect(pager).toContainText('1 to 10 of 12 players');
+    await expect(page).toHaveURL(new RegExp(`\\?q=${search}#players$`));
+    await players.getByRole('link', { name: 'Show all players' }).click();
+    await expect(players.getByLabel('Search by nickname')).toHaveValue('');
 });

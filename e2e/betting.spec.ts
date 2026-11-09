@@ -31,7 +31,7 @@ test('a signed out visitor cannot place a bet, while a signed in player can', as
     await adminPage.getByRole('button', { name: 'Preview' }).click();
     await adminPage.getByRole('button', { name: 'Save tournament' }).click();
     await expect(adminPage.getByRole('heading', { level: 1, name })).toBeVisible();
-    await adminPage.goto('/admin/matches');
+    await adminPage.goto(`/admin/matches?q=${encodeURIComponent(name)}`);
     const href = await adminPage.getByRole('link', { name: new RegExp(name) }).getAttribute('href');
     const matchId = href!.match(/\/admin\/matches\/(\d+)/)![1];
     await admin.close();

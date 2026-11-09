@@ -152,7 +152,7 @@ test('the big screen shows the live score, the odds, the bracket and the sign-up
     const tournamentId = adminPage.url().match(/\/admin\/tournaments\/(\d+)/)![1];
 
     // Both semifinals are called. The final has no players yet.
-    await adminPage.goto('/admin/matches');
+    await adminPage.goto(`/admin/matches?q=${encodeURIComponent(name)}`);
     const rows = adminPage.getByRole('region', { name: 'Upcoming' }).getByRole('row', { name: new RegExp(name) });
     await rows.nth(0).getByRole('checkbox').check();
     await rows.nth(1).getByRole('checkbox').check();

@@ -857,6 +857,224 @@
     flex-wrap: nowrap;
 }
 
+/* Text for screen readers only, such as a field label that would repeat the nickname on every row. */
+.main :global(.admin-sr) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+/* A form on one line in a table row. Its fields and button sit side by side, centred in the row. */
+.main form:global(.admin-row-form),
+.main form:global(.admin-center) {
+    align-items: center;
+    gap: 8px;
+}
+
+.main form:global(.admin-row-form) {
+    flex-wrap: nowrap;
+}
+
+.main :global(.admin-lock) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+}
+
+.main input:global(.admin-input-pin),
+.main input:global(.admin-input-amount) {
+    width: 7.5em;
+}
+
+.main input:global(.admin-input-reason) {
+    width: 11em;
+}
+
+.main input:global(.admin-input-order) {
+    width: 5em;
+}
+
+.main :global(.admin-players) :is(th, td) {
+    padding-inline: 12px;
+}
+
+.main :global(.admin-players) td[data-label='Nickname'] {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+/* The screens table sits in the card of its form, so it needs no card of its own. */
+.main form:global(.admin-screens) > :global(.admin-table) {
+    border: 0;
+    border-radius: 0;
+}
+
+/* The match tables share their column widths, so the sections line up. */
+.main :global(.admin-matches) table {
+    table-layout: fixed;
+}
+
+.main :global(.admin-matches) th:global(.admin-matches-call) {
+    width: 4rem;
+}
+
+.main :global(.admin-matches) th:global(.admin-matches-players) {
+    width: 26%;
+}
+
+.main :global(.admin-matches) th:global(.admin-matches-best) {
+    width: 5.5rem;
+}
+
+.main :global(.admin-matches) th:global(.admin-matches-score) {
+    width: 18%;
+}
+
+.main :global(.admin-matches) td {
+    overflow-wrap: anywhere;
+}
+
+/* A search box with its button, above a long list. */
+.main form:global(.admin-search) {
+    align-items: center;
+    gap: 8px 12px;
+}
+
+.main form:global(.admin-search) label {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+}
+
+.main form:global(.admin-search) input {
+    width: 16rem;
+}
+
+/* The count and the page links under a long list. */
+.main :global(.admin-pager) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+}
+
+.main :global(.admin-pager-count) {
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.main :global(.admin-pager) ul {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.main :global(.admin-pager) li > :is(a, span) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    box-sizing: border-box;
+    padding: 0 12px;
+    border: 2px solid var(--line);
+    border-radius: 10px;
+    background: var(--white);
+    color: var(--ink);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.main :global(.admin-pager) a:hover {
+    border-color: var(--red);
+    color: var(--ink);
+}
+
+.main :global(.admin-pager) a[aria-current='page'] {
+    border-color: var(--ink);
+    background: var(--ink);
+    color: var(--yellow);
+}
+
+.main :global(.admin-pager) span[aria-disabled] {
+    opacity: 0.45;
+}
+
+/* The event form puts each label on the left of its field, so the fields start on one line and
+   each label is centred on its field. On phones the labels stay above the fields. */
+@media (min-width: 641px) {
+    .main form:global(.admin-form-grid) {
+        --label-w: 11rem;
+        --field-w: 18rem;
+    }
+
+    .main form:global(.admin-form-grid) > p:has(> label) {
+        flex-wrap: nowrap;
+        align-items: center;
+    }
+
+    .main form:global(.admin-form-grid) > p > label {
+        display: grid;
+        grid-template-columns: var(--label-w) minmax(0, var(--field-w));
+        align-items: center;
+        column-gap: 12px;
+    }
+
+    .main form:global(.admin-form-grid) > p > label > input {
+        width: 100%;
+    }
+
+    .main form:global(.admin-form-grid) > p:not(:has(> label)),
+    .main form:global(.admin-form-grid) > button[type='submit'] {
+        margin-left: calc(var(--label-w) + 12px);
+    }
+
+    .main form:global(.admin-form-grid) > :global(.admin-field) {
+        display: grid;
+        grid-template-columns: calc(var(--label-w) - 44px) 44px 12px minmax(0, var(--field-w));
+        align-items: center;
+        gap: 6px 0;
+    }
+
+    .main form:global(.admin-form-grid) > :global(.admin-field) > :global(.admin-field-label) {
+        display: contents;
+    }
+
+    .main form:global(.admin-form-grid) :global(.admin-field-label) > label {
+        grid-column: 1;
+        grid-row: 1;
+    }
+
+    .main form:global(.admin-form-grid) :global(.admin-field-label) > button {
+        grid-column: 2;
+        grid-row: 1;
+    }
+
+    .main form:global(.admin-form-grid) :global(.admin-field-label) > div {
+        grid-column: 1 / -1;
+        grid-row: 2;
+    }
+
+    .main form:global(.admin-form-grid) > :global(.admin-field) > input {
+        grid-column: 4;
+        grid-row: 1;
+        width: 100%;
+    }
+}
+
 /* On phones each table row is a card. A cell with data-label shows as "Label: value". A cell without
    one holds actions, which fill the width of the card. Empty cells are left out. */
 @media (max-width: 640px) {
@@ -914,6 +1132,74 @@
     .main :global(.admin-table) td input:not([type='checkbox'], [type='radio'], [type='hidden']),
     .main :global(.admin-table) td select {
         width: 100%;
+    }
+
+    /* A check box or a number sits on the line of its label. */
+    .main :global(.admin-table) td[data-label]:has(> label) {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .main :global(.admin-table) td[data-label] > label > input:not([type='checkbox']) {
+        width: 6em;
+    }
+
+    /* A match is a short card: the call box and the match on the first line, the players under
+       it, then the best of and the score on one line. */
+    .main :global(.admin-matches) tbody tr {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 2px 6px;
+        margin-bottom: 8px;
+        padding: 10px 14px;
+    }
+
+    .main :global(.admin-matches) td {
+        padding: 0;
+    }
+
+    .main :global(.admin-matches) td:is([data-label='Call'], [data-label='Match'], [data-label='Players'])::before {
+        content: none;
+    }
+
+    .main :global(.admin-matches) td[data-label='Call']:not(:empty) {
+        flex: none;
+        display: flex;
+    }
+
+    .main :global(.admin-matches) td[data-label='Match'] {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+
+    .main :global(.admin-matches) td[data-label='Players'] {
+        flex: 1 1 100%;
+    }
+
+    .main :global(.admin-matches) td:is([data-label='Best of'], [data-label='Score']) {
+        color: var(--muted);
+        font-size: 14px;
+    }
+
+    .main :global(.admin-matches) td[data-label='Best of']::before {
+        content: 'Best of ';
+        font-weight: 400;
+    }
+
+    .main :global(.admin-matches) td[data-label='Score']::before {
+        content: '\00b7\00a0';
+        font-weight: 400;
+    }
+
+    .main form:global(.admin-search) label {
+        flex: 1 1 100%;
+    }
+
+    .main form:global(.admin-search) input {
+        flex: 1 1 12rem;
+        width: auto;
     }
 }
 

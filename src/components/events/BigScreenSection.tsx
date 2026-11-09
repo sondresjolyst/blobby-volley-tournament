@@ -47,7 +47,7 @@ function RotationForm({ eventId, rotation }: { eventId: number; rotation: Screen
                     <p>With one screen in use, the big screen stays there. Changes reach an open big screen within a few seconds, without a reload.</p>
                 </InfoButton>
             </div>
-            <form method="post" action={`/api/admin/events/${eventId}/big-screen-rotation`}>
+            <form method="post" action={`/api/admin/events/${eventId}/big-screen-rotation`} className="admin-screens">
                 <div className="admin-table">
                     <table>
                         <thead>
@@ -66,13 +66,14 @@ function RotationForm({ eventId, rotation }: { eventId: number; rotation: Screen
                                     </td>
                                     <td data-label="On">
                                         <label>
-                                            <input type="checkbox" name={`show_${type}`} defaultChecked={shown} /> Use the {SCREEN_INFO[type].name} screen
+                                            <input type="checkbox" name={`show_${type}`} defaultChecked={shown} />
+                                            <span className="admin-sr">Use the {SCREEN_INFO[type].name} screen</span>
                                         </label>
                                     </td>
                                     <td data-label="Order">
                                         <label>
-                                            Order of the {SCREEN_INFO[type].name} screen{' '}
-                                            <input type="number" name={`order_${type}`} min={1} max={SCREEN_TYPES.length} step={1} defaultValue={order} required />
+                                            <span className="admin-sr">Order of the {SCREEN_INFO[type].name} screen</span>
+                                            <input type="number" name={`order_${type}`} className="admin-input-order" min={1} max={SCREEN_TYPES.length} step={1} defaultValue={order} required />
                                         </label>
                                     </td>
                                     <td data-label="Shows">{SCREEN_INFO[type].shows}</td>
@@ -111,7 +112,7 @@ export function BigScreenSection({ eventId, address, isActive, rotation }: { eve
                 </label>{' '}
                 <CopyButton text={address} label="Copy address" noun="address" />
             </p>
-            <form method="post" action={`/api/admin/events/${eventId}/big-screen-key`}>
+            <form method="post" action={`/api/admin/events/${eventId}/big-screen-key`} className="admin-center">
                 <label>
                     <input type="checkbox" name="confirm" value="yes" required /> I understand the old address stops showing the join card
                 </label>{' '}

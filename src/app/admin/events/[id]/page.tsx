@@ -1,17 +1,17 @@
 import { AdminShell } from '@/components/admin/AdminShell';
-import { adminTime } from '@/components/admin/time';
 import { notFound } from 'next/navigation';
 import { InfoButton } from '@/components/InfoButton';
 import { BigScreenSection, bigScreenErrorMessage } from '@/components/events/BigScreenSection';
 import { EventForm, eventErrorMessage } from '@/components/events/EventForm';
+import { PLAYERS_PAGE, PlayerTable } from '@/components/events/PlayerTable';
 import { SponsorSection, sponsorErrorMessage } from '@/components/sponsors/SponsorSection';
 import { adjustErrorMessage } from '@/lib/betting/input';
 import { requireAdmin } from '@/lib/auth/options';
 import { bigScreenUrl } from '@/lib/big-screen/key';
 import { getPool } from '@/lib/db';
 import { parseId } from '@/lib/http';
+import { parsePage, parseSearch } from '@/lib/paging';
 import { getBigScreenKey, getEvent } from '@/lib/store/events';
-import { countedWrongPins, isLocked, MAX_WRONG_PINS } from '@/lib/players/lockout';
 import { busiestPinClient, CLIENT_WRONG_PINS_PER_HOUR, listPlayers } from '@/lib/store/players';
 import { listLibrary, listSponsors } from '@/lib/store/sponsors';
 
@@ -28,6 +28,8 @@ type Search = {
     boardSaved?: string | string[];
     bigScreenKey?: string | string[];
     rotationSaved?: string | string[];
+    players?: string | string[];
+    q?: string | string[];
 };
 
 export default async function EditEvent({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Search> }) {
@@ -43,6 +45,7 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
     const [sponsors, library] = await Promise.all([listSponsors(pool, id), listLibrary(pool)]);
     const bigScreenKey = await getBigScreenKey(pool, id);
     const search = await searchParams;
+    const listState = { pages: { [PLAYERS_PAGE]: parsePage(search.players) }, q: parseSearch(search.q) };
     const message = eventErrorMessage(search.error) ?? adjustErrorMessage(search.error) ?? bigScreenErrorMessage(search.error);
     // A failed sponsor form shows its message in the sponsor section, where the page opens.
     const sponsorError = sponsorErrorMessage(search.error);
@@ -89,64 +92,10 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
             <h2>Edit event</h2>
             <EventForm action={`/api/admin/events/${event.id}`} event={event} submitLabel="Save" />
 
-            <h2>Players</h2>
-            {players.length === 0 ? (
-                <p>No players yet.</p>
-            ) : (
-                <div className="admin-table">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Nickname</th>
-                                <th>Foza</th>
-                                <th>PIN lock</th>
-                                <th>Reset PIN</th>
-                                <th>Adjust Foza</th>
-                                <th>Join code</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {players.map((player) => (
-                                <tr key={player.id}>
-                                    <td data-label="Nickname">{player.nickname}</td>
-                                    <td data-label="Foza">{player.fozaBalance}</td>
-                                    <PinLockCell id={player.id} nickname={player.nickname} lockedUntil={player.lockedUntil} wrongPins={countedWrongPins(player.failedPinAttempts, player.lastFailedPinAt, now)} now={now} />
-                                    <td>
-                                        <form method="post" action={`/api/admin/players/${player.id}/pin`}>
-                                            <input type="hidden" name="eventId" value={event.id} />
-                                            <label>
-                                                New PIN for {player.nickname}{' '}
-                                                <input name="pin" type="password" required inputMode="numeric" pattern="[0-9]{4}" minLength={4} maxLength={4} autoComplete="off" />
-                                            </label>{' '}
-                                            <button type="submit">Reset PIN</button>
-                                        </form>
-                                    </td>
-                                    <td>
-                                        <form method="post" action={`/api/admin/players/${player.id}/foza`}>
-                                            <input type="hidden" name="eventId" value={event.id} />
-                                            <label>
-                                                Foza change for {player.nickname}, such as 50 or -50{' '}
-                                                <input name="amount" type="text" required inputMode="numeric" pattern="[+\-]?[1-9][0-9]{0,6}" autoComplete="off" />
-                                            </label>{' '}
-                                            <label>
-                                                Reason for {player.nickname} <input name="reason" type="text" required minLength={1} maxLength={200} autoComplete="off" />
-                                            </label>{' '}
-                                            <button type="submit">Adjust Foza</button>
-                                        </form>
-                                    </td>
-                                    <td>
-                                        <form method="post" action={`/api/admin/players/${player.id}/join-code`}>
-                                            <button type="submit" aria-label={`New join code for ${player.nickname}`}>
-                                                New join code
-                                            </button>
-                                        </form>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            )}
+            <section id="players" aria-labelledby="players-heading">
+                <h2 id="players-heading">Players</h2>
+                <PlayerTable eventId={event.id} players={players} state={listState} now={now} />
+            </section>
 
             <h3>Network PIN limit</h3>
             <div className="admin-field-label">
@@ -169,21 +118,5 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
 
             <SponsorSection eventId={event.id} gameBoard={event.gameBoard} sponsors={sponsors} library={library} error={sponsorError} status={sponsorStatus} />
         </AdminShell>
-    );
-}
-
-/** The lock and the wrong PINs of a player, with the button that clears them. Empty while the player has neither. */
-function PinLockCell({ id, nickname, lockedUntil, wrongPins, now }: { id: number; nickname: string; lockedUntil: Date | null; wrongPins: number; now: Date }) {
-    const locked = isLocked(lockedUntil, now);
-    if (!locked && wrongPins === 0) return <td data-label="PIN lock"></td>;
-    return (
-        <td data-label="PIN lock">
-            {locked ? `Locked until ${adminTime(lockedUntil!)}` : `${wrongPins} of ${MAX_WRONG_PINS} wrong PINs`}{' '}
-            <form method="post" action={`/api/admin/players/${id}/unlock`}>
-                <button type="submit" aria-label={`Unlock ${nickname}`}>
-                    Unlock
-                </button>
-            </form>
-        </td>
     );
 }

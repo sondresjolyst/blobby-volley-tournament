@@ -28,7 +28,7 @@ export function eventErrorMessage(code: string | string[] | undefined): string |
  */
 export function EventForm({ action, event, submitLabel, suggestedCode = '' }: { action: string; event?: EventInput; submitLabel: string; suggestedCode?: string }) {
     return (
-        <form method="post" action={action}>
+        <form method="post" action={action} className="admin-form-grid">
             <p>
                 <label>
                     Name <input name="name" required maxLength={100} defaultValue={event?.name} />
