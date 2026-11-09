@@ -40,6 +40,8 @@ test('an admin adds, orders, turns off and deletes sponsors, and the footer and 
     expect((await readSponsors(request)).gameBoard).toBe('off');
     await board.selectOption({ label: 'Dark LED with metal frame' });
     await page.getByRole('button', { name: 'Save board' }).click();
+    // The form posts in the background, and the notice can be there from the last save.
+    await expect(page.locator('form[aria-busy="true"]')).toHaveCount(0);
     await expect(page.getByRole('status')).toHaveText('Saved the sponsor board.');
     await expect(board).toHaveValue('led');
 
@@ -148,6 +150,8 @@ test('an admin adds, orders, turns off and deletes sponsors, and the footer and 
     const onVersion = sync.sponsorsVersion;
     await board.selectOption('off');
     await page.getByRole('button', { name: 'Save board' }).click();
+    // The form posts in the background, and the notice can be there from the last save.
+    await expect(page.locator('form[aria-busy="true"]')).toHaveCount(0);
     await expect(page.getByRole('status')).toHaveText('Saved the sponsor board.');
     sync = await readSponsors(request);
     expect(sync).toMatchObject({ eventId: expect.any(Number), gameBoard: 'off', sponsors: [] });
@@ -156,6 +160,8 @@ test('an admin adds, orders, turns off and deletes sponsors, and the footer and 
     await expect(footer.getByRole('img', { name: first })).toBeVisible();
     await board.selectOption({ label: 'Wooden beach bar' });
     await page.getByRole('button', { name: 'Save board' }).click();
+    // The form posts in the background, and the notice can be there from the last save.
+    await expect(page.locator('form[aria-busy="true"]')).toHaveCount(0);
     await expect(page.getByRole('status')).toHaveText('Saved the sponsor board.');
     sync = await readSponsors(request);
     expect(sync.gameBoard).toBe('wood');
@@ -163,6 +169,8 @@ test('an admin adds, orders, turns off and deletes sponsors, and the footer and 
 
     // Move the second one up.
     await page.getByRole('button', { name: `Move ${second} up` }).click();
+    // The form posts in the background, so the test waits for its answer before it reads the game API.
+    await expect(page.locator('form[aria-busy="true"]')).toHaveCount(0);
     sync = await readSponsors(request);
     expect(ours().map((s) => s.name)).toEqual([second, first]);
 
@@ -264,6 +272,7 @@ test('an admin adds a sponsor to the library, puts it on the event, and it shows
     await card.getByRole('link', { name: 'E2E LAN' }).click();
     await page.getByRole('button', { name: `Remove ${name}` }).click();
     await page.getByRole('group', { name: `Remove ${name}?` }).getByRole('button', { name: 'Yes, remove' }).click();
+    await expect(page.getByRole('status')).toHaveText('Removed the sponsor from this event. It is still in the sponsor library.');
     await homePage.goto('/');
     await expect(footer.getByRole('link', { name })).toHaveCount(0);
     await page.goto('/admin/sponsors');
