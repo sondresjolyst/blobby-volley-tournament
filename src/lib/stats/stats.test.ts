@@ -3,7 +3,9 @@ import { bettorStats, compareCorrect, compareNet, type SettledBet } from './bett
 import { ELO_K, ELO_START, eloChanges, expectedScore, replayElo, shownRating, winnerGain, type RatedMatch } from './elo';
 import { compareWins, playerStats, type PlayedMatch } from './players';
 
-const rated = (matchId: number, winner: string, loser: string, eventId = 1, tournamentId: number | null = null): RatedMatch => ({ matchId, eventId, tournamentId, winner, loser });
+// Elo knows a player by the account id.
+const [A, B, C] = [1, 2, 3];
+const rated = (matchId: number, winner: number, loser: number, eventId = 1, tournamentId: number | null = null): RatedMatch => ({ matchId, eventId, tournamentId, winner, loser });
 
 describe('Elo', () => {
     it('starts at 1000 with a K factor of 32', () => {
@@ -13,9 +15,9 @@ describe('Elo', () => {
 
     it('gives half the K factor for a win between equal ratings', () => {
         expect(expectedScore(1000, 1000)).toBe(0.5);
-        const { ratings } = replayElo([rated(1, 'a', 'b')]);
-        expect(ratings.get('a')).toBe(1016);
-        expect(ratings.get('b')).toBe(984);
+        const { ratings } = replayElo([rated(1, A, B)]);
+        expect(ratings.get(A)).toBe(1016);
+        expect(ratings.get(B)).toBe(984);
     });
 
     it('gives less for beating a weaker player and more for beating a stronger one', () => {
@@ -26,26 +28,26 @@ describe('Elo', () => {
     });
 
     it('plays the matches in order, so the same results in another order give other ratings', () => {
-        const first = replayElo([rated(1, 'a', 'b'), rated(2, 'c', 'a')]).ratings;
-        const second = replayElo([rated(2, 'c', 'a'), rated(1, 'a', 'b')]).ratings;
-        expect(shownRating(first.get('a')!)).toBe(999);
-        expect(shownRating(second.get('a')!)).toBe(1001);
+        const first = replayElo([rated(1, A, B), rated(2, C, A)]).ratings;
+        const second = replayElo([rated(2, C, A), rated(1, A, B)]).ratings;
+        expect(shownRating(first.get(A)!)).toBe(999);
+        expect(shownRating(second.get(A)!)).toBe(1001);
     });
 
     it('keeps the total of all ratings the same', () => {
-        const { ratings } = replayElo([rated(1, 'a', 'b'), rated(2, 'b', 'c'), rated(3, 'c', 'a'), rated(4, 'a', 'c')]);
+        const { ratings } = replayElo([rated(1, A, B), rated(2, B, C), rated(3, C, A), rated(4, A, C)]);
         expect([...ratings.values()].reduce((s, r) => s + r, 0)).toBeCloseTo(3000, 10);
     });
 
     it('sums the change of each player over the matches in scope', () => {
-        const replay = replayElo([rated(1, 'a', 'b', 1), rated(2, 'a', 'b', 2, 7), rated(3, 'b', 'a', 2)]);
+        const replay = replayElo([rated(1, A, B, 1), rated(2, A, B, 2, 7), rated(3, B, A, 2)]);
         const inEvent2 = eloChanges(replay, (m) => m.eventId === 2);
         const ratings = replay.ratings;
-        const before = replayElo([rated(1, 'a', 'b', 1)]).ratings;
-        expect(inEvent2.get('a')).toBeCloseTo(ratings.get('a')! - before.get('a')!, 10);
+        const before = replayElo([rated(1, A, B, 1)]).ratings;
+        expect(inEvent2.get(A)).toBeCloseTo(ratings.get(A)! - before.get(A)!, 10);
         const inTournament = eloChanges(replay, (m) => m.tournamentId === 7);
-        expect(inTournament.get('a')).toBeCloseTo(winnerGain(1016, 984), 10);
-        expect(inTournament.get('b')).toBeCloseTo(-winnerGain(1016, 984), 10);
+        expect(inTournament.get(A)).toBeCloseTo(winnerGain(1016, 984), 10);
+        expect(inTournament.get(B)).toBeCloseTo(-winnerGain(1016, 984), 10);
     });
 });
 

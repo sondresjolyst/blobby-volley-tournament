@@ -10,6 +10,7 @@ import { getServerSync } from './game-server';
 import { liveStamp } from './live';
 import { acceptChallenge, createChallenge, listMatches } from './matches';
 import { getLeaderboard } from './stats';
+import { withAccount } from './db-test-sql';
 import {
     cancelTraining,
     createTraining,
@@ -43,8 +44,8 @@ afterAll(async () => {
 
 async function addPlayer(eventId: number, nickname: string): Promise<number> {
     const { rows } = await pool.query<{ id: number }>(
-        `INSERT INTO players (event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance, created_at, join_code)
-         VALUES ($1, $2, $3, '\\x00', '\\x00', 0, $4, $5) RETURNING id`,
+        `${withAccount()} INSERT INTO players (account_id, event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance, created_at, join_code)
+         VALUES ((SELECT id FROM account), $1, $2, $3, '\\x00', '\\x00', 0, $4, $5) RETURNING id`,
         [eventId, nickname, nickname.toLowerCase(), NOW, newJoinCode()],
     );
     return rows[0].id;

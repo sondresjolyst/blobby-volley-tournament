@@ -13,9 +13,9 @@ export interface RatedMatch {
     matchId: number;
     eventId: number;
     tournamentId: number | null;
-    /** The players as they are known across events, see ratingKey in the store. */
-    winner: string;
-    loser: string;
+    /** The accounts of the players, which stay the same across events. */
+    winner: number;
+    loser: number;
 }
 
 /** The chance that a player rated `rating` beats a player rated `opponent`, from 0 to 1. */
@@ -30,16 +30,16 @@ export function winnerGain(winnerRating: number, loserRating: number): number {
 
 export interface EloReplay {
     /** The rating of every player after the last match. */
-    ratings: Map<string, number>;
+    ratings: Map<number, number>;
     /** What the winner gained in each match, in the order played. */
     gains: { match: RatedMatch; gain: number }[];
 }
 
 /** Plays the matches through in the given order, starting every player at ELO_START. */
 export function replayElo(matches: readonly RatedMatch[]): EloReplay {
-    const ratings = new Map<string, number>();
+    const ratings = new Map<number, number>();
     const gains: EloReplay['gains'] = [];
-    const rating = (key: string) => ratings.get(key) ?? ELO_START;
+    const rating = (key: number) => ratings.get(key) ?? ELO_START;
     for (const match of matches) {
         const gain = winnerGain(rating(match.winner), rating(match.loser));
         ratings.set(match.winner, rating(match.winner) + gain);
@@ -50,8 +50,8 @@ export function replayElo(matches: readonly RatedMatch[]): EloReplay {
 }
 
 /** The sum of what each player gained or lost in the matches that pass the filter. */
-export function eloChanges(replay: EloReplay, include: (match: RatedMatch) => boolean): Map<string, number> {
-    const changes = new Map<string, number>();
+export function eloChanges(replay: EloReplay, include: (match: RatedMatch) => boolean): Map<number, number> {
+    const changes = new Map<number, number>();
     for (const { match, gain } of replay.gains) {
         if (!include(match)) continue;
         changes.set(match.winner, (changes.get(match.winner) ?? 0) + gain);

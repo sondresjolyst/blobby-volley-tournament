@@ -12,6 +12,7 @@ import { getLiveScore, getServerSync, updateLiveScore } from './game-server';
 import { callMatch, createChallenge, acceptChallenge, enterGameResult, getMatch, listAwaitingDecision, listMatches, reportPlayersConnected, reportServerGame, resetMatch, restartCurrentGame, setSeriesScore, type ServerGameReport } from './matches';
 import { getJoinCode, rotateJoinCode, signUpPlayer } from './players';
 import { getTournament, saveTournament, setNextGameDelay } from './tournaments';
+import { withAccount } from './db-test-sql';
 
 // Lets a test choose the next codes drawn. Without a choice the real generator runs.
 const codes = vi.hoisted(() => ({ next: [] as string[] }));
@@ -46,8 +47,8 @@ async function addPlayers(eventId: number, count: number, prefix = 'P'): Promise
     const ids: number[] = [];
     for (let i = 1; i <= count; i++) {
         const { rows } = await pool.query<{ id: number }>(
-            `INSERT INTO players (event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance, join_code)
-             VALUES ($1, $2, $3, '\\x00', '\\x00', 0, $4) RETURNING id`,
+            `${withAccount()} INSERT INTO players (account_id, event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance, join_code)
+             VALUES ((SELECT id FROM account), $1, $2, $3, '\\x00', '\\x00', 0, $4) RETURNING id`,
             [eventId, `${prefix}${i}`, `${prefix.toLowerCase()}${i}`, newJoinCode()],
         );
         ids.push(rows[0].id);
@@ -97,7 +98,7 @@ describe('join codes', () => {
         const first = await createEvent(pool, lan);
         const second = await createEvent(pool, { ...lan, name: 'LAN 2027', code: 'LAN-2027' });
         const insert = (eventId: number, key: string, code: string | null) =>
-            pool.query(`INSERT INTO players (event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance, join_code) VALUES ($1, $2, $2, '\\x00', '\\x00', 0, $3)`, [eventId, key, code]);
+            pool.query(`${withAccount('$2', '$2')} INSERT INTO players (account_id, event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance, join_code) VALUES ((SELECT id FROM account), $1, $2, $2, '\\x00', '\\x00', 0, $3)`, [eventId, key, code]);
         await expect(insert(first, 'a', null)).rejects.toThrow(/join_code/);
         await expect(insert(first, 'a', 'ABCDEFGHJ0')).rejects.toThrow(/players_join_code_check/);
         await expect(insert(first, 'a', 'abcdefghjk')).rejects.toThrow(/players_join_code_check/);

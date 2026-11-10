@@ -28,6 +28,7 @@ import {
 import { signUpPlayer } from './players';
 import { saveTournament } from './tournaments';
 import { inTransaction } from './transaction';
+import { withAccount } from './db-test-sql';
 
 if (!process.env.TEST_DATABASE_URL) {
     throw new Error('TEST_DATABASE_URL is not set. Run these tests with npm run test:db.');
@@ -64,8 +65,8 @@ afterAll(async () => {
 async function addPlayer(eventId: number, nickname: string, starting = 1000, signedUp = SIGNED_UP): Promise<number> {
     return inTransaction(pool, async (client) => {
         const { rows } = await client.query<{ id: number }>(
-            `INSERT INTO players (event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance, created_at, join_code)
-             VALUES ($1, $2, $3, '\\x00', '\\x00', 0, $4, $5) RETURNING id`,
+            `${withAccount()} INSERT INTO players (account_id, event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance, created_at, join_code)
+             VALUES ((SELECT id FROM account), $1, $2, $3, '\\x00', '\\x00', 0, $4, $5) RETURNING id`,
             [eventId, nickname, nickname.toLowerCase(), signedUp, newJoinCode()],
         );
         await addLedger(client, [{ playerId: rows[0].id, type: 'starting', amount: starting }]);
@@ -443,7 +444,7 @@ describe('ledger', () => {
         const s = await setup();
         await expect(pool.query('UPDATE players SET foza_balance = foza_balance + 5 WHERE id = $1', [s.X])).rejects.toThrow(/ledger sums to/);
         await expect(
-            pool.query(`INSERT INTO players (event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance, join_code) VALUES ($1, 'Rich', 'rich', '\\x00', '\\x00', 500, $2)`, [s.eventId, newJoinCode()]),
+            pool.query(`${withAccount("'Rich'", "'rich'")} INSERT INTO players (account_id, event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance, join_code) VALUES ((SELECT id FROM account), $1, 'Rich', 'rich', '\\x00', '\\x00', 500, $2)`, [s.eventId, newJoinCode()]),
         ).rejects.toThrow(/ledger sums to/);
         expect(await balance(s.X)).toBe(1000);
     });

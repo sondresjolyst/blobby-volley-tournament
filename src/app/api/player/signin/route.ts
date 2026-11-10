@@ -12,5 +12,5 @@ export async function POST(req: Request) {
     if (!nickname.ok) return seeOther('/login?error=wrong');
     const result = await signInPlayer(getPool(), nickname.key, form.pin ?? '', clientBucket(req.headers, process.env), new Date());
     if (!result.ok) return seeOther(`/login?error=${result.error}`);
-    return signedIn(result.playerId);
+    return signedIn(result.accountId);
 }

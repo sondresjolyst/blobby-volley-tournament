@@ -33,6 +33,7 @@ import { getTournament, saveTournament } from './tournaments';
 import { placeBet } from './bets';
 import { adjustBalance } from './foza';
 import { liveStamp } from './live';
+import { withAccount } from './db-test-sql';
 
 const handled = vi.hoisted(() => ({ calls: [] as MatchEvent[][], fail: false }));
 
@@ -71,8 +72,8 @@ async function addPlayers(eventId: number, count: number, prefix = 'P'): Promise
     const ids: number[] = [];
     for (let i = 1; i <= count; i++) {
         const { rows } = await pool.query<{ id: number }>(
-            `INSERT INTO players (event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance, join_code)
-             VALUES ($1, $2, $3, '\\x00', '\\x00', 0, $4) RETURNING id`,
+            `${withAccount()} INSERT INTO players (account_id, event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance, join_code)
+             VALUES ((SELECT id FROM account), $1, $2, $3, '\\x00', '\\x00', 0, $4) RETURNING id`,
             [eventId, `${prefix}${i}`, `${prefix.toLowerCase()}${i}`, newJoinCode()],
         );
         ids.push(rows[0].id);

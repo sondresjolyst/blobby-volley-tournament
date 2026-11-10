@@ -9,12 +9,12 @@ import { compareWins, countedGames, playerStats, type PlayedMatch, type PlayedSe
 /**
  * The matches that change ratings: finished and played out. They come in play order across all
  * events: events by start date, then matches by when they started. A correction keeps the start
- * time, so a corrected match stays in its place. A player is known across events by the nickname
- * in lower case, since each event has its own player rows.
+ * time, so a corrected match stays in its place. A player is known across events by the account,
+ * since each event has its own player rows.
  */
 async function ratedMatches(pool: Pool): Promise<RatedMatch[]> {
-    const { rows } = await pool.query<{ id: number; event_id: number; tournament_id: number | null; winner: string; loser: string }>(
-        `SELECT m.id, m.event_id, m.tournament_id, w.nickname_key AS winner, l.nickname_key AS loser
+    const { rows } = await pool.query<{ id: number; event_id: number; tournament_id: number | null; winner: number; loser: number }>(
+        `SELECT m.id, m.event_id, m.tournament_id, w.account_id AS winner, l.account_id AS loser
          FROM matches m
          JOIN events e ON e.id = m.event_id
          JOIN players w ON w.id = m.winner_id
@@ -42,7 +42,7 @@ export async function eloForEvent(pool: Pool, eventId: number, tournamentId: num
     const [matches, order, players] = await Promise.all([
         ratedMatches(pool),
         pool.query<{ id: number }>('SELECT id FROM events ORDER BY starts_on, id'),
-        pool.query<{ id: number; nickname_key: string }>('SELECT id, nickname_key FROM players WHERE event_id = $1', [eventId]),
+        pool.query<{ id: number; account_id: number }>('SELECT id, account_id FROM players WHERE event_id = $1', [eventId]),
     ]);
     const rank = new Map(order.rows.map((row, i) => [row.id, i]));
     const own = rank.get(eventId) ?? -1;
@@ -50,11 +50,11 @@ export async function eloForEvent(pool: Pool, eventId: number, tournamentId: num
     const through = replayElo(matches.filter((m) => rank.get(m.eventId)! <= own));
     const inScope = (m: RatedMatch) => m.eventId === eventId && (tournamentId === null || m.tournamentId === tournamentId);
     const changes = eloChanges(through, inScope);
-    const played = new Map<string, number>();
+    const played = new Map<number, number>();
     for (const m of matches.filter(inScope)) for (const key of [m.winner, m.loser]) played.set(key, (played.get(key) ?? 0) + 1);
     return new Map(
         players.rows.map((p) => {
-            const key = p.nickname_key;
+            const key = p.account_id;
             const entry: EloEntry = {
                 playerId: p.id,
                 rating: through.ratings.get(key) ?? ELO_START,

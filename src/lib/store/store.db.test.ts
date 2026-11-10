@@ -5,7 +5,6 @@ import { Pool } from 'pg';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { migrate, readMigrations } from '../../../scripts/migrate.mjs';
 import type { EventInput } from '@/lib/events/input';
-import { newJoinCode } from '@/lib/players/join-code';
 import { hashPin } from '@/lib/players/pin';
 import { hashSessionToken, SESSION_MS } from '@/lib/players/session';
 import { clearActiveEvent, createEvent, getActiveEvent, getEvent, isEventCodeTaken, listEvents, setActiveEvent, updateEvent } from './events';
@@ -19,7 +18,10 @@ import {
     deleteSession,
     EVENT_FAILURES_PER_HOUR,
     eventBucket,
-    getSessionPlayer,
+    getSessionAccount,
+    joinEvent,
+    NICKNAME_CHANGE_WAIT_MS,
+    renameAccount,
     busiestPinClient,
     listPlayers,
     pinBucket,
@@ -74,7 +76,7 @@ async function activeEventWithPlayer(nickname = 'Ola', pin = '1234') {
     await setActiveEvent(pool, eventId);
     const result = await signUp({ code: lan.code, nickname, nicknameKey: nickname.toLowerCase(), pin: pin });
     if (!result.ok) throw new Error(result.error);
-    return { eventId, playerId: result.playerId };
+    return { eventId, playerId: result.playerId, accountId: result.accountId };
 }
 
 beforeEach(async () => {
@@ -145,26 +147,18 @@ describe('schema', () => {
     });
 
     it('limits a nickname to 15 bytes, so 8 Norwegian letters do not fit', async () => {
-        const { eventId } = await activeEventWithPlayer();
         const pin = await hashPin('1234');
         // The key is short and differs each time, so only the nickname column is checked.
         let n = 0;
         const insert = (nickname: string) =>
-            pool.query('INSERT INTO players (event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance, join_code) VALUES ($1, $2, $3, $4, $5, 0, $6)', [
-                eventId,
-                nickname,
-                `k${n++}`,
-                pin.hash,
-                pin.salt,
-                newJoinCode(),
-            ]);
-        await expect(insert('æøåæøåæø')).rejects.toThrow(/players_nickname_check/);
-        await expect(insert(' padded')).rejects.toThrow(/players_nickname_check/);
+            pool.query('INSERT INTO accounts (nickname, nickname_key, pin_hash, pin_salt) VALUES ($1, $2, $3, $4)', [nickname, `k${n++}`, pin.hash, pin.salt]);
+        await expect(insert('æøåæøåæø')).rejects.toThrow(/accounts_nickname_check/);
+        await expect(insert(' padded')).rejects.toThrow(/accounts_nickname_check/);
         await insert('æøåæøåæa');
     });
 
     it('has no column for a plain PIN', async () => {
-        const { rows } = await pool.query("SELECT column_name FROM information_schema.columns WHERE table_name = 'players'");
+        const { rows } = await pool.query("SELECT column_name FROM information_schema.columns WHERE table_name IN ('players', 'accounts')");
         expect(rows.map((r) => r.column_name)).not.toContain('pin');
     });
 });
@@ -233,12 +227,14 @@ describe('events', () => {
 });
 
 describe('signUpPlayer', () => {
-    it('adds a player to the active event with the starting Foza and a hashed PIN', async () => {
-        const { eventId, playerId } = await activeEventWithPlayer('Ola', '1234');
-        const { rows } = await pool.query('SELECT event_id, nickname, nickname_key, foza_balance, pin_hash, pin_salt FROM players WHERE id = $1', [playerId]);
-        expect(rows[0]).toMatchObject({ event_id: eventId, nickname: 'Ola', nickname_key: 'ola', foza_balance: 1000 });
-        expect(rows[0].pin_hash.toString('utf8')).not.toContain('1234');
-        expect(rows[0].pin_salt.length).toBe(16);
+    it('makes an account with a hashed PIN and its player in the active event with the starting Foza', async () => {
+        const { eventId, playerId, accountId } = await activeEventWithPlayer('Ola', '1234');
+        const { rows } = await pool.query('SELECT event_id, account_id, nickname, nickname_key, foza_balance, pin_hash FROM players WHERE id = $1', [playerId]);
+        expect(rows[0]).toEqual({ event_id: eventId, account_id: accountId, nickname: 'Ola', nickname_key: 'ola', foza_balance: 1000, pin_hash: null });
+        const account = (await pool.query('SELECT nickname, nickname_key, pin_hash, pin_salt FROM accounts WHERE id = $1', [accountId])).rows[0];
+        expect(account).toMatchObject({ nickname: 'Ola', nickname_key: 'ola' });
+        expect(account.pin_hash.toString('utf8')).not.toContain('1234');
+        expect(account.pin_salt.length).toBe(16);
     });
 
     it('refuses a wrong code and a time with no active event', async () => {
@@ -255,26 +251,78 @@ describe('signUpPlayer', () => {
         expect(await signUp({ code: lastYear.code, nickname: 'Ola', nicknameKey: 'ola', pin: '1234' })).toEqual({ ok: false, error: 'code' });
     });
 
-    it('keeps nicknames unique per event, ignoring case', async () => {
+    it('keeps nicknames unique across all accounts, ignoring case, and leaves nothing behind', async () => {
         await activeEventWithPlayer('Ola');
         expect(await signUp({ code: lan.code, nickname: 'OLA', nicknameKey: 'ola', pin: '9999' })).toEqual({ ok: false, error: 'taken' });
+        // At the next LAN the nickname is still taken.
+        await setActiveEvent(pool, await createEvent(pool, { ...lan, name: 'LAN 2027', code: 'LAN-2027' }));
+        expect(await signUp({ code: 'LAN-2027', nickname: 'ola', nicknameKey: 'ola', pin: '1234' })).toEqual({ ok: false, error: 'taken' });
+        expect((await pool.query('SELECT count(*)::int AS n FROM accounts')).rows[0].n).toBe(1);
+        expect((await pool.query('SELECT count(*)::int AS n FROM players')).rows[0].n).toBe(1);
+    });
+});
+
+describe('joinEvent', () => {
+    it('adds an account to the next LAN with the starting Foza and a new join code, once', async () => {
+        const first = await activeEventWithPlayer('Ola', '1234');
+        const next = await createEvent(pool, lastYear);
+        await setActiveEvent(pool, next);
+        expect(await joinEvent(pool, first.accountId, 'WRONG-CODE', client, now)).toEqual({ ok: false, error: 'code' });
+        expect(await readAttempts(pool, client, now)).toBe(1);
+        const joined = await joinEvent(pool, first.accountId, lastYear.code, client, now);
+        if (!joined.ok) throw new Error(joined.error);
+        expect(joined.playerId).not.toBe(first.playerId);
+        expect(await joinEvent(pool, first.accountId, lastYear.code, client, now)).toEqual(joined);
+        expect(await listPlayers(pool, next)).toEqual([expect.objectContaining({ id: joined.playerId, nickname: 'Ola', fozaBalance: lastYear.startingFoza })]);
+        const codes = (await pool.query('SELECT join_code FROM players WHERE account_id = $1', [first.accountId])).rows;
+        expect(codes).toHaveLength(2);
+        expect(codes[0].join_code).not.toBe(codes[1].join_code);
     });
 
-    it('lets the same nickname sign up again in a new event as a new player', async () => {
-        const first = await activeEventWithPlayer('Ola');
-        const next = await createEvent(pool, { ...lan, name: 'LAN 2027', code: 'LAN-2027' });
+    it('adds the account once when it joins several times at once', async () => {
+        const first = await activeEventWithPlayer('Ola', '1234');
+        await setActiveEvent(pool, await createEvent(pool, lastYear));
+        const results = await Promise.all(Array.from({ length: 5 }, () => joinEvent(pool, first.accountId, lastYear.code, client, now)));
+        expect(new Set(results.map((r) => r.ok && r.playerId)).size).toBe(1);
+    });
+
+    it('refuses when no event is active', async () => {
+        const first = await activeEventWithPlayer('Ola', '1234');
+        await clearActiveEvent(pool);
+        expect(await joinEvent(pool, first.accountId, lan.code, client, now)).toEqual({ ok: false, error: 'no-event' });
+    });
+});
+
+describe('renameAccount', () => {
+    it('changes the nickname on every player row of the account, refuses a taken one and waits an hour between changes', async () => {
+        const ola = await activeEventWithPlayer('Ola', '1234');
+        const next = await createEvent(pool, lastYear);
         await setActiveEvent(pool, next);
-        const again = await signUp({ code: 'LAN-2027', nickname: 'Ola', nicknameKey: 'ola', pin: '1234' });
-        expect(again.ok).toBe(true);
-        expect(again.ok && again.playerId).not.toBe(first.playerId);
-        expect(await listPlayers(pool, first.eventId)).toHaveLength(1);
+        await joinEvent(pool, ola.accountId, lastYear.code, client, now);
+        expect((await signUp({ code: lastYear.code, nickname: 'Kari', nicknameKey: 'kari', pin: '1111' })).ok).toBe(true);
+
+        expect(await renameAccount(pool, ola.accountId, 'KARI', 'kari', now)).toEqual({ ok: false, error: 'taken' });
+        expect(await renameAccount(pool, ola.accountId, 'Ola', 'ola', now)).toEqual({ ok: true });
+        expect(await renameAccount(pool, ola.accountId, 'Olav', 'olav', now)).toEqual({ ok: true });
+        const names = (await pool.query('SELECT nickname, nickname_key FROM players WHERE account_id = $1', [ola.accountId])).rows;
+        expect(names).toEqual([
+            { nickname: 'Olav', nickname_key: 'olav' },
+            { nickname: 'Olav', nickname_key: 'olav' },
+        ]);
+        expect(await renameAccount(pool, ola.accountId, 'Ole', 'ole', new Date(now.getTime() + NICKNAME_CHANGE_WAIT_MS - 1))).toEqual({ ok: false, error: 'too-soon' });
+        expect(await renameAccount(pool, ola.accountId, 'Ole', 'ole', new Date(now.getTime() + NICKNAME_CHANGE_WAIT_MS))).toEqual({ ok: true });
+
+        // The old nickname is free again, and sign-in uses the new one.
+        expect(await signIn('olav', '1234')).toEqual({ ok: false, error: 'wrong' });
+        expect(await signIn('ole', '1234')).toEqual({ ok: true, accountId: ola.accountId });
+        expect((await signUp({ code: lastYear.code, nickname: 'Ola', nicknameKey: 'ola', pin: '2222' })).ok).toBe(true);
     });
 });
 
 describe('signInPlayer', () => {
     it('signs in with the right PIN', async () => {
-        const { playerId } = await activeEventWithPlayer('Ola', '1234');
-        expect(await signIn('ola', '1234', now)).toEqual({ ok: true, playerId });
+        const { accountId } = await activeEventWithPlayer('Ola', '1234');
+        expect(await signIn('ola', '1234', now)).toEqual({ ok: true, accountId });
     });
 
     it('refuses a wrong PIN and an unknown nickname with the same answer', async () => {
@@ -283,13 +331,12 @@ describe('signInPlayer', () => {
         expect(await signIn('kari', '1234', now)).toEqual({ ok: false, error: 'wrong' });
     });
 
-    it('only finds players in the active event', async () => {
-        const { eventId } = await activeEventWithPlayer('Ola', '1234');
+    it('signs an account in at a new LAN it has not joined yet, and needs an active event', async () => {
+        const { accountId } = await activeEventWithPlayer('Ola', '1234');
         await setActiveEvent(pool, await createEvent(pool, { ...lan, code: 'LAN-2027' }));
-        expect(await signIn('ola', '1234', now)).toEqual({ ok: false, error: 'wrong' });
+        expect(await signIn('ola', '1234', now)).toEqual({ ok: true, accountId });
         await clearActiveEvent(pool);
         expect(await signIn('ola', '1234', now)).toEqual({ ok: false, error: 'no-event' });
-        expect(eventId).toBeGreaterThan(0);
     });
 
     it('locks the player for 15 minutes after 5 wrong PINs in a row, even with the right PIN', async () => {
@@ -318,45 +365,45 @@ describe('signInPlayer', () => {
 
 describe('sessions', () => {
     it('stores only the hash of the token and finds the player by it', async () => {
-        const { playerId, eventId } = await activeEventWithPlayer('Ola');
-        const { token, expiresAt } = await createSession(pool, playerId, now);
+        const { playerId, eventId, accountId } = await activeEventWithPlayer('Ola');
+        const { token, expiresAt } = await createSession(pool, accountId, now);
         expect(expiresAt).toEqual(new Date(now.getTime() + SESSION_MS));
         const { rows } = await pool.query('SELECT token_hash FROM player_sessions');
         expect(rows).toHaveLength(1);
         expect(rows[0].token_hash.equals(hashSessionToken(token))).toBe(true);
         expect(rows[0].token_hash.toString('utf8')).not.toContain(token);
-        expect(await getSessionPlayer(pool, token, now)).toEqual({ id: playerId, nickname: 'Ola', fozaBalance: 1000, eventId, eventName: lan.name, eventActive: true });
+        expect(await getSessionAccount(pool, token, now)).toEqual({ accountId, nickname: 'Ola', player: { id: playerId, nickname: 'Ola', fozaBalance: 1000, eventId, eventName: lan.name } });
     });
 
     it('stops working after 7 days', async () => {
-        const { playerId } = await activeEventWithPlayer('Ola');
-        const { token } = await createSession(pool, playerId, now);
-        expect(await getSessionPlayer(pool, token, new Date(now.getTime() + SESSION_MS - 1000))).not.toBeNull();
-        expect(await getSessionPlayer(pool, token, new Date(now.getTime() + SESSION_MS))).toBeNull();
+        const { accountId } = await activeEventWithPlayer('Ola');
+        const { token } = await createSession(pool, accountId, now);
+        expect(await getSessionAccount(pool, token, new Date(now.getTime() + SESSION_MS - 1000))).not.toBeNull();
+        expect(await getSessionAccount(pool, token, new Date(now.getTime() + SESSION_MS))).toBeNull();
         expect((await pool.query('SELECT 1 FROM player_sessions')).rowCount).toBe(0);
     });
 
     it('is deleted on sign out', async () => {
-        const { playerId } = await activeEventWithPlayer('Ola');
-        const { token } = await createSession(pool, playerId, now);
+        const { accountId } = await activeEventWithPlayer('Ola');
+        const { token } = await createSession(pool, accountId, now);
         await deleteSession(pool, token);
-        expect(await getSessionPlayer(pool, token, now)).toBeNull();
-        expect((await pool.query('SELECT 1 FROM player_sessions WHERE player_id = $1', [playerId])).rowCount).toBe(0);
+        expect(await getSessionAccount(pool, token, now)).toBeNull();
+        expect((await pool.query('SELECT 1 FROM player_sessions WHERE account_id = $1', [accountId])).rowCount).toBe(0);
     });
 
     it('does not find a player for an unknown token', async () => {
         await activeEventWithPlayer('Ola');
-        expect(await getSessionPlayer(pool, 'x'.repeat(43), now)).toBeNull();
+        expect(await getSessionAccount(pool, 'x'.repeat(43), now)).toBeNull();
     });
 });
 
 describe('resetPlayerPin', () => {
     it('sets a new PIN, lifts the lock and signs the player out everywhere', async () => {
-        const { playerId, eventId } = await activeEventWithPlayer('Ola', '1234');
-        const { token } = await createSession(pool, playerId, now);
+        const { playerId, eventId, accountId } = await activeEventWithPlayer('Ola', '1234');
+        const { token } = await createSession(pool, accountId, now);
         for (let i = 0; i < 5; i++) await signIn('ola', '0000', now);
         expect(await resetPlayerPin(pool, playerId, await hashPin('5678'))).toEqual({ eventId });
-        expect(await getSessionPlayer(pool, token, now)).toBeNull();
+        expect(await getSessionAccount(pool, token, now)).toBeNull();
         expect(await signIn('ola', '1234', now)).toEqual({ ok: false, error: 'wrong' });
         expect((await signIn('ola', '5678', now)).ok).toBe(true);
     });
@@ -368,8 +415,8 @@ describe('resetPlayerPin', () => {
 
 describe('unlockPlayer', () => {
     it('forgets the wrong PINs and lifts the lock, and keeps the PIN and the sessions', async () => {
-        const { playerId, eventId } = await activeEventWithPlayer('Ola', '1234');
-        const { token } = await createSession(pool, playerId, now);
+        const { playerId, eventId, accountId } = await activeEventWithPlayer('Ola', '1234');
+        const { token } = await createSession(pool, accountId, now);
         for (let i = 0; i < 2; i++) await signIn('ola', '0000');
         expect(await listPlayers(pool, eventId)).toEqual([expect.objectContaining({ failedPinAttempts: 2, lastFailedPinAt: now, lockedUntil: null })]);
         for (let i = 0; i < 3; i++) await signIn('ola', '0000');
@@ -377,9 +424,9 @@ describe('unlockPlayer', () => {
 
         expect(await unlockPlayer(pool, playerId)).toEqual({ eventId });
         expect(await listPlayers(pool, eventId)).toEqual([expect.objectContaining({ failedPinAttempts: 0, lastFailedPinAt: null, lockedUntil: null })]);
-        const { rows } = await pool.query('SELECT lock_level FROM players WHERE id = $1', [playerId]);
+        const { rows } = await pool.query('SELECT lock_level FROM accounts WHERE id = $1', [accountId]);
         expect(rows[0].lock_level).toBe(0);
-        expect(await getSessionPlayer(pool, token, now)).not.toBeNull();
+        expect(await getSessionAccount(pool, token, now)).not.toBeNull();
         expect(await signIn('ola', '0000')).toEqual({ ok: false, error: 'wrong' });
         expect((await signIn('ola', '1234')).ok).toBe(true);
     });
@@ -521,12 +568,12 @@ describe('sign-in limits', () => {
     });
 
     it('locks with an end time when the fifth try is claimed, even if the check never finishes', async () => {
-        const { eventId } = await activeEventWithPlayer('Ola', '1234');
-        for (let i = 0; i < 4; i++) expect((await claimPinAttempt(pool, eventId, 'ola', now))?.lockedUntil).toBeNull();
-        const fifth = await claimPinAttempt(pool, eventId, 'ola', now);
+        await activeEventWithPlayer('Ola', '1234');
+        for (let i = 0; i < 4; i++) expect((await claimPinAttempt(pool, 'ola', now))?.lockedUntil).toBeNull();
+        const fifth = await claimPinAttempt(pool, 'ola', now);
         expect(fifth?.lockedUntil).toEqual(new Date(now.getTime() + 15 * MINUTE));
         // The process stops here, before the PIN is checked.
-        const { rows } = await pool.query("SELECT failed_pin_attempts, locked_until, lock_level FROM players WHERE nickname_key = 'ola'");
+        const { rows } = await pool.query("SELECT failed_pin_attempts, locked_until, lock_level FROM accounts WHERE nickname_key = 'ola'");
         expect(rows[0]).toEqual({ failed_pin_attempts: 0, locked_until: new Date(now.getTime() + 15 * MINUTE), lock_level: 1 });
         expect(await signIn('ola', '1234')).toEqual({ ok: false, error: 'locked', until: new Date(now.getTime() + 15 * MINUTE) });
         expect((await signIn('ola', '1234', new Date(now.getTime() + 15 * MINUTE))).ok).toBe(true);
@@ -536,7 +583,7 @@ describe('sign-in limits', () => {
         await activeEventWithPlayer('Ola', '1234');
         for (let i = 0; i < 4; i++) await signIn('ola', '0000');
         expect((await signIn('ola', '1234')).ok).toBe(true);
-        const { rows } = await pool.query("SELECT failed_pin_attempts, locked_until, lock_level FROM players WHERE nickname_key = 'ola'");
+        const { rows } = await pool.query("SELECT failed_pin_attempts, locked_until, lock_level FROM accounts WHERE nickname_key = 'ola'");
         expect(rows[0]).toEqual({ failed_pin_attempts: 0, locked_until: null, lock_level: 0 });
     });
 
@@ -611,7 +658,7 @@ describe('sign-in limits', () => {
         for (let i = 0; i < 4; i++) await signIn('ola', '0000', now, `ip:192.0.2.${i}`);
         const later = new Date(now.getTime() + 24 * 60 * MINUTE + 1);
         expect(await signIn('ola', '0000', later)).toEqual({ ok: false, error: 'wrong' });
-        const { rows } = await pool.query("SELECT failed_pin_attempts, locked_until, last_failed_pin_at FROM players WHERE nickname_key = 'ola'");
+        const { rows } = await pool.query("SELECT failed_pin_attempts, locked_until, last_failed_pin_at FROM accounts WHERE nickname_key = 'ola'");
         expect(rows[0]).toEqual({ failed_pin_attempts: 1, locked_until: null, last_failed_pin_at: later });
     });
 
@@ -672,12 +719,17 @@ describe('sign-up limits', () => {
     });
 });
 
-describe('getSessionPlayer and the active event', () => {
-    it('says when the event of the player is no longer active', async () => {
-        const { playerId } = await activeEventWithPlayer('Ola');
-        const { token } = await createSession(pool, playerId, now);
-        expect((await getSessionPlayer(pool, token, now))?.eventActive).toBe(true);
+describe('getSessionAccount and the active event', () => {
+    it('gives the player of the active event, and none when the account has not joined it or no event is active', async () => {
+        const { accountId, playerId } = await activeEventWithPlayer('Ola');
+        const { token } = await createSession(pool, accountId, now);
+        expect((await getSessionAccount(pool, token, now))?.player?.id).toBe(playerId);
+        const next = await createEvent(pool, lastYear);
+        await setActiveEvent(pool, next);
+        expect(await getSessionAccount(pool, token, now)).toEqual({ accountId, nickname: 'Ola', player: null });
+        const joined = await joinEvent(pool, accountId, lastYear.code, client, now);
+        expect((await getSessionAccount(pool, token, now))?.player).toMatchObject({ id: joined.ok && joined.playerId, eventId: next, fozaBalance: lastYear.startingFoza });
         await clearActiveEvent(pool);
-        expect((await getSessionPlayer(pool, token, now))?.eventActive).toBe(false);
+        expect((await getSessionAccount(pool, token, now))?.player).toBeNull();
     });
 });
