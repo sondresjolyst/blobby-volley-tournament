@@ -125,13 +125,6 @@ export default async function EloPage() {
                     </p>
                 </section>
 
-                <section aria-labelledby="seeding" className={styles.section}>
-                    <h2 id="seeding" className={styles.heading}>
-                        Seeding
-                    </h2>
-                    <p>Admin kan seeda ei turnering etter Elo. Den med høgast Elo blir seeda først.</p>
-                </section>
-
                 <p className={styles.section}>
                     <Link href="/leaderboard?board=elo">Te Elo-topplistå</Link>
                 </p>
