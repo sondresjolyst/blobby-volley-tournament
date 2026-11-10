@@ -21,7 +21,7 @@ async function signUp(browser: Browser, nickname: string) {
     const page = await context.newPage();
     await page.goto('/join');
     await page.getByLabel('LAN-kode').fill(process.env.E2E_EVENT_CODE ?? '');
-    await page.getByLabel('Kallenavn').fill(nickname);
+    await page.getByLabel('Kallenavn', { exact: true }).fill(nickname);
     await page.getByLabel('PIN-kode (4 siffer)').fill('1234');
     await page.getByRole('button', { name: 'Bli med på LANet' }).click();
     await expect(page).toHaveURL(/\/me$/);
@@ -83,7 +83,7 @@ test('placing a bet keeps the scroll and shows the result on the screen', async 
     await expect(card).toContainText('Du har satsa 10 Foza på');
     // The notice sits at the top of the page, so it floats at the bottom of the screen.
     const notice = page.getByRole('status');
-    await expect(notice).toHaveText('Spelet ditt e lagt inn. Lykke te!');
+    await expect(notice).toHaveText('Bettet ditt e lagt inn. Lykke te!');
     await expect(notice).toBeInViewport();
     await checkPlace();
     // The field is empty again, as after a page load.
@@ -93,7 +93,7 @@ test('placing a bet keeps the scroll and shows the result on the screen', async 
     await notice.click();
     await expect(notice).toBeHidden();
     await form.getByLabel('Kor mykje Foza tør du?').fill('5');
-    const raise = form.getByRole('button', { name: 'Høgn spelet' });
+    const raise = form.getByRole('button', { name: 'Høgn bettet' });
     const checkRaise = await pressInPlace(page, raise, form, OTHER_MATCHES);
     await expect(card).toContainText('Du har satsa 15 Foza på');
     await expect(page.getByRole('status')).toBeInViewport();
@@ -158,7 +158,7 @@ test('a post that fails shows an error once and is not sent again', async ({ bro
         return route.fulfill({ status: 500, body: 'Internal Server Error' });
     });
     await page.getByRole('button', { name: 'Logg ut' }).first().click();
-    const alert = page.getByRole('alert').filter({ hasText: 'Noko gjekk gale' });
+    const alert = page.getByRole('alert').filter({ hasText: 'Någe gjekk gale' });
     await expect(alert).toBeInViewport();
     await expect(page).toHaveURL(/\/me$/);
     expect(posts).toBe(1);

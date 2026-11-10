@@ -27,7 +27,7 @@ async function signUp(browser: Browser, nickname: string): Promise<BrowserContex
     const page = await context.newPage();
     await page.goto('/join');
     await page.getByLabel('LAN-kode').fill(process.env.E2E_EVENT_CODE ?? '');
-    await page.getByLabel('Kallenavn').fill(nickname);
+    await page.getByLabel('Kallenavn', { exact: true }).fill(nickname);
     await page.getByLabel('PIN-kode (4 siffer)').fill('1234');
     await page.getByRole('button', { name: 'Bli med på LANet' }).click();
     await expect(page).toHaveURL(/\/me$/);
@@ -102,8 +102,8 @@ test('the 1v1 screen shows a live 1v1, a finished 1v1 and the next tournament ma
     // The admin can put the screen in the rotation like the others.
     await adminPage.goto('/admin/events');
     await adminPage.getByRole('row', { name: /E2E LAN/ }).getByRole('link').click();
-    await expect(adminPage.getByLabel('Use the 1v1s and next up screen')).toBeVisible();
-    await expect(adminPage.getByLabel('Order of the 1v1s and next up screen')).toBeVisible();
+    await expect(adminPage.getByLabel('Use the 1v1s and up next screen')).toBeVisible();
+    await expect(adminPage.getByLabel('Order of the 1v1s and up next screen')).toBeVisible();
     await admin.close();
     for (const context of players.values()) await context.close();
 
@@ -116,7 +116,7 @@ test('the 1v1 screen shows a live 1v1, a finished 1v1 and the next tournament ma
     await expect(liveRow).toContainText('Sett 1 · 0–0 i sett · Best av 3 · Vanlig · først te 21 · 90 fps');
     await expect(liveRow).toContainText('120 Foza i potten');
 
-    const doneRow = region.getByRole('region', { name: 'Tidligere kampa' }).getByRole('listitem', { name: `${doneA} mot ${doneB}` });
+    const doneRow = region.getByRole('region', { name: 'Tidlegare kampa' }).getByRole('listitem', { name: `${doneA} mot ${doneB}` });
     await expect(doneRow).toContainText('0–1');
 
     // The seeding may put either player first.
@@ -196,7 +196,7 @@ test('a busy 1v1 screen trims the lists and fits the TV', async ({ browser, base
     await expect(region).toContainText('ROPT OPP');
     const size = await page.evaluate(() => ({ w: document.documentElement.scrollWidth, h: document.documentElement.scrollHeight }));
     expect(size).toEqual({ w: 1920, h: 1080 });
-    for (const name of ['1v1 i ringen', 'Neste i turneringa', 'Tidligere kampa']) {
+    for (const name of ['1v1 i ringen', 'Neste i turneringa', 'Tidlegare kampa']) {
         const box = (await region.getByRole('region', { name }).boundingBox())!;
         const strip = (await page.locator('main > footer').boundingBox())!;
         expect(box.y + box.height, name).toBeLessThanOrEqual(strip.y + 1);

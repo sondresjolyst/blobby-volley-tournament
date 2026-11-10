@@ -8,7 +8,7 @@ export const TRAINING_TAG = 'TRENING';
 
 export const TRAINING_TEXT = {
     title: 'Tren mot bot',
-    intro: 'Spel mot ein bot på spelserveren. Treninga telle ikkje på Foza, spel, topplistå eller turneringa.',
+    intro: 'Spel mot ein bot på spelserveren. Treninga telle ikkje på Foza, betting, topplistå eller turneringa.',
     bot: 'Bot',
     difficulty: 'Vanskegrad',
     difficultyHint: `${MIN_DIFFICULTY} e sterkast, ${MAX_DIFFICULTY} e svakast`,
@@ -29,7 +29,7 @@ export const TRAINING_TEXT = {
     overviewEmpty: 'Ingen har trent ennå.',
     trainers: 'Kem som tren mest',
     bots: 'Mest spelte bota',
-    perDifficulty: 'Sigra mot kvar bot',
+    perDifficulty: 'Seira mot kvar bot',
     player: 'Spelar',
     games: 'Spelt',
     wins: 'Vunne',

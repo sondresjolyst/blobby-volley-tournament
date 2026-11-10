@@ -6,7 +6,7 @@ import { fontVariables } from './fonts';
 
 export const metadata: Metadata = {
     title: 'Blobby Volley Tournament',
-    description: 'Turnering og Foza-spel for Blobby Volley 2.',
+    description: 'Turnering og Foza-betting for Blobby Volley 2.',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

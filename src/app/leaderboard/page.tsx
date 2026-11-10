@@ -156,7 +156,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
 
                 <div className={styles.columns}>
                     <section aria-label={`Toppliste ${BOARDS[board]}`}>
-                        {board === 'foza' && <p className={styles.subtitle}>Den som har vunne mest Foza på spel, ligg øvst.</p>}
+                        {board === 'foza' && <p className={styles.subtitle}>Den som har vunne mest Foza på betting, ligg øvst.</p>}
                         {board === 'elo' && (
                             <div className={styles.infoRow}>
                                 <p className={styles.subtitle}>Den med høgast Elo ligg øvst.</p>
@@ -265,7 +265,7 @@ function AllNumbers({ board, data, name }: { board: Board; data: Leaderboard; na
                             <th scope="col">Spelar</th>
                             <th scope="col">Netto</th>
                             <th scope="col">Rette</th>
-                            <th scope="col">Spel</th>
+                            <th scope="col">Bets</th>
                             <th scope="col">Treff</th>
                             <th scope="col">Foza vunne</th>
                             <th scope="col">Foza tapt</th>

@@ -33,7 +33,7 @@ describe('calledText', () => {
 describe('feedName', () => {
     it('writes a feed long, or short for a dense bracket', () => {
         expect(feedName({ from: 'winner', match: 10 })).toBe('Vinnar av kamp 10');
-        expect(feedName({ from: 'loser', match: 3 }, true)).toBe('Taper k. 3');
+        expect(feedName({ from: 'loser', match: 3 }, true)).toBe('Tapar k. 3');
     });
 });
 
@@ -46,8 +46,8 @@ describe('boardRoundName', () => {
     it('names the sides of double elimination and the grand final', () => {
         expect(boardRoundName('double_elimination', 'winners', 1, 2)).toBe('Vinnarrunde 1');
         expect(boardRoundName('double_elimination', 'winners', 2, 2)).toBe('Vinnarfinale');
-        expect(boardRoundName('double_elimination', 'losers', 1, 2)).toBe('Taperrunde 1');
-        expect(boardRoundName('double_elimination', 'losers', 2, 2)).toBe('Taperfinale');
+        expect(boardRoundName('double_elimination', 'losers', 1, 2)).toBe('Taparrunde 1');
+        expect(boardRoundName('double_elimination', 'losers', 2, 2)).toBe('Taparfinale');
         expect(boardRoundName('double_elimination', 'final', 1, 1)).toBe('Storfinale');
     });
 });
@@ -65,7 +65,7 @@ describe('buildBoard', () => {
             ['P14', false, null],
         ]);
         expect(board[0].rounds[1].matches[0].slots.map((s) => s.name)).toEqual(['Vinnar av kamp 1', 'Vinnar av kamp 2']);
-        expect(board[0].rounds[2].matches[0].slots.map((s) => s.name)).toEqual(['Taper av kamp 1', 'Taper av kamp 2']);
+        expect(board[0].rounds[2].matches[0].slots.map((s) => s.name)).toEqual(['Tapar av kamp 1', 'Tapar av kamp 2']);
         expect(board[0].rounds[1].matches[0].slots.map((s) => s.feed)).toEqual([
             { from: 'winner', match: 1 },
             { from: 'winner', match: 2 },
@@ -108,7 +108,7 @@ describe('buildBoard', () => {
         const board = buildBoard('double_elimination', bracket, runtime, null, new Set());
         expect(board.map((s) => s.key)).toEqual(['main', 'losers']);
         expect(board[0].rounds.map((r) => r.name)).toEqual(['Vinnarrunde 1', 'Vinnarfinale', 'Storfinale']);
-        expect(board[1].rounds.map((r) => r.name)).toEqual(['Taperrunde 1', 'Taperfinale']);
+        expect(board[1].rounds.map((r) => r.name)).toEqual(['Taparrunde 1', 'Taparfinale']);
         const numbers = board.flatMap((s) => s.rounds.flatMap((r) => r.matches.map((m) => m.number)));
         expect(numbers.toSorted((a, b) => a - b)).toEqual(bracket.map((_, i) => i + 1));
     });

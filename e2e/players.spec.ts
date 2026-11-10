@@ -9,7 +9,7 @@ const uniqueNickname = () => `Spiller${randomBytes(3).toString('hex')}`;
 async function signUp(page: Page, nickname: string, pin: string) {
     await page.goto('/join');
     await page.getByLabel('LAN-kode').fill(eventCode.toLowerCase());
-    await page.getByLabel('Kallenavn').fill(nickname);
+    await page.getByLabel('Kallenavn', { exact: true }).fill(nickname);
     await page.getByLabel('PIN-kode (4 siffer)').fill(pin);
     await page.getByRole('button', { name: 'Bli med på LANet' }).click();
 }
@@ -50,7 +50,7 @@ test('a player signs up with the event code and sees the starting Foza', async (
 test('sign-up refuses a wrong event code', async ({ page }) => {
     await page.goto('/join');
     await page.getByLabel('LAN-kode').fill('WRONG-CODE');
-    await page.getByLabel('Kallenavn').fill(uniqueNickname());
+    await page.getByLabel('Kallenavn', { exact: true }).fill(uniqueNickname());
     await page.getByLabel('PIN-kode (4 siffer)').fill('1234');
     await page.getByRole('button', { name: 'Bli med på LANet' }).click();
     await expect(page).toHaveURL(/\/join\?error=code$/);
@@ -65,14 +65,14 @@ test('sign-in with a wrong PIN is refused and the right PIN works', async ({ pag
     await expect(page).toHaveURL(/\/$/);
     await page.goto('/login');
 
-    await page.getByLabel('Kallenavn').fill(nickname.toUpperCase());
+    await page.getByLabel('Kallenavn', { exact: true }).fill(nickname.toUpperCase());
     await page.getByLabel('PIN-kode', { exact: true }).fill('9999');
     await page.getByRole('button', { name: 'Logg inn', exact: true }).click();
     await expect(page).toHaveURL(/\/login\?error=wrong$/);
     await expect(page.getByRole('alert').filter({ hasText: 'Feil kallenavn eller PIN-kode.' })).toBeVisible();
     expect((await context.cookies()).find((c) => c.name === 'bvt_player')).toBeUndefined();
 
-    await page.getByLabel('Kallenavn').fill(nickname);
+    await page.getByLabel('Kallenavn', { exact: true }).fill(nickname);
     await page.getByLabel('PIN-kode', { exact: true }).fill('1234');
     await page.getByRole('button', { name: 'Logg inn', exact: true }).click();
     await expect(page).toHaveURL(/\/me$/);
