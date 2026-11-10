@@ -15,7 +15,7 @@ test('an admin previews and saves a double elimination tournament', async ({ pag
         const playerPage = await player.newPage();
         await playerPage.goto('/join');
         await playerPage.getByLabel('LAN-kode').fill(process.env.E2E_EVENT_CODE ?? '');
-        await playerPage.getByLabel('Kallenavn').fill(nickname);
+        await playerPage.getByLabel('Kallenavn', { exact: true }).fill(nickname);
         await playerPage.getByLabel('PIN-kode (4 siffer)').fill('1234');
         await playerPage.getByRole('button', { name: 'Bli med på LANet' }).click();
         await expect(playerPage).toHaveURL(/\/me$/);
@@ -116,7 +116,7 @@ test('an admin adds a third place match and must preview again after the players
         const playerPage = await player.newPage();
         await playerPage.goto('/join');
         await playerPage.getByLabel('LAN-kode').fill(process.env.E2E_EVENT_CODE ?? '');
-        await playerPage.getByLabel('Kallenavn').fill(nickname);
+        await playerPage.getByLabel('Kallenavn', { exact: true }).fill(nickname);
         await playerPage.getByLabel('PIN-kode (4 siffer)').fill('1234');
         await playerPage.getByRole('button', { name: 'Bli med på LANet' }).click();
         await expect(playerPage).toHaveURL(/\/me$/);
