@@ -80,7 +80,7 @@ export function GameServerToken({
                         <CopyButton text={run} label="Copy command" noun="command" />
                     </p>
                     <p>
-                        Run it on the PC at the LAN that will host the game server, in PowerShell or a Linux terminal. Docker must run there, see First time on this PC below. If this PC
+                        Run it on the PC at the event that will host the game server, in PowerShell or a Linux terminal. Docker must run there, see First time on this PC below. If this PC
                         ran the game server before, remove the old one first with <code>{SERVER_REMOVE}</code>.
                     </p>
                     <p>

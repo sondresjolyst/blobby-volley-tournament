@@ -26,7 +26,7 @@ export function CopyJoinLink({ link }: { link: string }) {
                 Kopier lenkjå
             </button>
             <span aria-live="polite" className={styles.copyStatus}>
-                {copied === 'copied' ? 'Kopiert!' : copied === 'failed' ? 'Fekk ikkje kopiert. Bruk lenkjå under eller skriv inn serveren og koden sjøl.' : ''}
+                {copied === 'copied' ? 'Kopiert!' : copied === 'failed' ? 'Fekk ikkje kopiert. Bruk lenkjå under eller skriv inn serveren og koden din sjøl.' : ''}
             </span>
         </div>
     );

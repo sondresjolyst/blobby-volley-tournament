@@ -41,13 +41,13 @@ export function poolLine(match: Pick<ScreenMatch, 'open' | 'pool'>, site: string
 /** A series score in the bracket, or nothing before the match starts. */
 export const slotScore = (score: number | null) => (score === null ? '' : String(score));
 
-export const SIDE_NAMES = { main: 'Vinnarsidå', losers: 'Tapersidå' } as const;
+export const SIDE_NAMES = { main: 'Vinnarsidå', losers: 'Taparsidå' } as const;
 
 /** The note under a round with matches left out, such as `+ 4 kampa te`. */
 export const moreMatches = (n: number) => `+ ${n} ${n === 1 ? 'kamp' : 'kampa'} te`;
 
 /** The line on the sign-up card, with or without the QR code. */
-export const joinLine = (hasQr: boolean, site: string | null = null) => (hasQr ? 'Skann og bruk koden' : `Gå te ${siteAddress(site, '/join')} og bruk koden`);
+export const joinLine = (hasQr: boolean, site: string | null = null) => (hasQr ? 'Skann og bruk LAN-koden' : `Gå te ${siteAddress(site, '/join')} og bruk LAN-koden`);
 
 /** A place on a leaderboard nobody has taken yet. */
 export const FREE_PLACE = 'Ledig plass';
@@ -62,7 +62,7 @@ export const SCREEN_LABELS = {
     foza: 'Foza-toppen',
     next: 'Snart i ringen',
     duels: '1v1 og neste kampa',
-    stats: 'Rekorda',
+    stats: 'Gjæve fakta',
     sponsors: 'Sponsorane',
     winner: 'Vinnaren',
 } as const;
@@ -99,7 +99,7 @@ export function nextCaption(match: Pick<ScreenMatch, 'live' | 'bestOf' | 'rules'
 /** The words of the 1v1 screen. */
 export const DUEL_TEXT = {
     live: '1v1 i ringen',
-    done: 'Tidligere kampa',
+    done: 'Tidlegare kampa',
     coming: 'Neste i turneringa',
     noLive: (site: string | null) => `Ingen 1v1 i gang. Utfordra någen på ${siteAddress(site, '/me')}!`,
     noDone: 'Ingen 1v1 e ferdigspelt ennå.',

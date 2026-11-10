@@ -44,5 +44,5 @@ export const DOWNLOAD_TEXT = {
     install: 'Sånn får du det opp',
     join: 'Sånn kjem du inn i kampen',
     server: 'For serveren',
-    serverText: 'Skal du kjøra turneringsserveren? Startskripta ligg her. Admin-sidå forklare resten.',
+    serverText: 'Skal du kjøra spelserveren? Startskripta ligg her. Admin-sidå forklare resten.',
 } as const;

@@ -29,7 +29,7 @@ export const TRAINING_TEXT = {
     overviewEmpty: 'Ingen har trent ennå.',
     trainers: 'Kem som tren mest',
     bots: 'Mest spelte bota',
-    perDifficulty: 'Sigra mot kvar bot',
+    perDifficulty: 'Seira mot kvar bot',
     player: 'Spelar',
     games: 'Spelt',
     wins: 'Vunne',

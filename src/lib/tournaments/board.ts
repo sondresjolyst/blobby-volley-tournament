@@ -3,11 +3,11 @@
 import type { FormatId, MatchLink, Section } from '@/lib/bracket';
 import type { MatchState } from '@/lib/matches/state';
 
-/** The name of a round on the player pages, such as `Semifinala` or `Taperrunde 2`. */
+/** The name of a round on the player pages, such as `Semifinala` or `Taparrunde 2`. */
 export function boardRoundName(format: FormatId, section: Section, round: number, lastRound: number): string {
     if (section === 'final') return 'Storfinale';
     if (section === 'third_place') return 'Bronsefinale';
-    if (section === 'losers') return round === lastRound ? 'Taperfinale' : `Taperrunde ${round}`;
+    if (section === 'losers') return round === lastRound ? 'Taparfinale' : `Taparrunde ${round}`;
     if (format === 'double_elimination') return round === lastRound ? 'Vinnarfinale' : `Vinnarrunde ${round}`;
     if (round === lastRound) return 'Finale';
     if (round === lastRound - 1) return 'Semifinala';
@@ -47,7 +47,7 @@ export interface Feed {
 
 /** A feed in words, such as `Vinnar av kamp 3`, or `Vinnar k. 3` short. */
 export function feedName(feed: Feed, short = false): string {
-    const who = feed.from === 'winner' ? 'Vinnar' : 'Taper';
+    const who = feed.from === 'winner' ? 'Vinnar' : 'Tapar';
     return short ? `${who} k. ${feed.match}` : `${who} av kamp ${feed.match}`;
 }
 

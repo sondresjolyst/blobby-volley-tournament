@@ -57,7 +57,7 @@ test('open pages show new players, a new match, a bet and a new balance without 
     await bet.getByRole('radio', { name: new RegExp(`^La${tag} `) }).check();
     await bet.getByLabel('Kor mykje Foza tør du?').fill('25');
     await bet.getByRole('button', { name: 'Sats' }).click();
-    await expect(me.getByRole('status')).toHaveText('Spelet ditt e lagt inn. Lykke te!');
+    await expect(me.getByRole('status')).toHaveText('Bettet ditt e lagt inn. Lykke te!');
     await expect(card).toContainText('Potten e på 25 Foza', { timeout: 15_000 });
     await expect(wallet).not.toHaveText(before);
 

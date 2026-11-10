@@ -47,8 +47,8 @@ async function shoot(page: Page, name: string) {
 
 test('the i buttons on /join and /login explain the fields without hiding the labels', async ({ page }) => {
     await page.goto('/join');
-    await checkHelp(page, 'Koffor ein kode?', 'Koden sørge for at bare dei som e på LANet');
-    await checkHelp(page, 'Ka slags navn?', 'Velg eit navn dei andre kjenne deg igjen på.');
+    await checkHelp(page, 'Koffor ein kode?', 'LAN-koden står på storskjermen og hos admin. Den sørge for at bare dei som e på LANet');
+    await checkHelp(page, 'Ka slags kallenavn?', 'Velg eit kallenavn dei andre kjenne deg igjen på.');
     await checkHelp(page, 'Ka e PIN-koden te?', 'Fire siffer du finne på sjøl.');
     // The labels still name the fields alone, and each field points at its help.
     await expect(page.getByLabel('PIN-kode (4 siffer)')).toHaveAccessibleDescription(/Fire siffer du finne på sjøl./);
@@ -58,7 +58,7 @@ test('the i buttons on /join and /login explain the fields without hiding the la
     await shoot(page, 'join');
 
     await page.goto('/login');
-    await checkHelp(page, 'Ka navn?', 'Kallenavnet du valgte då du blei med.');
+    await checkHelp(page, 'Ka kallenavn?', 'Kallenavnet du valgte då du blei med.');
     await checkHelp(page, 'Glømt PIN-koden?', 'Spør ein admin, så får du ein ny.');
 });
 
@@ -109,7 +109,7 @@ test('the 1v1 form and the bet form on /me have help, and the leaderboard has th
     await checkHelp(form, 'Kor mange poeng?', 'Kor mange poeng som trengs for å vinna eit sett.');
     await checkHelp(form, 'Kor fort?', 'Kor fort Blobby Volley går, i bilde i sekundet.');
     await expect(form.getByLabel('Best av')).toHaveValue('1');
-    await expect(form.getByLabel('Først te')).toHaveAccessibleDescription(/vanleg e 15 Kor mange poeng som trengs/);
+    await expect(form.getByLabel('Først te')).toHaveAccessibleDescription(/vanlig e 15 Kor mange poeng som trengs/);
 
     await form.getByLabel('Motstandar').selectOption({ label: `Ib${tag}` });
     await form.getByRole('button', { name: 'Send utfordring' }).click();

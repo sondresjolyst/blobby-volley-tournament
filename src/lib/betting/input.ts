@@ -36,7 +36,7 @@ const BET_MESSAGES: Record<string, string> = {
     closed: 'Spelå på den kampen e stengt.',
     event: 'Du kan bare satsa på kampa på LANet du e med på.',
     side: 'Velg ein av dei to spelarane i kampen.',
-    switch: 'Du har allerede satsa på den andre. Du kan høgna spelet, men ikkje bytta side.',
+    switch: 'Du har allerede satsa på den andre. Du kan høgna bettet, men ikkje bytta side.',
     amount: 'Innsatsen må vera eit heilt tal Foza, minst 1.',
     balance: 'Så mykje Foza har du ikkje.',
     form: SOMETHING_WENT_WRONG,

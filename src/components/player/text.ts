@@ -37,7 +37,7 @@ export function matchSettings(match: Pick<MatchSummary, 'bestOf' | 'ruleFile' | 
 export function pointsHint(ruleFile: string, scoreToWin: number): string {
     if (fixedScoreToWin(ruleFile)) return `${rulesName(ruleFile)} spele alltid te ${realScoreToWin(ruleFile, scoreToWin)}`;
     if (realScoreToWin(ruleFile, scoreToWin) !== scoreToWin) return `${rulesName(ruleFile)} gonge med 10, så dåkke spele te ${realScoreToWin(ruleFile, scoreToWin)}. Høgst ${MAX_REAL_SCORE_TO_WIN / 10}`;
-    return `poeng i kvart sett, ${MIN_SCORE_TO_WIN} te ${MAX_SCORE_TO_WIN}, vanleg e ${DEFAULT_SCORE_TO_WIN}`;
+    return `poeng i kvart sett, ${MIN_SCORE_TO_WIN} te ${MAX_SCORE_TO_WIN}, vanlig e ${DEFAULT_SCORE_TO_WIN}`;
 }
 
 /**
@@ -77,8 +77,8 @@ export function challengeErrorMessage(code: string | string[] | undefined): stri
 }
 
 const NOTICES: Record<string, string> = {
-    placed: 'Spelet ditt e lagt inn. Lykke te!',
-    raised: 'Spelet ditt e høgna. Modig!',
+    placed: 'Bettet ditt e lagt inn. Lykke te!',
+    raised: 'Bettet ditt e høgna. Modig!',
     sent: 'Utfordringå e sendt. Nå e det opp te motstandaren.',
     accepted: 'Du godtok kampen. Dåkke kan spela med ein gang.',
     queued: 'Du godtok kampen. Dåkke kan spela så fort begge e klare.',
