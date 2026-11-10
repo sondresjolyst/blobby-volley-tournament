@@ -111,7 +111,7 @@ test('an admin resets the PIN of a player', async ({ page, browser }) => {
     const playerPage = await player.newPage();
     await playerPage.goto('/join');
     await playerPage.getByLabel('LAN-kode').fill(process.env.E2E_EVENT_CODE ?? '');
-    await playerPage.getByLabel('Kallenavn').fill(nickname);
+    await playerPage.getByLabel('Kallenavn', { exact: true }).fill(nickname);
     await playerPage.getByLabel('PIN-kode (4 siffer)').fill('1234');
     await playerPage.getByRole('button', { name: 'Bli med på LANet' }).click();
     await expect(playerPage).toHaveURL(/\/me$/);
@@ -128,7 +128,7 @@ test('an admin resets the PIN of a player', async ({ page, browser }) => {
     // The reset signs the player out on every device.
     await playerPage.goto('/me');
     await expect(playerPage).toHaveURL(/\/login$/);
-    await playerPage.getByLabel('Kallenavn').fill(nickname);
+    await playerPage.getByLabel('Kallenavn', { exact: true }).fill(nickname);
     await playerPage.getByLabel('PIN-kode', { exact: true }).fill('5678');
     await playerPage.getByRole('button', { name: 'Logg inn', exact: true }).click();
     await expect(playerPage).toHaveURL(/\/me$/);
@@ -142,14 +142,14 @@ test('an admin sees the wrong PINs of a player and unlocks a locked player', asy
     const playerPage = await player.newPage();
     await playerPage.goto('/join');
     await playerPage.getByLabel('LAN-kode').fill(process.env.E2E_EVENT_CODE ?? '');
-    await playerPage.getByLabel('Kallenavn').fill(nickname);
+    await playerPage.getByLabel('Kallenavn', { exact: true }).fill(nickname);
     await playerPage.getByLabel('PIN-kode (4 siffer)').fill('1234');
     await playerPage.getByRole('button', { name: 'Bli med på LANet' }).click();
     await expect(playerPage).toHaveURL(/\/me$/);
     await playerPage.getByRole('button', { name: 'Logg ut' }).click();
     const signIn = async (pin: string) => {
         await playerPage.goto('/login');
-        await playerPage.getByLabel('Kallenavn').fill(nickname);
+        await playerPage.getByLabel('Kallenavn', { exact: true }).fill(nickname);
         await playerPage.getByLabel('PIN-kode', { exact: true }).fill(pin);
         await playerPage.getByRole('button', { name: 'Logg inn', exact: true }).click();
         // The form posts in the background, so the test waits for its answer before it moves on.

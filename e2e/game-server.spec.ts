@@ -14,7 +14,7 @@ async function signUp(browser: Browser, nickname: string) {
     const page = await player.newPage();
     await page.goto('/join');
     await page.getByLabel('LAN-kode').fill(process.env.E2E_EVENT_CODE ?? '');
-    await page.getByLabel('Kallenavn').fill(nickname);
+    await page.getByLabel('Kallenavn', { exact: true }).fill(nickname);
     await page.getByLabel('PIN-kode (4 siffer)').fill('1234');
     await page.getByRole('button', { name: 'Bli med på LANet' }).click();
     await expect(page).toHaveURL(/\/me$/);
@@ -195,7 +195,7 @@ test('an abandoned game with the player who left waits for the admin on the admi
     // The seeding may put either player first. The page names them and their points in match order.
     const first = match.players[0].playerId === ids[0] ? 0 : 1;
     const [one, two] = first === 0 ? nicknames : [nicknames[1], nicknames[0]];
-    const stopped = `Game 1 stopped at ${first === 0 ? '6-8' : '8-6'}. ${nicknames[0]} left.`;
+    const stopped = `Game 1 abandoned at ${first === 0 ? '6-8' : '8-6'}. ${nicknames[0]} left.`;
     const report = (change: Record<string, unknown>) => ({
         reportId: randomUUID(),
         matchId: match.matchId,

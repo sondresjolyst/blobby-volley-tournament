@@ -19,7 +19,7 @@ import { getTournament, listTournaments } from '@/lib/store/tournaments';
 import { buildBoard } from '@/lib/tournaments/board';
 
 const FORMAT_NAMES: Record<FormatId, string> = { single_elimination: 'enkelt utslag', double_elimination: 'dobbelt utslag' };
-const SEEDING_NAMES: Record<SeedingMethod, string> = { random: 'tilfeldig oppsett', manual: 'handplukka oppsett', elo: 'oppsett etter Elo' };
+const SEEDING_NAMES: Record<SeedingMethod, string> = { random: 'trekt tilfeldig', manual: 'handplukka', elo: 'etter Elo' };
 
 export default async function BracketPage({ searchParams }: { searchParams: Promise<{ t?: string | string[] }> }) {
     const player = await requireActivePlayer();

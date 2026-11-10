@@ -12,17 +12,17 @@ describe('big screen text', () => {
 
     it('says whether bets can still be placed when the pool is empty', () => {
         expect(poolLine({ open: true, pool: 0 })).toContain('Sats på /me');
-        expect(poolLine({ open: false, pool: 0 })).toContain('stengt');
+        expect(poolLine({ open: false, pool: 0 })).toContain('Stengt for betting');
         expect(poolLine({ open: false, pool: 4300 })).toBe('4 300 Foza i potten');
     });
 
     it('tells a player to scan, or to go to /join without a QR code', () => {
-        expect(joinLine(true)).toBe('Skann og bruk koden');
-        expect(joinLine(false)).toBe('Gå te /join og bruk koden');
+        expect(joinLine(true)).toBe('Skann og bruk LAN-koden');
+        expect(joinLine(false)).toBe('Gå te /join og bruk LAN-koden');
     });
 
     it('shows the full site address when the host is known', () => {
-        expect(joinLine(false, 'julalan.no')).toBe('Gå te julalan.no/join og bruk koden');
+        expect(joinLine(false, 'julalan.no')).toBe('Gå te julalan.no/join og bruk LAN-koden');
         expect(joinChip('ABCD-1234', 'julalan.no')).toBe('Bli med på julalan.no/join · ABCD-1234');
         expect(poolLine({ open: true, pool: 0 }, 'julalan.no')).toContain('Sats på julalan.no/me!');
     });

@@ -234,7 +234,7 @@ describe('buildBigScreen', () => {
         // Eight matches in a round make it dense, so empty slots get short names there, and only there.
         expect(full.dense).toBe(true);
         expect(full.sections[0].rounds[1].matches[0].slots.map((s) => s.name)).toEqual(['Vinnar k. 1', 'Vinnar k. 2']);
-        expect(full.sections[1].rounds[0].matches[0].slots.map((s) => s.name)).toEqual(['Taper k. 1', 'Taper k. 2']);
+        expect(full.sections[1].rounds[0].matches[0].slots.map((s) => s.name)).toEqual(['Tapar k. 1', 'Tapar k. 2']);
         // The overview keeps its window of four matches a round and the long names.
         expect(data.bracket!.rounds[0].matches).toHaveLength(4);
         expect(buildBigScreen(input()).fullBracket).toBeNull();

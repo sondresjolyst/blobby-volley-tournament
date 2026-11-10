@@ -107,7 +107,7 @@ export default async function Training({ searchParams }: { searchParams: Promise
                                         </dd>
                                     </div>
                                     <div>
-                                        <dt>Kode</dt>
+                                        <dt>Koden din</dt>
                                         <dd>{code}</dd>
                                     </div>
                                 </dl>

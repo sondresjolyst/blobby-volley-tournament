@@ -57,10 +57,10 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ id
                         </dd>
                     </div>
                     <div className={styles.fact}>
-                        <dt>Rette spel</dt>
+                        <dt>Rette bets</dt>
                         <dd>
                             <span className={styles.factValue}>{betting?.correct ?? 0}</span>
-                            {betting ? `av ${betting.bets} · ${percent(betting.hitRate)} treff` : 'Ingen spel e avgjort ennå'}
+                            {betting ? `av ${betting.bets} · ${percent(betting.hitRate)} treff` : 'Ingen bets e avgjort ennå'}
                         </dd>
                     </div>
                     <div className={styles.fact}>
@@ -165,16 +165,16 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ id
 
                 <section aria-labelledby="spel" className={styles.section}>
                     <h2 id="spel" className={styles.heading}>
-                        Spel
+                        Bets
                     </h2>
                     {!betting ? (
-                        <p className={styles.empty}>Ingen spel e avgjort ennå. Foza gjer seg ikkje sjøl!</p>
+                        <p className={styles.empty}>Ingen bets e avgjort ennå. Foza gjer seg ikkje sjøl!</p>
                     ) : (
                         <div className={styles.tableWrap}>
                             <table className={styles.table}>
                                 <tbody>
                                     <tr>
-                                        <th scope="row">Rette spel</th>
+                                        <th scope="row">Rette bets</th>
                                         <td>
                                             {betting.correct} av {betting.bets}
                                         </td>

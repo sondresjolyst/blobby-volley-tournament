@@ -20,7 +20,7 @@ interface CardProps {
 }
 
 function tagOf(match: MatchSummary, open: boolean): { text: string; live: boolean } {
-    if (match.state === 'started') return { text: 'LIVE · spelå e stengt', live: true };
+    if (match.state === 'started') return { text: 'LIVE · stengt for betting', live: true };
     if (match.state === 'called') {
         const called = calledText(match.tournamentId !== null).tag;
         return { text: open ? `${called} · ${BETS_OPEN.toLowerCase()}` : called, live: true };
@@ -99,10 +99,10 @@ export function MatchCard({ match, pool, viewerId, balance, bet }: CardProps) {
                                 <input id={`amount-${match.id}`} aria-describedby={`amount-${match.id}-help`} className={styles.input} name="amount" type="number" min={1} max={Math.max(1, balance)} step={1} required inputMode="numeric" />
                             </div>
                             <button type="submit" className={styles.button}>
-                                {bet ? 'Høgn spelet' : 'Sats'}
+                                {bet ? 'Høgn bettet' : 'Sats'}
                             </button>
                         </div>
-                        <p className={styles.closingNote}>Spelå stenge når kampen starte.</p>
+                        <p className={styles.closingNote}>Betting stenge når kampen starte.</p>
                     </fieldset>
                 </form>
             )}

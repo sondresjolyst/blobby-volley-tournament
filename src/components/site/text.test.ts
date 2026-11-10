@@ -4,15 +4,15 @@ import { eventDates } from './text';
 
 describe('eventDates', () => {
     it('names the month once for dates in the same month', () => {
-        expect(eventDates('2026-11-20', '2026-11-22')).toBe('20. til 22. november 2026');
+        expect(eventDates('2026-11-20', '2026-11-22')).toBe('20. te 22. november 2026');
     });
 
     it('names both months across a month', () => {
-        expect(eventDates('2026-11-30', '2026-12-02')).toBe('30. november til 2. desember 2026');
+        expect(eventDates('2026-11-30', '2026-12-02')).toBe('30. november te 2. desember 2026');
     });
 
     it('names both years across a year', () => {
-        expect(eventDates('2026-12-30', '2027-01-01')).toBe('30. desember 2026 til 1. januar 2027');
+        expect(eventDates('2026-12-30', '2027-01-01')).toBe('30. desember 2026 te 1. januar 2027');
     });
 
     it('shows one date for a one day event', () => {

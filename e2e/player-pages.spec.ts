@@ -7,7 +7,7 @@ async function signUp(browser: Browser, nickname: string) {
     const page = await context.newPage();
     await page.goto('/join');
     await page.getByLabel('LAN-kode').fill(process.env.E2E_EVENT_CODE ?? '');
-    await page.getByLabel('Kallenavn').fill(nickname);
+    await page.getByLabel('Kallenavn', { exact: true }).fill(nickname);
     await page.getByLabel('PIN-kode (4 siffer)').fill('1234');
     await page.getByRole('button', { name: 'Bli med på LANet' }).click();
     await expect(page).toHaveURL(/\/me$/);
@@ -223,7 +223,7 @@ test('a player sees the bracket of a tournament with the own match marked', asyn
     const { page } = players[0];
     await page.goto(`/bracket?t=${tournamentId}`);
     await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
-    await expect(page.getByText('3 spelara · enkelt utslag · tilfeldig oppsett · først te 15 · 75 fps')).toBeVisible();
+    await expect(page.getByText('3 spelara · enkelt utslag · trekt tilfeldig · først te 15 · 75 fps')).toBeVisible();
     // Three players: one first round match, and the top seed waits in the final.
     await expect(page.getByRole('region', { name: 'Semifinala' }).getByRole('article')).toHaveCount(1);
     const final = page.getByRole('region', { name: 'Finale' }).getByRole('article');

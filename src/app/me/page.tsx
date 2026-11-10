@@ -179,7 +179,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                                             </dd>
                                         </div>
                                         <div>
-                                            <dt>Kode</dt>
+                                            <dt>Koden din</dt>
                                             <dd>{code}</dd>
                                         </div>
                                     </dl>
@@ -243,7 +243,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
 
                 <section className={styles.section} aria-labelledby="spel">
                     <h2 id="spel" className={styles.h2}>
-                        Spelå dine
+                        Betså dine
                     </h2>
                     {bets.length === 0 ? (
                         <p className={styles.muted}>Du har ikkje satsa någen Foza ennå.</p>
@@ -380,7 +380,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                                     </InfoLabel>
                                     <input id="speed" name="speed" type="number" className={styles.input} min={MIN_GAME_SPEED} max={MAX_GAME_SPEED} step={1} defaultValue={DEFAULT_GAME_SPEED} required aria-describedby="speed-hint speed-help" />
                                     <span id="speed-hint" className={styles.hint}>
-                                        bilde i sekundet, {MIN_GAME_SPEED} te {MAX_GAME_SPEED}, vanleg e {DEFAULT_GAME_SPEED}
+                                        bilde i sekundet, {MIN_GAME_SPEED} te {MAX_GAME_SPEED}, vanlig e {DEFAULT_GAME_SPEED}
                                     </span>
                                 </div>
                             </RulesFields>

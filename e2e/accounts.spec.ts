@@ -17,7 +17,7 @@ async function asAdmin(browser: Browser, baseURL: string): Promise<BrowserContex
 async function signUp(page: Page, code: string, nickname: string, pin: string) {
     await page.goto('/join');
     await page.getByLabel('LAN-kode').fill(code);
-    await page.getByLabel('Kallenavn').fill(nickname);
+    await page.getByLabel('Kallenavn', { exact: true }).fill(nickname);
     await page.getByLabel('PIN-kode (4 siffer)').fill(pin);
     await page.getByRole('button', { name: 'Bli med på LANet' }).click();
 }
@@ -75,7 +75,7 @@ test('an account keeps its nickname, PIN and Elo at the next LAN, and can change
     const player = await browser.newContext({ baseURL, extraHTTPHeaders: network });
     const page = await player.newPage();
     await page.goto('/login');
-    await page.getByLabel('Kallenavn').fill(winner.toLowerCase());
+    await page.getByLabel('Kallenavn', { exact: true }).fill(winner.toLowerCase());
     await page.getByLabel('PIN-kode', { exact: true }).fill('4321');
     await page.getByRole('button', { name: 'Logg inn', exact: true }).click();
     await expect(page).toHaveURL(/\/bli-med$/);
@@ -124,11 +124,11 @@ test('an account keeps its nickname, PIN and Elo at the next LAN, and can change
     await page.goto('/');
     await page.getByRole('navigation', { name: 'Hovudmeny' }).getByRole('button', { name: 'Logg ut' }).click();
     await page.goto('/login');
-    await page.getByLabel('Kallenavn').fill(winner);
+    await page.getByLabel('Kallenavn', { exact: true }).fill(winner);
     await page.getByLabel('PIN-kode', { exact: true }).fill('4321');
     await page.getByRole('button', { name: 'Logg inn', exact: true }).click();
     await expect(page.getByRole('alert').filter({ hasText: 'Feil kallenavn eller PIN-kode.' })).toBeVisible();
-    await page.getByLabel('Kallenavn').fill(renamed);
+    await page.getByLabel('Kallenavn', { exact: true }).fill(renamed);
     await page.getByLabel('PIN-kode', { exact: true }).fill('4321');
     await page.getByRole('button', { name: 'Logg inn', exact: true }).click();
     await expect(page).toHaveURL(/\/me$/);
