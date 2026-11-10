@@ -28,7 +28,7 @@ export default async function EloPage() {
                     <h2 id="utrekning" className={styles.heading}>
                         Utrekningå
                     </h2>
-                    <p>Før kampen finne vi sjansen du har te å vinna:</p>
+                    <p>Før kampen finne me sjansen du har te å vinna:</p>
                     <p className={styles.formula}>
                         sjanse = 1 / (1 + 10<sup>(motstandar − deg) / 400</sup>)
                     </p>
