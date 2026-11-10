@@ -414,7 +414,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                         <button type="submit" className={styles.button}>
                             Bytt kallenavn
                         </button>
-                        <p className={styles.closingNote}>Du logge inn med det nye navnet. Elo-en og alle kampa dine følge med, også frå LAN du har vore på før.</p>
+                        <p className={styles.closingNote}>Du logge inn med det nye kallenavnet. Elo-en og alle kampa dine følge med, også frå LAN du har vore på før.</p>
                     </form>
                 </section>
             </aside>

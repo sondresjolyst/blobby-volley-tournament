@@ -32,7 +32,7 @@ export default async function JoinEvent({ searchParams }: { searchParams: Promis
             )}
             <form method="post" action="/api/player/join-event" className={s.authCard} aria-labelledby="bli-med-lan">
                 <h2 id="bli-med-lan" className={s.authCardTitle}>
-                    Bli med på dette LANet
+                    Bli med på {event.name}
                 </h2>
                 <div className={s.authField}>
                     <InfoLabel htmlFor="code" className={s.authLabel} text="LAN-kode" info={FIELD_INFO.code.label}>
@@ -44,7 +44,7 @@ export default async function JoinEvent({ searchParams }: { searchParams: Promis
                     </span>
                 </div>
                 <button type="submit" className={s.authSubmit}>
-                    Bli med på LANet
+                    Bli med
                 </button>
             </form>
             <form method="post" action="/api/player/signout" className={s.authSwitch}>

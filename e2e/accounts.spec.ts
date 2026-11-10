@@ -79,12 +79,12 @@ test('an account keeps its nickname, PIN and Elo at the next LAN, and can change
     await page.getByLabel('PIN-kode', { exact: true }).fill('4321');
     await page.getByRole('button', { name: 'Logg inn', exact: true }).click();
     await expect(page).toHaveURL(/\/bli-med$/);
-    await expect(page.getByRole('heading', { name: 'Bli med på dette LANet' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: `Bli med på LAN 2 ${tag}` })).toBeVisible();
     await page.getByLabel('LAN-kode').fill('WRONG-CODE');
-    await page.getByRole('button', { name: 'Bli med på LANet' }).click();
+    await page.getByRole('button', { name: 'Bli med', exact: true }).click();
     await expect(page.getByRole('alert').filter({ hasText: 'Den LAN-koden stemme ikkje.' })).toBeVisible();
     await page.getByLabel('LAN-kode').fill(lan2Code.toLowerCase());
-    await page.getByRole('button', { name: 'Bli med på LANet' }).click();
+    await page.getByRole('button', { name: 'Bli med', exact: true }).click();
     await expect(page).toHaveURL(/\/me$/);
     await expect(page.getByRole('heading', { name: `Hei, ${winner}!` })).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Spelarsidå' })).toContainText(/700 Foza/);
