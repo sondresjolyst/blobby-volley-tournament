@@ -4,7 +4,7 @@ import { ELO_K, ELO_START, expectedScore, winnerGain } from '@/lib/stats/elo';
 /** The short explanation behind the i button of the Elo board, and at the top of /elo. */
 export const ELO_INFO = {
     label: 'Ka e Elo?',
-    text: `Alle starte på ${ELO_START}. Vinn du ein kamp, får du poeng frå motstandaren. Slår du någen som e betre enn deg, får du mykje. Slår du någen som e dårligare, får du lite. Lika gode spelara gir ${ELO_K / 2} poeng. Heile kampen telle éin gong, ikkje kvart sett. Kampa som blir vunne uten å bli spelt, avlyste kampa og trening telle ikkje. Elo-en følge nicket ditt frå LAN te LAN.`,
+    text: `Alle starte på ${ELO_START}. Vinn du ein kamp, får du poeng frå motstandaren. Slår du någen som e betre enn deg, får du mykje. Slår du någen som e dårligare, får du lite. Lika gode spelara gir ${ELO_K / 2} poeng. Heile kampen telle éin gong, ikkje kvart sett. Kampa som blir vunne uten å bli spelt, avlyste kampa og trening telle ikkje.`,
     link: 'Sjå utrekningå',
 } as const;
 

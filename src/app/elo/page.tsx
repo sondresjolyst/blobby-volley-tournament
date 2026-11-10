@@ -105,16 +105,6 @@ export default async function EloPage() {
                     </ul>
                 </section>
 
-                <section aria-labelledby="fra-lan-te-lan" className={styles.section}>
-                    <h2 id="fra-lan-te-lan" className={styles.heading}>
-                        Frå LAN te LAN
-                    </h2>
-                    <p>
-                        Elo-en følge nicket ditt. Store og små bokstava e det same. Bruke du same nick neste gong, tar du med deg Elo-en. Topplistå vise Elo, Elo før LANet, endringå
-                        og kor mange kampa med Elo du har spelt.
-                    </p>
-                </section>
-
                 <section aria-labelledby="retta-resultat" className={styles.section}>
                     <h2 id="retta-resultat" className={styles.heading}>
                         Når eit resultat blir retta
