@@ -6,7 +6,7 @@ async function signUp(browser: Browser, nickname: string) {
     const page = await context.newPage();
     await page.goto('/join');
     await page.getByLabel('LAN-kode').fill(process.env.E2E_EVENT_CODE ?? '');
-    await page.getByLabel('Kallenavn').fill(nickname);
+    await page.getByLabel('Kallenavn', { exact: true }).fill(nickname);
     await page.getByLabel('PIN-kode (4 siffer)').fill('1234');
     await page.getByRole('button', { name: 'Bli med på LANet' }).click();
     await expect(page).toHaveURL(/\/me$/);
@@ -42,7 +42,7 @@ test('a signed out visitor cannot place a bet, while a signed in player can', as
     await form.getByRole('radio', { name: new RegExp(`^${nicknames[0]} `) }).check();
     await form.getByLabel('Kor mykje Foza tør du?').fill('100');
     await form.getByRole('button', { name: 'Sats' }).click();
-    await expect(bettor.page.getByRole('status')).toHaveText('Spelet ditt e lagt inn. Lykke te!');
+    await expect(bettor.page.getByRole('status')).toHaveText('Bettet ditt e lagt inn. Lykke te!');
     await expect(bettor.page.getByRole('navigation', { name: 'Spelarsidå' })).toContainText('900 Foza');
     await expect(bettor.page.locator(`#kamp-${matchId}`)).toContainText('Du har satsa 100 Foza på');
     await bettor.context.close();

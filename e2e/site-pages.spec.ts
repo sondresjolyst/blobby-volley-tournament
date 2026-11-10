@@ -33,7 +33,7 @@ test('the html of the site is Norwegian', async ({ page }) => {
 test('the front page shows the active event and the way in for a visitor', async ({ page }) => {
     await page.goto('/');
     await expect(page.getByRole('heading', { level: 1, name: 'E2E LAN' })).toBeVisible();
-    await expect(page.getByText('20. til 22. november 2026')).toBeVisible();
+    await expect(page.getByText('20. te 22. november 2026')).toBeVisible();
     const main = page.getByRole('main');
     await expect(main.getByRole('link', { name: 'Bli med på LANet' })).toHaveAttribute('href', '/join');
     await expect(main.getByRole('link', { name: 'Logg inn' })).toHaveAttribute('href', '/login');
@@ -50,7 +50,7 @@ test('the front page links a signed in player to their page', async ({ page }) =
     const nickname = `Forside${randomBytes(3).toString('hex')}`;
     await page.goto('/join');
     await page.getByLabel('LAN-kode').fill(eventCode);
-    await page.getByLabel('Kallenavn').fill(nickname);
+    await page.getByLabel('Kallenavn', { exact: true }).fill(nickname);
     await page.getByLabel('PIN-kode (4 siffer)').fill('1234');
     await page.getByRole('button', { name: 'Bli med på LANet' }).click();
     await expect(page).toHaveURL(/\/me$/);
@@ -65,8 +65,8 @@ test('sign-up has labelled fields with hints and keeps the PIN rules', async ({ 
     await page.goto('/join');
     await expect(page.getByRole('heading', { level: 1, name: 'E2E LAN' })).toBeVisible();
     // The hint, then the help behind the i button.
-    await expect(page.getByLabel('LAN-kode')).toHaveAccessibleDescription(/^Står på storskjermen, eller spør ein admin. Koden står på storskjermen og hos admin. Koden sørge for at bare dei som e på LANet/);
-    await expect(page.getByLabel('Kallenavn')).toHaveAttribute('maxlength', '15');
+    await expect(page.getByLabel('LAN-kode')).toHaveAccessibleDescription(/^Står på storskjermen, eller spør ein admin. LAN-koden står på storskjermen og hos admin. Den sørge for at bare dei som e på LANet/);
+    await expect(page.getByLabel('Kallenavn', { exact: true })).toHaveAttribute('maxlength', '15');
     const pin = page.getByLabel('PIN-kode (4 siffer)');
     await expect(pin).toHaveAttribute('type', 'password');
     await expect(pin).toHaveAttribute('pattern', '[0-9]{4}');
@@ -75,7 +75,7 @@ test('sign-up has labelled fields with hints and keeps the PIN rules', async ({ 
 
 test('the one sign-in page has the player form and the admin GitHub button', async ({ page }) => {
     await page.goto('/login');
-    await expect(page.getByLabel('Kallenavn')).toBeVisible();
+    await expect(page.getByLabel('Kallenavn', { exact: true })).toBeVisible();
     await expect(page.getByLabel('PIN-kode', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Logg inn', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Admin? Logg inn med GitHub' })).toBeVisible();

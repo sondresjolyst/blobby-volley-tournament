@@ -52,7 +52,7 @@ const full: BigScreenData = {
                     { key: 'winners-2', name: 'Finale', more: 0, matches: [{ matchId: 3, state: 'upcoming', slots: [{ name: 'Blobfisk', score: null, outcome: null }, { name: 'Vinnar av kamp 2', score: null, outcome: null }] }] },
                 ],
             },
-            { key: 'losers', rows: 1, rounds: [{ key: 'losers-1', name: 'Taperrunde 1', more: 0, matches: [{ matchId: 4, state: 'upcoming', slots: [{ name: 'Kantina', score: null, outcome: null }, { name: 'Taper av kamp 2', score: null, outcome: null }] }] }] },
+            { key: 'losers', rows: 1, rounds: [{ key: 'losers-1', name: 'Taparrunde 1', more: 0, matches: [{ matchId: 4, state: 'upcoming', slots: [{ name: 'Kantina', score: null, outcome: null }, { name: 'Tapar av kamp 2', score: null, outcome: null }] }] }] },
         ],
     },
     upNext: [match(2, 'started', ['Skvett', 'Ostebit'], { game: 2, points: [11, 8] }), match(3, 'upcoming', ['Blobfisk', 'Kantina'])],
@@ -88,7 +88,7 @@ const html = (node: React.ReactElement) => renderToStaticMarkup(node);
 describe('the bracket screen', () => {
     it('shows every round of both sides', () => {
         const out = html(<BracketScreen data={full} />);
-        for (const text of ['Heile kampoppsettet', 'Kampoppsett · Hovedcupen', 'Vinnarsidå', 'Tapersidå', 'Semifinala', 'Finale', 'Taperrunde 1', 'Taper av kamp 2']) expect(out).toContain(text);
+        for (const text of ['Heile kampoppsettet', 'Kampoppsett · Hovedcupen', 'Vinnarsidå', 'Taparsidå', 'Semifinala', 'Finale', 'Taparrunde 1', 'Tapar av kamp 2']) expect(out).toContain(text);
         expect(out).toContain('--card-max:34');
     });
 
@@ -111,7 +111,7 @@ describe('the Foza screen', () => {
 describe('the up next screen', () => {
     it('lists the matches with the live score of the running one', () => {
         const out = html(<UpNextScreen data={full} />);
-        for (const text of ['Snart i ringen', 'LIVE', '11–8', 'Sett 2 · 1–0 i sett · best av 3 · Tennis', 'SNART', 'Blobfisk', 'Ingen spel ennå']) expect(out).toContain(text);
+        for (const text of ['Snart i ringen', 'LIVE', '11–8', 'Sett 2 · 1–0 i sett · best av 3 · Tennis', 'SNART', 'Blobfisk', 'Ingen bets ennå']) expect(out).toContain(text);
         expect(out.indexOf('Skvett')).toBeLessThan(out.indexOf('Blobfisk'));
     });
 
@@ -133,13 +133,13 @@ describe('the 1v1 screen', () => {
             '400 Foza i potten',
             'KLAR',
             'Taco',
-            'Spelå e åpne · ingen spel ennå',
+            'Åpent for betting · ingen bets ennå',
             '+ 2 kampa te',
             'Neste i turneringa',
             'ROPT OPP',
             'Semifinala, kamp 1 · Hovedcupen · best av 3',
             'SNART',
-            'Tidligere kampa',
+            'Tidlegare kampa',
             'Brunost',
             '2–1',
             'walkover',
@@ -156,9 +156,9 @@ describe('the 1v1 screen', () => {
         expect(out.indexOf('Fjert')).toBeGreaterThan(out.indexOf('Taco'));
         const row = out.slice(out.indexOf('Fjert vs Bot'), out.indexOf('Neste i turneringa'));
         expect(row).not.toContain('Foza');
-        expect(row).not.toContain('spel');
+        expect(row).not.toContain('bet');
         // a training match is never a finished 1v1
-        expect(out.slice(out.indexOf('Tidligere kampa'))).not.toContain('Fjert');
+        expect(out.slice(out.indexOf('Tidlegare kampa'))).not.toContain('Fjert');
     });
 
     it('says so in one line when a part is empty', () => {
@@ -178,7 +178,7 @@ describe('the 1v1 screen', () => {
 describe('the stats screen', () => {
     it('shows the records it has, and only those', () => {
         const out = html(<StatsScreen data={full} />);
-        for (const text of ['Rekorda', 'Største seier i eit sett', '15–0', 'Lengste kamp', '31 min']) expect(out).toContain(text);
+        for (const text of ['Gjæve fakta', 'Største seier i eit sett', '15–0', 'Lengste kamp', '31 min']) expect(out).toContain(text);
         expect(out).not.toContain('Største snuoperasjon');
     });
 

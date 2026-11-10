@@ -85,7 +85,7 @@ export default async function Home() {
                         <h1 id="tittel" className={s.heroTitle}>
                             {NO_LAN}
                         </h1>
-                        <p className={s.heroPitch}>Her blir det turnering i Blobby Volley og spel om Foza. {ADMIN_OPENS_LAN}</p>
+                        <p className={s.heroPitch}>Her blir det turnering i Blobby Volley og bet om Foza. {ADMIN_OPENS_LAN}</p>
                         <p className={s.heroNote}>
                             <AdminWayIn /> Gamle LAN finn du på <Link href="/leaderboard">topplistå</Link>.
                         </p>
@@ -205,7 +205,7 @@ export default async function Home() {
                         <li>
                             <Link href="/big" className={s.linkCard}>
                                 <span className={s.linkTitle}>Storskjermen</span>
-                                <span className={s.linkText}>Stillinga, kampoppsettet og topplistå, slik TV-en viser dei.</span>
+                                <span className={s.linkText}>Stillinga, kampoppsettet og topplistå, sånn TV-en viser dei.</span>
                             </Link>
                         </li>
                     </ul>

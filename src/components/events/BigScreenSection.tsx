@@ -22,8 +22,8 @@ export const SCREEN_INFO: Record<ScreenType, { name: string; shows: string }> = 
     bracket: { name: 'Bracket', shows: 'Every round of the bracket, large.' },
     foza: { name: 'Foza', shows: 'The bettors with the most Foza won and the biggest single wins.' },
     next: { name: 'Up next', shows: 'The matches on the floor with their live score, then the next ones in order.' },
-    duels: { name: '1v1s and next up', shows: 'The 1v1 matches on the floor with their score and bets, the latest 1v1 results, and the called and next matches of the tournament on show.' },
-    stats: { name: 'Stats', shows: 'Records such as the most wins, the biggest game win and the longest match. Records with nothing to show are left out.' },
+    duels: { name: '1v1s and up next', shows: 'The 1v1 matches on the floor with their score and bets, the latest 1v1 results, and the called and next matches of the tournament on show.' },
+    stats: { name: 'Records', shows: 'Records such as the most wins, the biggest game win and the longest match. Records with nothing to show are left out.' },
     sponsors: { name: 'Sponsors', shows: 'Every sponsor logo, full screen.' },
     winner: { name: 'Winner', shows: 'The champion and the final. Only once a tournament has a winner.' },
 };

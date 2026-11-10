@@ -105,7 +105,7 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
                 <InfoButton label="About the network PIN limit">
                     <p>
                         One network can give {CLIENT_WRONG_PINS_PER_HOUR} wrong PINs in an hour, across all players. After that nobody on it can sign in until the hour is over. Most
-                        players at the LAN share one network.
+                        players at the event share one network.
                     </p>
                 </InfoButton>
             </div>

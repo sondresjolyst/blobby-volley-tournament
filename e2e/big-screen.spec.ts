@@ -37,7 +37,7 @@ async function signUp(browser: Browser, nickname: string) {
     const page = await context.newPage();
     await page.goto('/join');
     await page.getByLabel('LAN-kode').fill(process.env.E2E_EVENT_CODE ?? '');
-    await page.getByLabel('Kallenavn').fill(nickname);
+    await page.getByLabel('Kallenavn', { exact: true }).fill(nickname);
     await page.getByLabel('PIN-kode (4 siffer)').fill('1234');
     await page.getByRole('button', { name: 'Bli med på LANet' }).click();
     await expect(page).toHaveURL(/\/me$/);
@@ -83,7 +83,7 @@ async function openScreensForm(page: Page) {
     await expect(page.getByRole('heading', { name: 'Screens' })).toBeVisible();
 }
 
-const SCREEN_NAMES = { overview: 'Overview', bracket: 'Bracket', foza: 'Foza', next: 'Up next', stats: 'Stats', sponsors: 'Sponsors', winner: 'Winner' } as const;
+const SCREEN_NAMES = { overview: 'Overview', bracket: 'Bracket', foza: 'Foza', next: 'Up next', stats: 'Records', sponsors: 'Sponsors', winner: 'Winner' } as const;
 type Screen = keyof typeof SCREEN_NAMES;
 
 /** Saves the screens of the big screen, in this order, and the seconds on each. */
@@ -282,7 +282,7 @@ test('a double elimination bracket of 16 players fits the screen', async ({ brow
     await page.setViewportSize({ width: 1920, height: 1080 });
     await page.goto(`/big?t=${tournamentId}&key=${key}&screen=bracket`);
     const full = page.getByRole('region', { name: 'Heile kampoppsettet' });
-    await expect(full).toContainText('Tapersidå');
+    await expect(full).toContainText('Taparsidå');
     await expect(full).not.toContainText('kampa te');
     await expectFits(page, ['Heile kampoppsettet']);
     await page.screenshot({ path: join(shots!, 'screen-bracket-de16-1920x1080.png') });
@@ -488,14 +488,14 @@ test('the other screens show the records and the champion, and never the code wi
     await expect(winner).toContainText(champion);
     await expect(winner).toContainText('0–2');
     await page.goto(`/big?t=${tournamentId}&screen=stats`);
-    await expect(page.getByRole('region', { name: 'Rekorda' })).toContainText('Største snuoperasjon');
+    await expect(page.getByRole('region', { name: 'Gjæve fakta' })).toContainText('Største snuoperasjon');
 
     const regions: Record<Screen, string[]> = {
         overview: ['Kampen nå', 'Kampoppsett', 'Toppliste', 'Bli med'],
         bracket: ['Heile kampoppsettet'],
         foza: ['Foza-toppen'],
         next: ['Snart i ringen'],
-        stats: ['Rekorda'],
+        stats: ['Gjæve fakta'],
         sponsors: ['Sponsorane'],
         winner: ['Vinnaren'],
     };

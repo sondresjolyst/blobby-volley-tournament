@@ -13,7 +13,7 @@ const NOTICES = '[role="status"], [role="alert"]';
 
 /** The admin pages are in English and the player pages in Nynorsk. */
 const failedText = (path: string) =>
-    path.startsWith('/admin') ? 'Something went wrong. Load the page again to see what was saved.' : 'Noko gjekk gale. Last sida på nytt for å sjå kva som vart lagra.';
+    path.startsWith('/admin') ? 'Something went wrong. Load the page again to see what was saved.' : 'Någe gjekk gale. Last sidå på nytt for å sjå ka som blei lagra.';
 
 /** The body of a post, the same as the browser would send for the form. */
 function bodyOf(form: HTMLFormElement, submitter: HTMLElement | null): FormData | URLSearchParams {

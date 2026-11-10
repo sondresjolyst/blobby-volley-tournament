@@ -24,7 +24,7 @@ export default async function AdminEvents() {
                             <tr>
                                 <th>Name</th>
                                 <th>Dates</th>
-                                <th>Code</th>
+                                <th>Event code</th>
                                 <th>Active</th>
                                 <th></th>
                             </tr>

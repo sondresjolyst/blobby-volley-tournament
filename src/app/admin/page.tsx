@@ -17,7 +17,7 @@ export default async function Admin() {
                     <p>No matches are waiting for a decision.</p>
                 ) : (
                     <>
-                        <p>The game server stopped these games without a winner. Go to the match to restart the game from 0-0 or enter the result.</p>
+                        <p>The game server abandoned these games without a winner. Go to the match to restart the game from 0-0 or enter the result.</p>
                         <div className="admin-table">
                             <table>
                                 <thead>
@@ -25,7 +25,7 @@ export default async function Admin() {
                                         <th>Event</th>
                                         <th>Match</th>
                                         <th>Players</th>
-                                        <th>Stopped</th>
+                                        <th>Abandoned</th>
                                         <th>Decide</th>
                                     </tr>
                                 </thead>
@@ -35,7 +35,7 @@ export default async function Admin() {
                                             <td data-label="Event">{match.eventName}</td>
                                             <td data-label="Match">{matchTitle(match, 'admin')}</td>
                                             <td data-label="Players">{matchPlayers(match, 'admin')}</td>
-                                            <td data-label="Stopped">{stoppedGame(match, match.game)}</td>
+                                            <td data-label="Abandoned">{stoppedGame(match, match.game)}</td>
                                             <td>
                                                 <Link href={`/admin/matches/${match.id}`}>Open match {match.id}</Link>
                                             </td>

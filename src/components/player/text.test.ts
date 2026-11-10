@@ -31,7 +31,7 @@ describe('player texts', () => {
         expect(foza(1250).replace(/\s/g, ' ')).toBe('1 250 Foza');
         expect(foza(15)).toBe('15 Foza');
         expect(payout(1.6)).toBe('betale 1,60×');
-        expect(payout(null)).toBe('ingen spel ennå');
+        expect(payout(null)).toBe('ingen bets ennå');
     });
 
     it('tells the daily Foza in one short line', () => {
@@ -76,8 +76,8 @@ describe('player texts', () => {
     });
 
     it('tells the real points under the points field of the 1v1 form', () => {
-        expect(pointsHint('default.lua', 15)).toBe('poeng i kvart sett, 1 te 99, vanleg e 15');
-        expect(pointsHint('tennis.lua', 9)).toBe('poeng i kvart sett, 1 te 99, vanleg e 15');
+        expect(pointsHint('default.lua', 15)).toBe('poeng i kvart sett, 1 te 99, vanlig e 15');
+        expect(pointsHint('tennis.lua', 9)).toBe('poeng i kvart sett, 1 te 99, vanlig e 15');
         expect(pointsHint('blitz.lua', 15)).toBe('Lyn spele alltid te 2');
         expect(pointsHint('firewall.lua', 15)).toBe('Brannmur gonge med 10, så dåkke spele te 150. Høgst 90');
     });
