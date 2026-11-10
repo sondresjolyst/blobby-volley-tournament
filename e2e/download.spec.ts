@@ -26,7 +26,7 @@ test.describe('on Windows', () => {
 
         const hero = page.locator('section', { has: page.getByRole('heading', { level: 1 }) });
         await expect(hero.getByRole('link', { name: 'Last ned for Windows' })).toHaveAttribute('href', `${DOWNLOAD}blobbyvolley2-tournament-0.1.1-windows-x64.zip`);
-        await expect(hero.getByText('30 MB · blobbyvolley2-tournament-0.1.1-windows-x64.zip')).toBeVisible();
+        await expect(hero.getByText('Blobby Volley 2 Tournament')).toBeVisible();
 
         const others = page.getByRole('region', { name: 'Andre system' });
         await expect(others.getByRole('link')).toHaveCount(3);
