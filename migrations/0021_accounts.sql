@@ -65,8 +65,18 @@ CREATE INDEX players_account_id_idx ON players (account_id);
 ALTER TABLE players ALTER COLUMN pin_hash DROP NOT NULL;
 ALTER TABLE players ALTER COLUMN pin_salt DROP NOT NULL;
 
--- A session belongs to the account. Sessions from before stay signed in. player_id is no longer
--- written and stays for the down file.
+-- A session belongs to the account. A session from before stays signed in only when its player gave
+-- the PIN of the account, the player of the newest event. The others end, so those players sign in
+-- again with the PIN of the account. player_id is no longer written and stays for the down file.
+DELETE FROM player_sessions s
+USING players p
+WHERE p.id = s.player_id
+  AND p.id <> (
+      SELECT newest.id FROM players newest JOIN events e ON e.id = newest.event_id
+      WHERE newest.nickname_key = p.nickname_key
+      ORDER BY e.starts_on DESC, e.id DESC
+      LIMIT 1
+  );
 ALTER TABLE player_sessions ADD COLUMN account_id integer REFERENCES accounts (id) ON DELETE CASCADE;
 UPDATE player_sessions s SET account_id = p.account_id FROM players p WHERE p.id = s.player_id;
 ALTER TABLE player_sessions ALTER COLUMN account_id SET NOT NULL;

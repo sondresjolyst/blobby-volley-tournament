@@ -37,6 +37,11 @@ async function migrateBeforeAccounts() {
 
 const runDown = () => pool.query(readFileSync(join(MIGRATIONS_DIR, 'down', NAME), 'utf8'));
 
+/** The token letter and the player of each session from before. Ola and Kari at the old LAN do not give the PIN of their account. */
+const SESSIONS = { a: 'ola1', b: 'nina2', d: 'ola2', e: 'kari1', f: 'per1' } as const;
+/** The sessions the migration keeps: those on the player row that gave the PIN of its account. */
+const KEPT = ['b', 'd', 'f'] as const;
+
 interface Seed {
     lan1: number;
     lan2: number;
@@ -106,14 +111,10 @@ async function seed(): Promise<Seed> {
          VALUES ($1, $2, 'reduced', 13, 15, 75, 'finished', 'r-1', 15, 3, true, now(), now())`,
         [lan2, ids.nina2],
     );
-    // Sessions from before: one on the old LAN and one on the new.
-    await pool.query(`INSERT INTO player_sessions (token_hash, player_id, expires_at) VALUES ($1, $2, $4), ($3, $5, $4)`, [
-        hashSessionToken('a'.repeat(43)),
-        ids.ola1,
-        hashSessionToken('b'.repeat(43)),
-        new Date('2026-11-25T00:00:00Z'),
-        ids.nina2,
-    ]);
+    // Sessions from before, on the player rows that give a PIN and on older rows that do not.
+    for (const [letter, player] of Object.entries(SESSIONS)) {
+        await pool.query('INSERT INTO player_sessions (token_hash, player_id, expires_at) VALUES ($1, $2, $3)', [hashSessionToken(letter.repeat(43)), ids[player], new Date('2026-11-25T00:00:00Z')]);
+    }
     return { lan1, lan2, ids, pins };
 }
 
@@ -171,13 +172,18 @@ describe('0021_accounts.sql', () => {
         // The older LAN shows the nickname of the account now.
         expect(byId.get(s.ids.ola1)!.nickname).toBe('OLA');
 
-        // Every row is still there, the same, and the sessions now name their account.
-        expect(await untouched()).toEqual(before);
+        // Every row is still there, the same. Only the sessions on rows that did not give the PIN are gone.
+        const after = await untouched();
+        const keptPlayers = new Set(KEPT.map((letter) => s.ids[SESSIONS[letter]]));
+        expect(after).toEqual({ ...before, sessions: (before.sessions as { player_id: number }[]).filter((r) => keptPlayers.has(r.player_id)) });
         const sessions = (await pool.query<{ player_id: number; account_id: number }>('SELECT player_id, account_id FROM player_sessions')).rows;
-        expect(sessions).toHaveLength(2);
+        expect(sessions.map((r) => r.player_id).sort()).toEqual([...keptPlayers].sort());
         for (const session of sessions) expect(session.account_id).toBe(byId.get(session.player_id)!.account_id);
-        // The session from the old LAN now signs Ola in to the new one.
-        expect((await getSessionAccount(pool, 'a'.repeat(43), now))?.player?.id).toBe(s.ids.ola2);
+        // A session on the PIN row signs in to its account. A session on an older row of a merged account is gone.
+        expect((await getSessionAccount(pool, 'd'.repeat(43), now))?.player?.id).toBe(s.ids.ola2);
+        expect((await getSessionAccount(pool, 'f'.repeat(43), now))).toMatchObject({ accountId: account.per.id, player: null });
+        expect(await getSessionAccount(pool, 'a'.repeat(43), now)).toBeNull();
+        expect(await getSessionAccount(pool, 'e'.repeat(43), now)).toBeNull();
 
         // The PIN of the newest LAN works. The old one does not.
         expect(await signInPlayer(pool, 'ola', '4444', 'ip:192.0.2.1', now)).toEqual({ ok: true, accountId: account.ola.id });
@@ -219,7 +225,7 @@ describe('0021_accounts.sql', () => {
         expect(pinOf(after.players, s.ids.kari1)).toEqual(reset.hash);
         expect(pinOf(after.players, s.ids.kari2)).toEqual(reset.hash);
         expect(pinOf(after.players, s.ids.ola1)).toEqual(s.pins.ola2);
-        expect((after.sessions as { player_id: number }[]).map((r) => r.player_id).sort()).toEqual([s.ids.ola1, s.ids.nina2, s.ids.kari2].sort());
+        expect((after.sessions as { player_id: number }[]).map((r) => r.player_id).sort()).toEqual([s.ids.ola2, s.ids.nina2, s.ids.per1, s.ids.kari2].sort());
         // The PIN lock comes from the account too.
         const ola1 = (after.players as Record<string, unknown>[]).find((r) => r.id === s.ids.ola1)!;
         expect(ola1).toMatchObject({ failed_pin_attempts: 2, lock_level: 1, last_failed_pin_at: new Date('2026-11-21T11:00:00Z') });
