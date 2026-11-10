@@ -142,7 +142,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                                         .
                                     </li>
                                     <li>Trykk på &quot;join link&quot; øvst i hovudmenyen.</li>
-                                    <li>Svar Yes.</li>
+                                    <li>Trykk &quot;join&quot; eller Enter.</li>
                                 </ol>
                                 <div className={styles.heroNote}>
                                     Lenkjå og koden e bare dine. Ikkje del dei. Mista du sambandet, gjer det same igjen.{' '}

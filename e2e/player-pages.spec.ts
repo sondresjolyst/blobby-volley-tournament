@@ -94,7 +94,7 @@ test('a player challenges another to a 1v1, the other sees it and accepts withou
             'Kopier lenkjå med knappen.',
             'Opne Blobby Volley. Har du det ikkje? Last det ned.',
             'Trykk på "join link" øvst i hovudmenyen.',
-            'Svar Yes.',
+            'Trykk "join" eller Enter.',
         ]);
         await expect(hero.getByRole('link', { name: 'Last det ned' })).toHaveAttribute('href', '/last-ned');
         // The server and the own code, for typing in by hand.
