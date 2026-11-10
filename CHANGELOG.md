@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.7.0](https://github.com/sondresjolyst/blobby-volley-tournament/compare/v0.6.0...v0.7.0) (2026-11-10)
+
+
+### Features
+
+* add a download page for the game ([#94](https://github.com/sondresjolyst/blobby-volley-tournament/issues/94)) ([81c8583](https://github.com/sondresjolyst/blobby-volley-tournament/commit/81c85836d7096ba0b09143997814df9fac290bb5))
+* **admin:** page and search the players and matches lists and line up the admin event rows ([#92](https://github.com/sondresjolyst/blobby-volley-tournament/issues/92)) ([28dcd4b](https://github.com/sondresjolyst/blobby-volley-tournament/commit/28dcd4b43919ee5d127693ad8995875696782c2f))
+* **big-screen:** add a 1v1 screen with the live and latest 1v1 matches and the next tournament matches ([#91](https://github.com/sondresjolyst/blobby-volley-tournament/issues/91)) ([25e3736](https://github.com/sondresjolyst/blobby-volley-tournament/commit/25e3736a4c8bb7af15a5813a15dc131ac0879983))
+* explain the Elo rating to players ([#104](https://github.com/sondresjolyst/blobby-volley-tournament/issues/104)) ([8928948](https://github.com/sondresjolyst/blobby-volley-tournament/commit/89289485d7ba18f90ee2be8aa65a8ac4ed06d9b5))
+* keep the sponsor strip at the bottom of the window ([#86](https://github.com/sondresjolyst/blobby-volley-tournament/issues/86)) ([d040d2e](https://github.com/sondresjolyst/blobby-volley-tournament/commit/d040d2e2061f19935249fc08c6a512607aa2ec7d))
+* let players train against a bot on the game server ([#95](https://github.com/sondresjolyst/blobby-volley-tournament/issues/95)) ([548e6f2](https://github.com/sondresjolyst/blobby-volley-tournament/commit/548e6f2b0327e410f9ef0ef5a35de25763baf219))
+* make player accounts global across LANs ([#105](https://github.com/sondresjolyst/blobby-volley-tournament/issues/105)) ([433fcd1](https://github.com/sondresjolyst/blobby-volley-tournament/commit/433fcd10c1b6046be0064a41e536cd4d76fd5e3e))
+* pick the game rules from a list for tournament rounds and 1v1 matches ([#90](https://github.com/sondresjolyst/blobby-volley-tournament/issues/90)) ([4924f60](https://github.com/sondresjolyst/blobby-volley-tournament/commit/4924f601b3eee55010871b9f0fca2f97c6321fbf))
+* show live matches and trainings under I ringen nå on /me ([#98](https://github.com/sondresjolyst/blobby-volley-tournament/issues/98)) ([0500a2d](https://github.com/sondresjolyst/blobby-volley-tournament/commit/0500a2def1f4dc595ba10ae998a86bd54877abf9))
+* sort the training bots from easy to hard and show how hard each one is ([#99](https://github.com/sondresjolyst/blobby-volley-tournament/issues/99)) ([39c7477](https://github.com/sondresjolyst/blobby-volley-tournament/commit/39c747788e6ef9a1a5f5e3ff0fca95f4de75ad2f))
+* tell the player on /me when they got the daily Foza for today ([#84](https://github.com/sondresjolyst/blobby-volley-tournament/issues/84)) ([3a84721](https://github.com/sondresjolyst/blobby-volley-tournament/commit/3a84721791193fe72860d302d3f6cd534b004e38))
+
+
+### Bug Fixes
+
+* keep the scroll position when a form is sent ([#89](https://github.com/sondresjolyst/blobby-volley-tournament/issues/89)) ([851c808](https://github.com/sondresjolyst/blobby-volley-tournament/commit/851c8088cd9e2d55ae4e198d0ebf9a7962e33520))
+* keep the sponsor strip moving at every screen width ([#85](https://github.com/sondresjolyst/blobby-volley-tournament/issues/85)) ([c8bee6a](https://github.com/sondresjolyst/blobby-volley-tournament/commit/c8bee6a0fc604b229276c3462ce417a3935fa96c))
+* line up the difficulty field with the points field in the training form ([#96](https://github.com/sondresjolyst/blobby-volley-tournament/issues/96)) ([cd15534](https://github.com/sondresjolyst/blobby-volley-tournament/commit/cd15534b70e301c8d92a7c02f1295643decaa985))
+* save the training texts as UTF-8 ([#97](https://github.com/sondresjolyst/blobby-volley-tournament/issues/97)) ([85864a9](https://github.com/sondresjolyst/blobby-volley-tournament/commit/85864a9a03d1df8dafa4a9f0841d19e08b8ed688))
+* show only the game title on the download page ([#101](https://github.com/sondresjolyst/blobby-volley-tournament/issues/101)) ([b19eaa8](https://github.com/sondresjolyst/blobby-volley-tournament/commit/b19eaa847717ca2b51c61bf23f3a324730e7777a))
+* tell players to press join or Enter and keep the menu on one row on phones ([#100](https://github.com/sondresjolyst/blobby-volley-tournament/issues/100)) ([429256a](https://github.com/sondresjolyst/blobby-volley-tournament/commit/429256a453c5a6ad1fa823ac83af31a1dc3e3b25))
+* use the same words across the player and admin pages ([#106](https://github.com/sondresjolyst/blobby-volley-tournament/issues/106)) ([7aa9f9c](https://github.com/sondresjolyst/blobby-volley-tournament/commit/7aa9f9c6202da21f5d0acf8ad0589492be959711))
+
 ## [0.6.0](https://github.com/sondresjolyst/blobby-volley-tournament/compare/v0.5.0...v0.6.0) (2026-11-08)
 
 
