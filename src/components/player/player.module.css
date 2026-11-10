@@ -1009,6 +1009,23 @@
         font-size: 28px;
     }
 
+    /* One row of links that scrolls sideways, so the menu does not wrap into several rows on a phone */
+    .nav {
+        flex-wrap: nowrap;
+        width: 100%;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .nav > * {
+        flex: none;
+        white-space: nowrap;
+    }
+
+    .shell .navLink {
+        padding: 0 12px;
+    }
+
     .hero {
         padding: 20px;
     }
