@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { headers } from 'next/headers';
 import { InstallSteps } from '@/components/download/InstallSteps';
 import styles from '@/components/download/download.module.css';
-import { DOWNLOAD_TEXT as T, downloadText, fileSize, systemName, versionLine } from '@/components/download/text';
+import { DOWNLOAD_TEXT as T, downloadText, systemName, versionLine } from '@/components/download/text';
 import p from '@/components/player/player.module.css';
 import { siteHeader } from '@/components/site/header';
 import { SiteShell } from '@/components/site/SiteShell';
@@ -18,13 +18,14 @@ export const metadata: Metadata = { title: 'Last ned · Blobby Volley Tournament
 
 const OS_ORDER: GameOs[] = ['windows', 'macos', 'linux'];
 
-const sizeAndName = (pkg: GamePackage) => [fileSize(pkg.size), pkg.name].filter(Boolean).join(' · ');
+/** The line under each download button. */
+const GAME_TITLE = 'Blobby Volley 2 Tournament';
 
 function PackageCard({ pkg }: { pkg: GamePackage }) {
     return (
         <li className={styles.card}>
             <span className={styles.cardTitle}>{systemName(pkg.os, pkg.arch)}</span>
-            <span className={styles.cardMeta}>{sizeAndName(pkg)}</span>
+            <span className={styles.cardMeta}>{GAME_TITLE}</span>
             <a href={pkg.url} className={styles.cardButton} aria-label={downloadText(pkg)}>
                 Last ned
             </a>
@@ -55,7 +56,6 @@ export default async function DownloadPage() {
                     <h1 id="tittel" className={`${s.heroTitle} ${styles.title}`}>
                         {T.title}
                     </h1>
-                    <p className={s.heroPitch}>{T.pitch}</p>
                     {packages.length === 0 ? (
                         <>
                             <p className={s.heroPitch}>{T.noRelease}</p>
@@ -72,7 +72,7 @@ export default async function DownloadPage() {
                                     <a href={pkg.url} className={i === 0 ? p.joinButton : s.heroSecondary}>
                                         {downloadText(pkg)}
                                     </a>
-                                    <span className={styles.primaryMeta}>{sizeAndName(pkg)}</span>
+                                    <span className={styles.primaryMeta}>{GAME_TITLE}</span>
                                 </div>
                             ))}
                         </div>
