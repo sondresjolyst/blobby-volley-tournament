@@ -1,5 +1,9 @@
 import { randomBytes } from 'node:crypto';
+import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
+
+// Set SITE_SHOTS to a folder to save screenshots of /elo there.
+const shots = process.env.SITE_SHOTS;
 
 test('a finished match shows on the leaderboards and the player stats', async ({ browser, baseURL }) => {
     const tag = randomBytes(2).toString('hex');
@@ -67,4 +71,22 @@ test('a finished match shows on the leaderboards and the player stats', async ({
     await expect(h2h.getByRole('cell')).toHaveText([nicknames[0], '1', '0']);
     await expect(page.getByRole('region', { name: 'Plasseringa' })).toContainText(`1. plass i ${name}`);
     await visitor.close();
+});
+
+test('the info button of the Elo board links to the page that explains Elo', async ({ page }) => {
+    await page.goto('/leaderboard?board=elo');
+    const board = page.getByRole('region', { name: 'Toppliste Elo' });
+    await board.getByRole('button', { name: 'Ka e Elo?' }).click();
+    await expect(board.getByText('Lika gode spelara gir 16 poeng.')).toBeVisible();
+    await board.getByRole('link', { name: 'Sjå utrekninga' }).click();
+    await expect(page).toHaveURL(/\/elo$/);
+    await expect(page.getByRole('heading', { level: 1, name: 'Sånn funke Elo' })).toBeVisible();
+    const rows = page.getByRole('table').getByRole('row');
+    await expect(rows.filter({ hasText: 'Lika gode' })).toContainText('+16');
+    await expect(rows.filter({ hasText: 'Underdogen vinne, 200 under' })).toContainText('+24');
+    for (const width of [1440, 390]) {
+        await page.setViewportSize({ width, height: 900 });
+        expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
+        if (shots) await page.screenshot({ path: join(shots, `elo-${width}.png`), fullPage: true });
+    }
 });

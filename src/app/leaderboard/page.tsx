@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { ELO_INFO } from '@/components/stats/elo-text';
 import { number, odds, percent, ratingChange, signed } from '@/components/stats/format';
+import { InfoButton } from '@/components/InfoButton';
 import { siteHeader } from '@/components/site/header';
 import { SiteShell } from '@/components/site/SiteShell';
 import styles from '@/components/stats/stats.module.css';
@@ -155,6 +157,17 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
                 <div className={styles.columns}>
                     <section aria-label={`Toppliste ${BOARDS[board]}`}>
                         {board === 'foza' && <p className={styles.subtitle}>Den som har vunne mest Foza på spel, ligg øvst.</p>}
+                        {board === 'elo' && (
+                            <div className={styles.infoRow}>
+                                <p className={styles.subtitle}>Den med høgast Elo ligg øvst.</p>
+                                <InfoButton label={ELO_INFO.label}>
+                                    <p>{ELO_INFO.text}</p>
+                                    <p>
+                                        <Link href="/elo">{ELO_INFO.link}</Link>
+                                    </p>
+                                </InfoButton>
+                            </div>
+                        )}
                         {rows.length === 0 ? (
                             <p className={styles.empty}>{EMPTY[board]}</p>
                         ) : (
