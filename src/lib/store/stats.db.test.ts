@@ -12,6 +12,7 @@ import { acceptChallenge, callMatch, cancelMatch, createChallenge, enterGameResu
 import { eloForEvent, eloRatings, getLeaderboard, getPlayerStats } from './stats';
 import { saveTournament } from './tournaments';
 import { inTransaction } from './transaction';
+import { withAccount } from './db-test-sql';
 
 if (!process.env.TEST_DATABASE_URL) {
     throw new Error('TEST_DATABASE_URL is not set. Run these tests with npm run test:db.');
@@ -34,8 +35,8 @@ afterAll(async () => {
 async function addPlayer(eventId: number, nickname: string): Promise<number> {
     return inTransaction(pool, async (client) => {
         const { rows } = await client.query<{ id: number }>(
-            `INSERT INTO players (event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance, created_at, join_code)
-             VALUES ($1, $2, $3, '\\x00', '\\x00', 0, $4, $5) RETURNING id`,
+            `${withAccount()} INSERT INTO players (account_id, event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance, created_at, join_code)
+             VALUES ((SELECT id FROM account), $1, $2, $3, '\\x00', '\\x00', 0, $4, $5) RETURNING id`,
             [eventId, nickname, nickname.toLowerCase(), NOW, newJoinCode()],
         );
         await addLedger(client, [{ playerId: rows[0].id, type: 'starting', amount: 1000 }]);
@@ -80,7 +81,9 @@ async function win(winner: number, loser: number): Promise<number> {
     return id;
 }
 
-const rated = (winner: string, loser: string): RatedMatch => ({ matchId: 0, eventId: 0, tournamentId: null, winner, loser });
+// Elo knows a player by the account. Any number stands for one here.
+const K = { a: 1, b: 2, c: 3, d: 4 } as const;
+const rated = (winner: number, loser: number): RatedMatch => ({ matchId: 0, eventId: 0, tournamentId: null, winner, loser });
 
 describe('Elo', () => {
     it('rates only played matches, recalculates corrections in play order and carries ratings into the next event', async () => {
@@ -99,32 +102,32 @@ describe('Elo', () => {
         await resetMatch(pool, cancelled);
         await cancelMatch(pool, cancelled);
 
-        let expected = replayElo([rated('a', 'b'), rated('b', 'c'), rated('c', 'a')]).ratings;
+        let expected = replayElo([rated(K.a, K.b), rated(K.b, K.c), rated(K.c, K.a)]).ratings;
         let elo = await eloForEvent(pool, one.eventId);
-        expect(elo.get(A)!.rating).toBeCloseTo(expected.get('a')!, 9);
-        expect(elo.get(B)!.rating).toBeCloseTo(expected.get('b')!, 9);
+        expect(elo.get(A)!.rating).toBeCloseTo(expected.get(K.a)!, 9);
+        expect(elo.get(B)!.rating).toBeCloseTo(expected.get(K.b)!, 9);
         expect(elo.get(C)!.matches).toBe(2);
 
         // The first match is corrected after the others were played. It stays first.
         await game(m1, 7, 15, 1);
-        expected = replayElo([rated('b', 'a'), rated('b', 'c'), rated('c', 'a')]).ratings;
+        expected = replayElo([rated(K.b, K.a), rated(K.b, K.c), rated(K.c, K.a)]).ratings;
         elo = await eloForEvent(pool, one.eventId);
-        for (const [key, id] of [['a', A], ['b', B], ['c', C]] as const) {
+        for (const [key, id] of [[K.a, A], [K.b, B], [K.c, C]] as const) {
             expect(elo.get(id)).toMatchObject({ start: 1000, matches: 2 });
             expect(elo.get(id)!.rating).toBeCloseTo(expected.get(key)!, 9);
             expect(elo.get(id)!.change).toBeCloseTo(expected.get(key)! - 1000, 9);
         }
 
-        // The next event knows a player by the nickname, ignoring case.
+        // The next event knows a player by the account. Here the account is found by the nickname, ignoring case.
         const two = await event(2, ['a', 'D']);
         const m6 = await win(two.ids.a, two.ids.D);
-        const end1 = expected.get('a')!;
+        const end1 = expected.get(K.a)!;
         let next = await eloForEvent(pool, two.eventId);
         expect(next.get(two.ids.a)!.start).toBeCloseTo(end1, 9);
         expect(next.get(two.ids.D)!.start).toBe(1000);
-        const after = replayElo([rated('b', 'a'), rated('b', 'c'), rated('c', 'a'), rated('a', 'd')]).ratings;
-        expect(next.get(two.ids.a)!.rating).toBeCloseTo(after.get('a')!, 9);
-        expect(next.get(two.ids.a)!.change).toBeCloseTo(after.get('a')! - end1, 9);
+        const after = replayElo([rated(K.b, K.a), rated(K.b, K.c), rated(K.c, K.a), rated(K.a, K.d)]).ratings;
+        expect(next.get(two.ids.a)!.rating).toBeCloseTo(after.get(K.a)!, 9);
+        expect(next.get(two.ids.a)!.change).toBeCloseTo(after.get(K.a)! - end1, 9);
 
         // The first event keeps its own numbers.
         expect((await eloForEvent(pool, one.eventId)).get(A)!.rating).toBeCloseTo(end1, 9);
@@ -132,8 +135,8 @@ describe('Elo', () => {
         // A correction in a past event moves the ratings of every later event.
         await game(m1, 15, 7, 1);
         next = await eloForEvent(pool, two.eventId);
-        const corrected = replayElo([rated('a', 'b'), rated('b', 'c'), rated('c', 'a'), rated('a', 'd')]).ratings;
-        expect(next.get(two.ids.a)!.rating).toBeCloseTo(corrected.get('a')!, 9);
+        const corrected = replayElo([rated(K.a, K.b), rated(K.b, K.c), rated(K.c, K.a), rated(K.a, K.d)]).ratings;
+        expect(next.get(two.ids.a)!.rating).toBeCloseTo(corrected.get(K.a)!, 9);
 
         // A reset takes the match out until it is played again.
         await resetMatch(pool, m6);

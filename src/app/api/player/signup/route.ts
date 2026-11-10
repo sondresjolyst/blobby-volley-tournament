@@ -20,5 +20,5 @@ export async function POST(req: Request) {
         new Date(),
     );
     if (!result.ok) return seeOther(`/join?error=${result.error}`);
-    return signedIn(result.playerId);
+    return signedIn(result.accountId);
 }

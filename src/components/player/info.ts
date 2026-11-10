@@ -3,7 +3,7 @@
 
 export const FIELD_INFO = {
     code: { label: 'Koffor ein kode?', text: 'LAN-koden står på storskjermen og hos admin. Den sørge for at bare dei som e på LANet, kan bli med.' },
-    nickname: { label: 'Ka slags kallenavn?', text: 'Velg eit kallenavn dei andre kjenne deg igjen på. Det vises i Blobby Volley, på topplistå og på storskjermen, og du logge inn med det.' },
+    nickname: { label: 'Ka slags kallenavn?', text: 'Velg eit kallenavn dei andre kjenne deg igjen på. Det vises i Blobby Volley, på topplistå og på storskjermen, og du logge inn med det på kvart LAN. Ingen andre kan ta det.' },
     pin: { label: 'Ka e PIN-koden te?', text: 'Fire siffer du finne på sjøl. Du treng PIN-koden for å logga inn igjen, så bruk ikkje ein kode du har andre stader.' },
     signInNickname: { label: 'Ka kallenavn?', text: 'Kallenavnet du valgte då du blei med. Store og små bokstava e det same.' },
     signInPin: { label: 'Glømt PIN-koden?', text: 'Spør ein admin, så får du ein ny.' },

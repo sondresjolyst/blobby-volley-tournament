@@ -9,12 +9,14 @@ import { PlayerShell } from '@/components/player/PlayerShell';
 import { RulesFields } from '@/components/player/RulesFields';
 import styles from '@/components/player/player.module.css';
 import { matchPlayers, matchTitle } from '@/components/matches/describe';
+import { nicknameErrorMessage } from '@/components/players/messages';
 import { BET_STATUS, challengeErrorMessage, dailyFozaLine, dailyFozaNotice, foza, matchSettings, noticeMessage } from '@/components/player/text';
 import { BEST_OF } from '@/lib/bracket';
 import { betErrorMessage } from '@/lib/betting/input';
 import { getPool } from '@/lib/db';
 import { DEFAULT_GAME_SPEED, MAX_GAME_SPEED, MIN_GAME_SPEED } from '@/lib/matches/settings';
 import { rulesNote } from '@/lib/matches/rules';
+import { NICKNAME_MAX_BYTES } from '@/lib/players/nickname';
 import { requireActivePlayer } from '@/lib/players/current';
 import { joinLink } from '@/lib/players/join-code';
 import { listMatchPools, listPlayerBets } from '@/lib/store/bets';
@@ -29,7 +31,14 @@ import { TrainingCard } from '@/components/training/TrainingCard';
 import { OwnTrainingStats } from '@/components/training/TrainingStats';
 import { TRAINING_TEXT } from '@/components/training/text';
 
-type Search = { error?: string | string[]; bet?: string | string[]; challenge?: string | string[]; challengeError?: string | string[] };
+type Search = {
+    error?: string | string[];
+    bet?: string | string[];
+    challenge?: string | string[];
+    challengeError?: string | string[];
+    nickname?: string | string[];
+    nicknameError?: string | string[];
+};
 
 // Live matches first, then called ones, then the rest in play order.
 const STATE_ORDER = { started: 0, called: 1, upcoming: 2, finished: 3, cancelled: 3 } as const;
@@ -81,6 +90,8 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
     const betNotice = noticeMessage(search.bet);
     const challengeError = challengeErrorMessage(search.challengeError);
     const challengeNotice = noticeMessage(search.challenge);
+    const nicknameError = nicknameErrorMessage(search.nicknameError);
+    const nicknameNotice = search.nickname === 'changed' ? 'Kallenavnet ditt e bytta. Elo-en og alle kampa dine følge med.' : null;
     return (
         <PlayerShell page="matches" eventName={player.eventName} nickname={player.nickname} balance={balance}>
             {stamp !== null && <LiveRefresh eventId={player.eventId} stamp={stamp} />}
@@ -379,6 +390,32 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                             <p className={styles.closingNote}>Når motstandaren godtar, kan dåkke spela med det same, så sant ingen av dåkke e midt i ein kamp.</p>
                         </form>
                     )}
+                </section>
+
+                <section id="kallenavn" className={styles.panel} aria-labelledby="kallenavn-tittel">
+                    <h2 id="kallenavn-tittel" className={styles.h2}>
+                        Bytt kallenavn
+                    </h2>
+                    {nicknameError && (
+                        <p role="alert" className={styles.alert}>
+                            {nicknameError}
+                        </p>
+                    )}
+                    {nicknameNotice && (
+                        <p role="status" className={styles.notice}>
+                            {nicknameNotice}
+                        </p>
+                    )}
+                    <form method="post" action="/api/player/nickname" className={styles.challengeForm}>
+                        <label className={styles.field}>
+                            Nytt kallenavn
+                            <input name="nickname" required maxLength={NICKNAME_MAX_BYTES} defaultValue={player.nickname} autoComplete="nickname" className={styles.input} />
+                        </label>
+                        <button type="submit" className={styles.button}>
+                            Bytt kallenavn
+                        </button>
+                        <p className={styles.closingNote}>Du logge inn med det nye kallenavnet. Elo-en og alle kampa dine følge med, også frå LAN du har vore på før.</p>
+                    </form>
                 </section>
             </aside>
         </PlayerShell>

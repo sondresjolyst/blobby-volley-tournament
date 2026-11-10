@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { SessionPlayer } from '@/lib/store/players';
+import type { SessionAccount, SessionPlayer } from '@/lib/store/players';
 
 const cookieValue = vi.fn<() => string | undefined>();
-const getSessionPlayer = vi.fn();
+const getSessionAccount = vi.fn();
 
 vi.mock('next/headers', () => ({ cookies: async () => ({ get: () => (cookieValue() === undefined ? undefined : { value: cookieValue() }) }) }));
 vi.mock('next/navigation', () => ({
@@ -11,50 +11,53 @@ vi.mock('next/navigation', () => ({
     },
 }));
 vi.mock('@/lib/db', () => ({ getPool: () => ({}) }));
-vi.mock('@/lib/store/players', () => ({ getSessionPlayer: (...args: unknown[]) => getSessionPlayer(...args) }));
+vi.mock('@/lib/store/players', () => ({ getSessionAccount: (...args: unknown[]) => getSessionAccount(...args) }));
 
 import { getActivePlayer, requireActivePlayer } from './current';
 
 const token = 'a'.repeat(43);
-const player: SessionPlayer = { id: 1, nickname: 'Ola', fozaBalance: 1000, eventId: 2, eventName: 'LAN', eventActive: true };
+const player: SessionPlayer = { id: 1, nickname: 'Ola', fozaBalance: 1000, eventId: 2, eventName: 'LAN' };
+const account: SessionAccount = { accountId: 7, nickname: 'Ola', player };
+// Signed in, but not in the active event, or no event is active.
+const notJoined: SessionAccount = { ...account, player: null };
 
 afterEach(() => {
     cookieValue.mockReset();
-    getSessionPlayer.mockReset();
+    getSessionAccount.mockReset();
 });
 
 describe('requireActivePlayer', () => {
-    it('returns the player when the event is active', async () => {
+    it('returns the player of the account in the active event', async () => {
         cookieValue.mockReturnValue(token);
-        getSessionPlayer.mockResolvedValue(player);
+        getSessionAccount.mockResolvedValue(account);
         await expect(requireActivePlayer()).resolves.toBe(player);
     });
 
-    it('sends a player whose event is no longer active to sign-in', async () => {
+    it('sends an account that has not joined the active event to join it', async () => {
         cookieValue.mockReturnValue(token);
-        getSessionPlayer.mockResolvedValue({ ...player, eventActive: false });
-        await expect(requireActivePlayer()).rejects.toThrow('redirect:/login');
+        getSessionAccount.mockResolvedValue(notJoined);
+        await expect(requireActivePlayer()).rejects.toThrow('redirect:/bli-med');
     });
 
     it('sends a visitor without a session to sign-in', async () => {
         cookieValue.mockReturnValue(undefined);
         await expect(requireActivePlayer()).rejects.toThrow('redirect:/login');
-        expect(getSessionPlayer).not.toHaveBeenCalled();
+        expect(getSessionAccount).not.toHaveBeenCalled();
     });
 
     it('sends a visitor with an unknown token to sign-in', async () => {
         cookieValue.mockReturnValue(token);
-        getSessionPlayer.mockResolvedValue(null);
+        getSessionAccount.mockResolvedValue(null);
         await expect(requireActivePlayer()).rejects.toThrow('redirect:/login');
     });
 });
 
 describe('getActivePlayer', () => {
-    it('returns the player when the event is active and null otherwise, without redirecting', async () => {
+    it('returns the player of the active event and null otherwise, without redirecting', async () => {
         cookieValue.mockReturnValue(token);
-        getSessionPlayer.mockResolvedValue(player);
+        getSessionAccount.mockResolvedValue(account);
         await expect(getActivePlayer()).resolves.toBe(player);
-        getSessionPlayer.mockResolvedValue({ ...player, eventActive: false });
+        getSessionAccount.mockResolvedValue(notJoined);
         await expect(getActivePlayer()).resolves.toBeNull();
         cookieValue.mockReturnValue(undefined);
         await expect(getActivePlayer()).resolves.toBeNull();

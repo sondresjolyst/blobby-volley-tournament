@@ -123,7 +123,7 @@ test('an admin resets the PIN of a player', async ({ page, browser }) => {
     await expect(row).toContainText('1000');
     await row.getByLabel(`New PIN for ${nickname}`).fill('5678');
     await row.getByRole('button', { name: 'Reset PIN' }).click();
-    await expect(page.getByRole('status')).toHaveText(`Reset the PIN for ${nickname}.`);
+    await expect(page.getByRole('status')).toHaveText(`Reset the PIN for ${nickname}. The new PIN works at every LAN.`);
 
     // The reset signs the player out on every device.
     await playerPage.goto('/me');

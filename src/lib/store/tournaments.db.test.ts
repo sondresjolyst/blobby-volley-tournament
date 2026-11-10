@@ -6,6 +6,7 @@ import type { EventInput } from '@/lib/events/input';
 import { newJoinCode } from '@/lib/players/join-code';
 import { createEvent, setActiveEvent } from './events';
 import { getTournament, listTournaments, saveTournament } from './tournaments';
+import { withAccount } from './db-test-sql';
 
 if (!process.env.TEST_DATABASE_URL) {
     throw new Error('TEST_DATABASE_URL is not set. Run these tests with npm run test:db.');
@@ -30,8 +31,8 @@ async function addPlayers(eventId: number, count: number, prefix = 'P'): Promise
     const ids: number[] = [];
     for (let i = 1; i <= count; i++) {
         const { rows } = await pool.query<{ id: number }>(
-            `INSERT INTO players (event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance, join_code)
-             VALUES ($1, $2, $3, '\\x00', '\\x00', 0, $4) RETURNING id`,
+            `${withAccount()} INSERT INTO players (account_id, event_id, nickname, nickname_key, pin_hash, pin_salt, foza_balance, join_code)
+             VALUES ((SELECT id FROM account), $1, $2, $3, '\\x00', '\\x00', 0, $4) RETURNING id`,
             [eventId, `${prefix}${i}`, `${prefix.toLowerCase()}${i}`, newJoinCode()],
         );
         ids.push(rows[0].id);

@@ -317,6 +317,21 @@
     color: var(--yellow);
 }
 
+/* A form button that looks like the links next to it, such as Logg ut on /bli-med. */
+.authLinkButton {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--white);
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.authLinkButton:hover {
+    color: var(--yellow);
+}
+
 .authText {
     margin: 0;
     font-size: 16px;

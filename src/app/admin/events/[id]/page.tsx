@@ -77,7 +77,7 @@ export default async function EditEvent({ params, searchParams }: { params: Prom
             )}
             {message && <p role="alert">{message}</p>}
             {search.saved === '1' && <p role="status">Saved the event.</p>}
-            {resetPlayer && <p role="status">Reset the PIN for {resetPlayer.nickname}.</p>}
+            {resetPlayer && <p role="status">Reset the PIN for {resetPlayer.nickname}. The new PIN works at every LAN.</p>}
             {rotatedPlayer && <p role="status">{rotatedPlayer.nickname} has a new join code. The old join link stops working.</p>}
             {unlockedPlayer && <p role="status">{unlockedPlayer.nickname} is unlocked and can sign in again.</p>}
             {search.pinLimit === 'reset' && <p role="status">Reset the network PIN limit. Every network can try PINs again.</p>}

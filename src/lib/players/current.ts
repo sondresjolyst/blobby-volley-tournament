@@ -1,31 +1,35 @@
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { getPool } from '@/lib/db';
-import { getSessionPlayer, type SessionPlayer } from '@/lib/store/players';
+import { getSessionAccount, type SessionAccount, type SessionPlayer } from '@/lib/store/players';
 import { isWellFormedToken, SESSION_COOKIE } from './session';
 
-/** The signed in player on this device, or null. */
-export async function getCurrentPlayer(): Promise<SessionPlayer | null> {
+/** Where a signed in account goes to join the active event with its code. */
+export const JOIN_EVENT_PATH = '/bli-med';
+
+/** The signed in account on this device, with its player in the active event, or null. */
+export async function getCurrentAccount(): Promise<SessionAccount | null> {
     const token = (await cookies()).get(SESSION_COOKIE)?.value;
     if (!isWellFormedToken(token)) return null;
-    return getSessionPlayer(getPool(), token, new Date());
+    return getSessionAccount(getPool(), token, new Date());
 }
 
 /**
- * The signed in player, whose event must still be active. Anyone else is sent to sign-in. Pages
- * and actions that change a player's data use this.
+ * The signed in player of the active event. A signed out visitor is sent to sign-in, and an
+ * account that has not joined the active event to the step that joins it. Pages and actions that
+ * change a player's data use this.
  */
 export async function requireActivePlayer(): Promise<SessionPlayer> {
-    const player = await getActivePlayer();
-    if (!player) redirect('/login');
-    return player;
+    const account = await getCurrentAccount();
+    if (!account) redirect('/login');
+    if (!account.player) redirect(JOIN_EVENT_PATH);
+    return account.player;
 }
 
 /**
- * The signed in player whose event is still active, or null. It never redirects, so API routes
- * can answer a signed out request themselves.
+ * The signed in player of the active event, or null. It never redirects, so API routes can answer
+ * a signed out request themselves.
  */
 export async function getActivePlayer(): Promise<SessionPlayer | null> {
-    const player = await getCurrentPlayer();
-    return player && player.eventActive ? player : null;
+    return (await getCurrentAccount())?.player ?? null;
 }
