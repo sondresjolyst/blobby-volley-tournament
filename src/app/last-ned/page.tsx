@@ -56,7 +56,6 @@ export default async function DownloadPage() {
                     <h1 id="tittel" className={`${s.heroTitle} ${styles.title}`}>
                         {T.title}
                     </h1>
-                    <p className={s.heroPitch}>{T.pitch}</p>
                     {packages.length === 0 ? (
                         <>
                             <p className={s.heroPitch}>{T.noRelease}</p>

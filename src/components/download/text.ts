@@ -36,7 +36,6 @@ export function versionLine(version: string, publishedAt: string | null): string
 
 export const DOWNLOAD_TEXT = {
     title: 'Last ned spelet',
-    pitch: 'Blobby Volley 2 med turneringsmodus. Det e i dette spelet dåkke spele kampane på LANet.',
     pickSystem: 'Velg systemet ditt under.',
     otherSystems: 'Andre system',
     allSystems: 'Velg systemet ditt',
