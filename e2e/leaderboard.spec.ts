@@ -78,7 +78,7 @@ test('the info button of the Elo board links to the page that explains Elo', asy
     const board = page.getByRole('region', { name: 'Toppliste Elo' });
     await board.getByRole('button', { name: 'Ka e Elo?' }).click();
     await expect(board.getByText('Lika gode spelara gir 16 poeng.')).toBeVisible();
-    await board.getByRole('link', { name: 'Sjå utrekninga' }).click();
+    await board.getByRole('link', { name: 'Sjå utrekningå' }).click();
     await expect(page).toHaveURL(/\/elo$/);
     await expect(page.getByRole('heading', { level: 1, name: 'Sånn funke Elo' })).toBeVisible();
     const rows = page.getByRole('table').getByRole('row');

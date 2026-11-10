@@ -24,9 +24,9 @@ export default async function EloPage() {
                 <h1 className={styles.title}>Sånn funke Elo</h1>
                 <p>{ELO_INFO.text}</p>
 
-                <section aria-labelledby="utrekninga" className={styles.section}>
-                    <h2 id="utrekninga" className={styles.heading}>
-                        Utrekninga
+                <section aria-labelledby="utrekning" className={styles.section}>
+                    <h2 id="utrekning" className={styles.heading}>
+                        Utrekningå
                     </h2>
                     <p>Før kampen finne vi sjansen du har te å vinna:</p>
                     <p className={styles.formula}>
