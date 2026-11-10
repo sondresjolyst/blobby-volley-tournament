@@ -111,7 +111,7 @@ describe('the Foza screen', () => {
 describe('the up next screen', () => {
     it('lists the matches with the live score of the running one', () => {
         const out = html(<UpNextScreen data={full} />);
-        for (const text of ['Snart i ringen', 'LIVE', '11–8', 'Sett 2 · 1–0 i sett · best av 3 · Tennis', 'SNART', 'Blobfisk', 'Ingen spel ennå']) expect(out).toContain(text);
+        for (const text of ['Snart i ringen', 'LIVE', '11–8', 'Sett 2 · 1–0 i sett · best av 3 · Tennis', 'SNART', 'Blobfisk', 'Ingen bets ennå']) expect(out).toContain(text);
         expect(out.indexOf('Skvett')).toBeLessThan(out.indexOf('Blobfisk'));
     });
 
@@ -133,7 +133,7 @@ describe('the 1v1 screen', () => {
             '400 Foza i potten',
             'KLAR',
             'Taco',
-            'Spelå e åpne · ingen spel ennå',
+            'Åpent for betting · ingen bets ennå',
             '+ 2 kampa te',
             'Neste i turneringa',
             'ROPT OPP',
@@ -156,7 +156,7 @@ describe('the 1v1 screen', () => {
         expect(out.indexOf('Fjert')).toBeGreaterThan(out.indexOf('Taco'));
         const row = out.slice(out.indexOf('Fjert vs Bot'), out.indexOf('Neste i turneringa'));
         expect(row).not.toContain('Foza');
-        expect(row).not.toContain('spel');
+        expect(row).not.toContain('bet');
         // a training match is never a finished 1v1
         expect(out.slice(out.indexOf('Tidlegare kampa'))).not.toContain('Fjert');
     });

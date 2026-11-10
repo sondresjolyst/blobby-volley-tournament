@@ -104,7 +104,7 @@ export const CALLED_TEXT = {
 export const calledText = (inTournament: boolean) => CALLED_TEXT[inTournament ? 'tournament' : 'oneVsOne'];
 
 /** The tag of a match that takes bets. */
-export const BETS_OPEN = 'Spelå e åpne';
+export const BETS_OPEN = 'Åpent for betting';
 
 /** The state tags of the bracket, which only holds tournament matches. */
 export const STATE_TAGS: Record<MatchState, string> = {

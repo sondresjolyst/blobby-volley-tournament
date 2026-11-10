@@ -12,7 +12,7 @@ describe('big screen text', () => {
 
     it('says whether bets can still be placed when the pool is empty', () => {
         expect(poolLine({ open: true, pool: 0 })).toContain('Sats på /me');
-        expect(poolLine({ open: false, pool: 0 })).toContain('stengt');
+        expect(poolLine({ open: false, pool: 0 })).toContain('Stengt for betting');
         expect(poolLine({ open: false, pool: 4300 })).toBe('4 300 Foza i potten');
     });
 

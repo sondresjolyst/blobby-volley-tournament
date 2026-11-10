@@ -31,7 +31,7 @@ describe('player texts', () => {
         expect(foza(1250).replace(/\s/g, ' ')).toBe('1 250 Foza');
         expect(foza(15)).toBe('15 Foza');
         expect(payout(1.6)).toBe('betale 1,60×');
-        expect(payout(null)).toBe('ingen spel ennå');
+        expect(payout(null)).toBe('ingen bets ennå');
     });
 
     it('tells the daily Foza in one short line', () => {

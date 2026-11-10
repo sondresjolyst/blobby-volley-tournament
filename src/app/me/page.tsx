@@ -232,7 +232,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
 
                 <section className={styles.section} aria-labelledby="spel">
                     <h2 id="spel" className={styles.h2}>
-                        Spelå dine
+                        Betså dine
                     </h2>
                     {bets.length === 0 ? (
                         <p className={styles.muted}>Du har ikkje satsa någen Foza ennå.</p>

@@ -7,7 +7,7 @@ import { SPONSORS_LABEL } from '@/components/site/text';
 import { NO_LAN } from '@/lib/texts';
 
 export const BOARD_TEXT: Record<BoardKey, { tab: string; title: string; empty: string }> = {
-    foza: { tab: 'Mest Foza', title: 'Mest Foza vunne', empty: 'Ingen spel e avgjort ennå. Sats någe Foza på ein kamp, då!' },
+    foza: { tab: 'Mest Foza', title: 'Mest Foza vunne', empty: 'Ingen bets e avgjort ennå. Sats någe Foza på ein kamp, då!' },
     sigra: { tab: 'Flest seira', title: 'Flest seira', empty: 'Ingen kampa e ferdigspelt ennå. Det tar seg opp, sjå.' },
     elo: { tab: 'Elo', title: 'Elo-toppen', empty: 'Ingen spelara her ennå.' },
 };
@@ -25,7 +25,7 @@ export const livePoints = (live: NonNullable<ScreenMatch['live']>) => `${live.po
 
 /** What one Foza on each side pays back, such as `1,33× / 4,00×`, or a note while nobody has bet. */
 export function matchOdds(match: Pick<ScreenMatch, 'pool' | 'sides'>): string {
-    if (match.pool <= 0) return 'Ingen spel ennå';
+    if (match.pool <= 0) return 'Ingen bets ennå';
     return `${payout(match.sides[0].multiplier).replace('betale ', '')} / ${payout(match.sides[1].multiplier).replace('betale ', '')}`;
 }
 
@@ -35,7 +35,7 @@ export const siteAddress = (site: string | null, path: string) => `${site ?? ''}
 /** The line under the pool bar when nobody has bet yet. */
 export function poolLine(match: Pick<ScreenMatch, 'open' | 'pool'>, site: string | null = null): string {
     if (match.pool > 0) return `${foza(match.pool)} i potten`;
-    return match.open ? `Ingen har satsa ennå. Ka dåkke vente på? Sats på ${siteAddress(site, '/me')}!` : 'Ingen spel på denne. Spelå e stengt.';
+    return match.open ? `Ingen har satsa ennå. Ka dåkke vente på? Sats på ${siteAddress(site, '/me')}!` : 'Ingen bets på denne. Stengt for betting.';
 }
 
 /** A series score in the bracket, or nothing before the match starts. */
@@ -114,9 +114,9 @@ export function duelCaption(duel: Pick<ScreenDuel, 'live' | 'sides' | 'bestOf' |
     return duel.live ? `Sett ${duel.live.game} · ${duel.sides[0].sets}–${duel.sides[1].sets} i sett · ${settings}` : settings;
 }
 
-/** The bets on a 1v1, such as `Spelå e åpne · 120 Foza i potten · 1,50× / 3,00×`. Null when there is nothing to say. */
+/** The bets on a 1v1, such as `Åpent for betting · 120 Foza i potten · 1,50× / 3,00×`. Null when there is nothing to say. */
 export function duelBets(duel: Pick<ScreenDuel, 'open' | 'pool' | 'sides'>): string | null {
-    if (duel.open) return duel.pool > 0 ? `${BETS_OPEN} · ${foza(duel.pool)} i potten · ${matchOdds(duel)}` : `${BETS_OPEN} · ingen spel ennå`;
+    if (duel.open) return duel.pool > 0 ? `${BETS_OPEN} · ${foza(duel.pool)} i potten · ${matchOdds(duel)}` : `${BETS_OPEN} · ingen bets ennå`;
     return duel.pool > 0 ? `${foza(duel.pool)} i potten` : null;
 }
 

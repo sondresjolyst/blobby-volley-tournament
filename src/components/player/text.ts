@@ -16,7 +16,7 @@ export function foza(amount: number): string {
 
 /** Such as `betale 1,60×`, or a note while nobody backs the player. */
 export function payout(multiplier: number | null): string {
-    return multiplier === null ? 'ingen spel ennå' : `betale ${odds(multiplier)}`;
+    return multiplier === null ? 'ingen bets ennå' : `betale ${odds(multiplier)}`;
 }
 
 /** The quiet note on /me about the daily Foza, such as `Du får 100 Foza kvar dag du e med.` */
