@@ -99,7 +99,7 @@ export default async function EloPage() {
                     <ul className={styles.plainList}>
                         <li>Alle starte på {ELO_START}.</li>
                         <li>Bare ferdige kampa som blei spelt, telle. Det gjelde både turneringskampa og 1v1.</li>
-                        <li>Heile kampen telle éin gong. Best av 3 e éin kamp, ikkje tre. Sett og poeng i settå endre ingenting.</li>
+                        <li>Heile kampen telle éin gong. Best av 3 e éin kamp, ikkje tre.</li>
                         <li>Kampa som blir vunne uten å bli spelt, fordi någen ikkje møtte opp, telle ikkje.</li>
                         <li>Avlyste kampa og trening telle ikkje.</li>
                     </ul>
