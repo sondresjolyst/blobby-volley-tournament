@@ -140,7 +140,11 @@ Nothing here is stored. Every number is worked out from the stored results, bets
 
 ### Elo
 
-Every player starts at 1000. After each finished match, not each game, the winner gains `32 * (1 - E)` and the loser loses the same, where `E = 1 / (1 + 10^((loser - winner) / 400))` is the chance the winner had. Ratings are played through in order: events by start date, then matches by when they started. A corrected match keeps its start time, so it keeps its place, and every later rating follows. Ratings carry over between events. Each event has its own player rows, so a player is known across events by the account.
+Every player starts at 1000 (`ELO_START`), and K is 32 (`ELO_K`). A finished match changes Elo once for the winner of the series, so a best of 3 counts as one match and single games never count. The winner gains `32 * (1 - E)` and the loser loses the same, where `E = 1 / (1 + 10^((loser - winner) / 400))` is the chance the winner had. Equal ratings give 16. A favourite 200 above gets about 8 for a win, and an underdog 200 below gets about 24.
+
+Only finished matches with the result `played` count, in tournaments and 1v1 alike. Matches won without being played, such as no-shows, cancelled matches and training never count. Ratings are worked out again from all results each time they are read. Ratings are played through in order: events by start date, then matches by when they started. A corrected match keeps its start time, so it keeps its place, and every later rating follows. Ratings carry over between events. Each event has its own player rows, so a player is known across events by the account. The leaderboard shows the rating, the rating before the event, the change and the number of rated matches. Admins can seed a tournament by Elo, highest first.
+
+`/elo` explains the rating to players with the formula and a table of examples. The table is worked out from `expectedScore` and `winnerGain`, so it follows the code. The Elo board of the leaderboard links to it from its i button.
 
 ## Big screen
 
