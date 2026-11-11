@@ -30,6 +30,8 @@ test.afterEach(async ({ page }) => {
     await page.getByLabel('Game server host').fill('e2e-server.lan');
     await page.getByLabel('Game server port').fill('1234');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
+    // The field shows the host before the post is done, so the test waits for the answer.
+    await expect(page.locator('form[aria-busy="true"]')).toHaveCount(0);
     await expect(page.getByLabel('Game server host')).toHaveValue('e2e-server.lan');
 });
 
