@@ -91,6 +91,8 @@ test('an admin creates an event with a generated code and edits it', async ({ pa
     for (const host of ['localhost', '127.0.0.1', 'http://192.168.1.50', '999.1.1.1']) {
         await page.getByLabel('Game server host').fill(host);
         await page.getByRole('button', { name: 'Save', exact: true }).click();
+        // The alert is still there from the last host, so the test waits for this answer first.
+        await expect(page.locator('form[aria-busy="true"]')).toHaveCount(0);
         await expect(page.getByRole('alert').filter({ hasText: 'It cannot be localhost, 127.0.0.1 or a web address' })).toBeVisible();
     }
     await expect(page.getByLabel('Game server host')).toHaveValue('lan-pc.local');
