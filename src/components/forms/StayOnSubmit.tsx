@@ -16,7 +16,7 @@ const failedText = (path: string) =>
     path.startsWith('/admin') ? 'Something went wrong. Load the page again to see what was saved.' : 'Någe gjekk gale. Last sidå på nytt for å sjå ka som blei lagra.';
 
 /** The label of a busy button. A button can give its own with `data-busy-label`. */
-const busyText = (path: string) => (path.startsWith('/admin') ? 'Saving…' : 'Lagrar…');
+const busyText = (path: string) => (path.startsWith('/admin') ? 'Saving…' : 'Lagre…');
 
 /** The body of a post, the same as the browser would send for the form. */
 function bodyOf(form: HTMLFormElement, submitter: HTMLElement | null): FormData | URLSearchParams {

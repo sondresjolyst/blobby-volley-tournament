@@ -307,13 +307,13 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                                     <div className={styles.challengeButtons}>
                                         <form method="post" action={`/api/player/challenges/${m.id}`}>
                                             <input type="hidden" name="answer" value="accept" />
-                                            <button type="submit" className={styles.button}>
+                                            <button type="submit" className={styles.button} data-busy-label="Sender…">
                                                 Godta
                                             </button>
                                         </form>
                                         <form method="post" action={`/api/player/challenges/${m.id}`}>
                                             <input type="hidden" name="answer" value="decline" />
-                                            <button type="submit" className={styles.buttonQuiet}>
+                                            <button type="submit" className={styles.buttonQuiet} data-busy-label="Sender…">
                                                 Nei takk
                                             </button>
                                         </form>
@@ -384,7 +384,7 @@ export default async function Me({ searchParams }: { searchParams: Promise<Searc
                                     </span>
                                 </div>
                             </RulesFields>
-                            <button type="submit" className={styles.button}>
+                            <button type="submit" className={styles.button} data-busy-label="Sender…">
                                 Send utfordring
                             </button>
                             <p className={styles.closingNote}>Når motstandaren godtar, kan dåkke spela med det same, så sant ingen av dåkke e midt i ein kamp.</p>
