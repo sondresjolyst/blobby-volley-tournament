@@ -67,7 +67,7 @@ export default async function Join({ searchParams }: { searchParams: Promise<{ e
                         Glømme du PIN-koden, spør ein admin.
                     </span>
                 </div>
-                <button type="submit" className={s.authSubmit}>
+                <button type="submit" className={s.authSubmit} data-busy-label="Sender…">
                     Bli med på LANet
                 </button>
             </form>
