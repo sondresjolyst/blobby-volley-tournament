@@ -98,7 +98,7 @@ export function MatchCard({ match, pool, viewerId, balance, bet }: CardProps) {
                                 </InfoLabel>
                                 <input id={`amount-${match.id}`} aria-describedby={`amount-${match.id}-help`} className={styles.input} name="amount" type="number" min={1} max={Math.max(1, balance)} step={1} required inputMode="numeric" />
                             </div>
-                            <button type="submit" className={styles.button}>
+                            <button type="submit" className={styles.button} data-busy-label="Satsar…">
                                 {bet ? 'Høgn bettet' : 'Sats'}
                             </button>
                         </div>

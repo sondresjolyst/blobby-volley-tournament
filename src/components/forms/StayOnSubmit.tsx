@@ -15,6 +15,9 @@ const NOTICES = '[role="status"], [role="alert"]';
 const failedText = (path: string) =>
     path.startsWith('/admin') ? 'Something went wrong. Load the page again to see what was saved.' : 'Någe gjekk gale. Last sidå på nytt for å sjå ka som blei lagra.';
 
+/** The label of a busy button. A button can give its own with `data-busy-label`. */
+const busyText = (path: string) => (path.startsWith('/admin') ? 'Saving…' : 'Lagrar…');
+
 /** The body of a post, the same as the browser would send for the form. */
 function bodyOf(form: HTMLFormElement, submitter: HTMLElement | null): FormData | URLSearchParams {
     const data = new FormData(form, submitter);
@@ -49,6 +52,7 @@ export function StayOnSubmit({ children }: { children: ReactNode }) {
                 case 'error':
                     // The post may have reached the route, so it is not sent again by itself.
                     form.removeAttribute('aria-busy');
+                    markFree(form);
                     setFailed(failedText(window.location.pathname));
                     return;
                 case 'load':
@@ -75,20 +79,24 @@ export function StayOnSubmit({ children }: { children: ReactNode }) {
             event.preventDefault();
             // The form is busy until the page has the result, so a second press sends nothing.
             if (form.getAttribute('aria-busy') === 'true') return;
+            // The body is read before the buttons are disabled, as a disabled button sends nothing.
+            const body = bodyOf(form, submitter);
             form.setAttribute('aria-busy', 'true');
+            markBusy(form, submitter, busyText(window.location.pathname));
+            typed.forget(form);
             setFailed(null);
             let plan: AfterPost;
             try {
                 const res = await fetch(form.action, {
                     method: 'POST',
-                    body: bodyOf(form, submitter),
+                    body,
                     headers: { [BACKGROUND_POST_HEADER]: '1' },
                     credentials: 'same-origin',
                     cache: 'no-store',
                     redirect: 'manual',
                 });
-                const body: unknown = res.ok ? await res.json().catch(() => null) : null;
-                const location = body !== null && typeof body === 'object' && 'location' in body ? body.location : undefined;
+                const answer: unknown = res.ok ? await res.json().catch(() => null) : null;
+                const location = answer !== null && typeof answer === 'object' && 'location' in answer ? answer.location : undefined;
                 plan = afterPost(new URL(window.location.href), { redirected: res.type === 'opaqueredirect', status: res.status, location });
             } catch {
                 plan = { kind: 'error' };
@@ -98,14 +106,22 @@ export function StayOnSubmit({ children }: { children: ReactNode }) {
 
         // A page that the back button brings back from the cache keeps its busy forms, so they are freed.
         const onShow = (event: PageTransitionEvent) => {
-            if (event.persisted) document.querySelectorAll('form[aria-busy]').forEach((form) => form.removeAttribute('aria-busy'));
+            if (!event.persisted) return;
+            document.querySelectorAll<HTMLFormElement>('form[aria-busy]').forEach((form) => {
+                form.removeAttribute('aria-busy');
+                markFree(form);
+            });
         };
+
+        const onInput = (event: Event) => typed.note(event.target);
 
         window.addEventListener('submit', onSubmit);
         window.addEventListener('pageshow', onShow);
+        window.addEventListener('input', onInput);
         return () => {
             window.removeEventListener('submit', onSubmit);
             window.removeEventListener('pageshow', onShow);
+            window.removeEventListener('input', onInput);
         };
     }, [router]);
 
@@ -114,6 +130,7 @@ export function StayOnSubmit({ children }: { children: ReactNode }) {
         const anchor = waiting.current;
         if (isPending || !anchor) return;
         waiting.current = null;
+        typed.restore();
         keepInPlace(anchor);
         timers.current.forEach(clearTimeout);
         timers.current = floatNotices();
@@ -160,6 +177,113 @@ export function StayOnSubmit({ children }: { children: ReactNode }) {
         </>
     );
 }
+
+/** What a busy form changed on its buttons, so it can be undone when the post fails. */
+const busyButtons = new WeakMap<HTMLFormElement, (() => void)[]>();
+
+const isSubmit = (el: Element): el is HTMLButtonElement | HTMLInputElement =>
+    (el instanceof HTMLButtonElement || el instanceof HTMLInputElement) && el.type === 'submit';
+
+/**
+ * Disables and greys the submit buttons of a busy form, and shows a busy label on the button that
+ * sent it. A button with more than plain text keeps its label. Without a sender the first submit
+ * button gets the label.
+ */
+function markBusy(form: HTMLFormElement, submitter: HTMLElement | null, fallback: string) {
+    const buttons = [...form.elements].filter(isSubmit);
+    const labelled = buttons.find((button) => button === submitter) ?? buttons[0];
+    const undo: (() => void)[] = [];
+    for (const button of buttons) {
+        const wasDisabled = button.disabled;
+        button.disabled = true;
+        button.classList.add(styles.busy);
+        undo.push(() => {
+            button.disabled = wasDisabled;
+            button.classList.remove(styles.busy);
+        });
+        if (button !== labelled) continue;
+        const label = button.dataset.busyLabel ?? fallback;
+        if (button instanceof HTMLInputElement) {
+            const text = button.value;
+            button.value = label;
+            undo.push(() => (button.value = text));
+        } else if (button.childNodes.length === 1 && button.firstChild instanceof Text) {
+            // The text node of React stays in place, so React can still change it.
+            const node = button.firstChild;
+            const text = node.nodeValue;
+            node.nodeValue = label;
+            undo.push(() => (node.nodeValue = text));
+        }
+    }
+    busyButtons.set(form, undo);
+}
+
+function markFree(form: HTMLFormElement) {
+    busyButtons.get(form)?.forEach((undo) => undo());
+    busyButtons.delete(form);
+}
+
+type TextField = HTMLInputElement | HTMLTextAreaElement;
+
+const TEXT_TYPES = new Set(['text', 'search', 'email', 'tel', 'url', 'number']);
+
+const isTextField = (el: unknown): el is TextField => el instanceof HTMLTextAreaElement || (el instanceof HTMLInputElement && TEXT_TYPES.has(el.type));
+
+/** Finds a field again after the page is drawn anew, by its id or else by its form and name. */
+function fieldKey(field: TextField): string | null {
+    if (field.id) return `#${field.id}`;
+    const form = field.form;
+    if (!form || !field.name) return null;
+    const action = form.getAttribute('action') ?? '';
+    return JSON.stringify([action, formsWith(action).indexOf(form), field.name]);
+}
+
+function findField(key: string): TextField | null {
+    if (key.startsWith('#')) {
+        const el = document.getElementById(key.slice(1));
+        return isTextField(el) ? el : null;
+    }
+    const [action, index, name] = JSON.parse(key) as [string, number, string];
+    const el = formsWith(action)[index]?.elements.namedItem(name);
+    return isTextField(el) ? el : null;
+}
+
+/**
+ * The text the reader typed in fields that were not sent. The page is drawn anew after a post, so
+ * the text is put back. A field that the site now shows with another value keeps the new value.
+ */
+const typed = (() => {
+    const fields = new Map<string, { value: string; initial: string }>();
+    return {
+        note(target: EventTarget | null) {
+            if (!isTextField(target)) return;
+            const key = fieldKey(target);
+            if (key === null) return;
+            if (target.value === target.defaultValue) fields.delete(key);
+            else fields.set(key, { value: target.value, initial: target.defaultValue });
+        },
+        forget(form: HTMLFormElement) {
+            for (const el of form.elements) {
+                if (!isTextField(el)) continue;
+                const key = fieldKey(el);
+                if (key !== null) fields.delete(key);
+            }
+        },
+        restore() {
+            for (const [key, { value, initial }] of fields) {
+                const field = findField(key);
+                if (!field || field.defaultValue !== initial) {
+                    fields.delete(key);
+                    continue;
+                }
+                if (field.value === value) continue;
+                // The setter of the element type, so a field that React controls hears the change too.
+                Object.getOwnPropertyDescriptor(Object.getPrototypeOf(field), 'value')?.set?.call(field, value);
+                field.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        },
+    };
+})();
 
 /**
  * The part of the page where a form was sent from, and where it was on the screen. The page is

@@ -49,7 +49,7 @@ export default async function JoinEvent({ searchParams }: { searchParams: Promis
             </form>
             <form method="post" action="/api/player/signout" className={s.authSwitch}>
                 Ikkje deg?{' '}
-                <button type="submit" className={s.authLinkButton}>
+                <button type="submit" className={s.authLinkButton} data-busy-label="Loggar ut…">
                     Logg ut
                 </button>
             </form>
