@@ -40,7 +40,7 @@ export function InstallSteps({ os, linuxFile, macApp }: { os: GameOs; linuxFile?
                     </li>
                     <li>Etterpå starte du spelet med dobbeltklikk. Du kan flytta det te {q('Applications')}.</li>
                 </ol>
-                <p className={styles.note}>Spelet treng macOS 15 eller nyare. Ein Mac med M1 eller nyare tar den eine fila, ein Mac med Intel den andre.</p>
+                <p className={styles.note}>Spelet treng macOS 26 eller nyare. Ein Mac med M1 eller nyare tar den eine fila, ein Mac med Intel den andre.</p>
             </section>
         );
     }
