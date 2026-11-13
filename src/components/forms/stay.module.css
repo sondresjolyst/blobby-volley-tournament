@@ -26,3 +26,11 @@
 [role].closed {
     display: none;
 }
+
+/* The submit buttons of a form that is being sent. */
+button.busy,
+input.busy {
+    opacity: 0.55;
+    filter: grayscale(1);
+    cursor: wait;
+}

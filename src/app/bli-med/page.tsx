@@ -43,13 +43,13 @@ export default async function JoinEvent({ searchParams }: { searchParams: Promis
                         Står på storskjermen, eller spør ein admin.
                     </span>
                 </div>
-                <button type="submit" className={s.authSubmit}>
+                <button type="submit" className={s.authSubmit} data-busy-label="Sender…">
                     Bli med
                 </button>
             </form>
             <form method="post" action="/api/player/signout" className={s.authSwitch}>
                 Ikkje deg?{' '}
-                <button type="submit" className={s.authLinkButton}>
+                <button type="submit" className={s.authLinkButton} data-busy-label="Logge ut…">
                     Logg ut
                 </button>
             </form>

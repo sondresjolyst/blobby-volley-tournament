@@ -64,7 +64,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<Se
                                 Glømt PIN-koden? Spør ein admin.
                             </span>
                         </div>
-                        <button type="submit" className={s.authSubmit}>
+                        <button type="submit" className={s.authSubmit} data-busy-label="Logge inn…">
                             Logg inn
                         </button>
                     </form>

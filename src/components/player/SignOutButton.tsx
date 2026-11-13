@@ -4,7 +4,7 @@ import styles from './player.module.css';
 export function SignOutButton() {
     return (
         <form method="post" action="/api/player/signout">
-            <button type="submit" className={styles.signOut}>
+            <button type="submit" className={styles.signOut} data-busy-label="Logge ut…">
                 Logg ut
             </button>
         </form>
