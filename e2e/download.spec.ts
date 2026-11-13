@@ -53,7 +53,7 @@ test.describe('on a Mac', () => {
         await expect(hero.getByRole('link', { name: 'Last ned for Mac med M1 eller nyare' })).toBeVisible();
         await expect(hero.getByRole('link', { name: 'Last ned for Mac med Intel' })).toBeVisible();
         await expect(page.getByRole('region', { name: 'Andre system' }).getByRole('link')).toHaveCount(2);
-        await expect(page.getByText('Spelet treng macOS 15 eller nyare.')).toBeVisible();
+        await expect(page.getByText('Spelet treng macOS 26 eller nyare.')).toBeVisible();
         await expect(page.getByText('Blobby Volley 2 Tournament.app')).toBeVisible();
     });
 });
