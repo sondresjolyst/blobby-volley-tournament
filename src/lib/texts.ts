@@ -22,3 +22,12 @@ export const GITHUB_SIGN_IN_FAILED_TITLE = 'Innloggingå med GitHub gjekk ikkje'
 
 /** The GitHub sign-in of an admin failed. */
 export const GITHUB_SIGN_IN_FAILED = 'Innloggingå med GitHub gjekk ikkje.';
+
+/** The title of the page when a page broke. */
+export const ERROR_TITLE = 'Någe gjekk gale';
+
+/** The title of the page when an address leads nowhere. */
+export const NOT_FOUND_TITLE = 'Sidå fins ikkje';
+
+/** The link from an error page to the front page. */
+export const BACK_HOME = 'Tebake te framsidå';

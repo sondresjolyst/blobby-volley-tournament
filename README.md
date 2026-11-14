@@ -23,6 +23,8 @@ The schema lives in numbered SQL files in `migrations/`. `npm run db:migrate` ap
 
 To change the schema, add a new file with the next number. Do not edit a file that has run.
 
+The runner only applies files forward. It never runs the files in `migrations/down/`. To roll back a migration, restore a backup of the database from before it ran.
+
 ## Events and players
 
 An admin creates an event for each LAN under `/admin/events`, with a name, dates, an event code, a starting Foza amount and a daily Foza amount. One event at a time is active. Past events stay stored. The code field suggests a code from the name with four random characters at the end, since the name is public. Generate makes a fully random code from letters and digits that are easy to read out. Two events cannot have the same code.

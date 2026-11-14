@@ -159,6 +159,9 @@ const MATCH_COLUMNS = `id, event_id, tournament_id, bracket_match_id, state, bes
     score1, score2, manual_score1, manual_score2, manual_after_game, game_base, winner_id, result, cancel_reason,
     called_at, started_at, finished_at, cancelled_at`;
 
+/** The columns a state change may set besides the state. */
+const SETTABLE_COLUMNS = new Set(['winner_id', 'result', 'cancel_reason', 'score1', 'score2', 'manual_score1', 'manual_score2', 'manual_after_game', 'game_base']);
+
 class Refused extends Error {
     constructor(
         readonly reason: MatchError,
@@ -187,6 +190,9 @@ class MatchTx {
         const to = nextState(this.match.state, action);
         if (to === null) throw new Refused('state');
         const stamp = { call: 'called_at', start: 'started_at', finish: 'finished_at', forfeit: 'finished_at', cancel: 'cancelled_at', reopen: null, reset: null }[action];
+        for (const column of Object.keys(set)) {
+            if (!SETTABLE_COLUMNS.has(column)) throw new Error(`Unknown match column ${column}`);
+        }
         const values: Record<string, unknown> = { state: to, ...set };
         const columns = Object.keys(values);
         const assignments = columns.map((column, i) => `${column} = $${i + 2}`);
