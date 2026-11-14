@@ -383,6 +383,15 @@ describe('sessions', () => {
         expect((await pool.query('SELECT 1 FROM player_sessions')).rowCount).toBe(0);
     });
 
+    it('is deleted once expired when a new attempt window starts, also when the account never signs in again', async () => {
+        const { accountId } = await activeEventWithPlayer('Ola');
+        await createSession(pool, accountId, now);
+        await bumpAttempts(pool, 'ip:198.51.100.9', new Date(now.getTime() + SESSION_MS - 1000));
+        expect((await pool.query('SELECT 1 FROM player_sessions')).rowCount).toBe(1);
+        await bumpAttempts(pool, 'ip:198.51.100.10', new Date(now.getTime() + SESSION_MS));
+        expect((await pool.query('SELECT 1 FROM player_sessions')).rowCount).toBe(0);
+    });
+
     it('is deleted on sign out', async () => {
         const { accountId } = await activeEventWithPlayer('Ola');
         const { token } = await createSession(pool, accountId, now);
