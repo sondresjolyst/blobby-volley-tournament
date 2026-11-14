@@ -2,7 +2,7 @@ import type { Pool } from 'pg';
 
 export const ATTEMPT_WINDOW_MS = 60 * 60 * 1000;
 
-/** Rows older than this are deleted when a new window starts. */
+/** Rows older than this are deleted when a new window starts. Expired player sessions are deleted then too. */
 const KEEP_MS = 24 * 60 * 60 * 1000;
 
 /** The start of the fixed window that holds this moment. */
@@ -22,6 +22,7 @@ export async function bumpAttempts(pool: Pool, bucket: string, now: Date): Promi
     const count = rows[0].count;
     if (count === 1) {
         await pool.query('DELETE FROM auth_attempts WHERE window_start < $1', [new Date(start.getTime() - KEEP_MS)]);
+        await pool.query('DELETE FROM player_sessions WHERE expires_at <= $1', [now]);
     }
     return count;
 }

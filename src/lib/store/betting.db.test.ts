@@ -677,6 +677,24 @@ describe('concurrency', () => {
         expect(await balances({ X: s.X, Y: s.Y })).toEqual({ X: 1000, Y: 1000 });
     });
 
+    it('keeps the balance at 0 or above and the ledger in step when one player places two bets at once', async () => {
+        const s = await setup();
+        const first = await oneVsOne(s.A, s.B);
+        const second = await oneVsOne(s.C, s.D);
+        const results = await Promise.all([bet(s.X, first, s.A, 600), bet(s.X, second, s.C, 600)]);
+        expect(results.filter((r) => r.ok)).toHaveLength(1);
+        expect(results.filter((r) => !r.ok && r.error === 'balance')).toHaveLength(1);
+        const left = await balance(s.X);
+        expect(left).toBe(400);
+        expect(left).toBeGreaterThanOrEqual(0);
+        expect(await ledgerTypes(s.X)).toEqual([
+            ['starting', 1000],
+            ['bet', -600],
+        ]);
+        const staked = await pool.query<{ total: number }>('SELECT coalesce(sum(amount), 0)::int AS total FROM bets WHERE player_id = $1', [s.X]);
+        expect(staked.rows[0].total).toBe(600);
+    });
+
     it('never lets two bets from the same player at once spend the same Foza', async () => {
         const s = await setup();
         const first = await oneVsOne(s.A, s.B);

@@ -56,6 +56,7 @@ describe('GET /api/player/bets and /api/player/balance', () => {
         getActivePlayer.mockResolvedValue(null);
         for (const res of [await GET(), await getBalanceRoute()]) {
             expect(res.status).toBe(401);
+            expect(res.headers.get('cache-control')).toBe('no-store');
             expect(await res.json()).toEqual({ error: 'unauthorized' });
         }
         expect(listPlayerBets).not.toHaveBeenCalled();
@@ -66,8 +67,12 @@ describe('GET /api/player/bets and /api/player/balance', () => {
         getActivePlayer.mockResolvedValue({ id: 5 });
         listPlayerBets.mockResolvedValue([]);
         getBalance.mockResolvedValue(1100);
-        expect(await (await GET()).json()).toEqual({ bets: [] });
-        expect(await (await getBalanceRoute()).json()).toEqual({ balance: 1100 });
+        const bets = await GET();
+        const balance = await getBalanceRoute();
+        expect(await bets.json()).toEqual({ bets: [] });
+        expect(await balance.json()).toEqual({ balance: 1100 });
+        expect(bets.headers.get('cache-control')).toBe('no-store');
+        expect(balance.headers.get('cache-control')).toBe('no-store');
         expect(listPlayerBets).toHaveBeenCalledWith({}, 5);
         expect(getBalance).toHaveBeenCalledWith({}, 5, expect.any(Date));
     });
