@@ -57,6 +57,9 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Docker build
+        run: docker build .
+
   build-and-push:
     needs: test
     if: inputs.tag != ''
