@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.8.0](https://github.com/sondresjolyst/blobby-volley-tournament/compare/v0.7.0...v0.8.0) (2026-11-14)
+
+
+### Features
+
+* set a per-request nonce in the Content-Security-Policy ([#114](https://github.com/sondresjolyst/blobby-volley-tournament/issues/114)) ([81d65a4](https://github.com/sondresjolyst/blobby-volley-tournament/commit/81d65a402537336c5f3ef8e84a3761a0fe0ec713))
+* show a busy label on the submit button while a form posts ([#108](https://github.com/sondresjolyst/blobby-volley-tournament/issues/108)) ([3d399ea](https://github.com/sondresjolyst/blobby-volley-tournament/commit/3d399ead3b084f8d2354b764a21bb7de0a74747d))
+
+
+### Bug Fixes
+
+* add error pages, stricter headers and session cleanup ([#113](https://github.com/sondresjolyst/blobby-volley-tournament/issues/113)) ([3d27e5f](https://github.com/sondresjolyst/blobby-volley-tournament/commit/3d27e5f190d469591142f5c93b50233e3e35b2c5))
+* say the game needs macOS 26 or newer on the download page ([#109](https://github.com/sondresjolyst/blobby-volley-tournament/issues/109)) ([1fee812](https://github.com/sondresjolyst/blobby-volley-tournament/commit/1fee812435307116463ebe1707eacfa7951d5fc5))
+
 ## [0.7.0](https://github.com/sondresjolyst/blobby-volley-tournament/compare/v0.6.0...v0.7.0) (2026-11-10)
 
 
