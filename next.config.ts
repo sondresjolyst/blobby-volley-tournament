@@ -1,24 +1,6 @@
 import type { NextConfig } from 'next';
 
-const dev = process.env.NODE_ENV !== 'production';
-
-// Next puts inline scripts in every page for its own bootstrap. A nonce would remove the need for
-// 'unsafe-inline' in script-src. It is not set up yet.
-const contentSecurityPolicy = [
-    "default-src 'self'",
-    dev ? "script-src 'self' 'unsafe-eval' 'unsafe-inline'" : "script-src 'self' 'unsafe-inline'",
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data:",
-    "connect-src 'self'",
-    "frame-src 'none'",
-    "object-src 'none'",
-    "font-src 'self'",
-    "base-uri 'self'",
-    "form-action 'self'",
-    "frame-ancestors 'none'",
-    'upgrade-insecure-requests',
-].join('; ');
-
+// The Content-Security-Policy is set in src/proxy.ts, since it holds a new nonce for each request.
 const securityHeaders = [
     { key: 'X-Content-Type-Options', value: 'nosniff' },
     { key: 'X-Frame-Options', value: 'DENY' },
@@ -27,7 +9,6 @@ const securityHeaders = [
     { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
     { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
     { key: 'Cross-Origin-Resource-Policy', value: 'same-origin' },
-    { key: 'Content-Security-Policy', value: contentSecurityPolicy },
 ];
 
 const nextConfig: NextConfig = {

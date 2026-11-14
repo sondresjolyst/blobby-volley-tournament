@@ -85,6 +85,19 @@ describe('proxy', () => {
         expect(res.headers.get('set-cookie')).toBeNull();
     });
 
+    it('sets a policy with a new nonce on every response and hands it to the page', async () => {
+        getToken.mockResolvedValue(null);
+        const first = await call('/');
+        const second = await call('/');
+        const policy = first.headers.get('content-security-policy')!;
+        const nonce = /'nonce-([^']+)'/.exec(policy)![1];
+        expect(policy).toContain("'strict-dynamic'");
+        expect(second.headers.get('content-security-policy')).not.toContain(nonce);
+        expect(first.headers.get('x-middleware-request-content-security-policy')).toBe(policy);
+        expect(first.headers.get('x-middleware-request-x-nonce')).toBe(nonce);
+        expect((await call('/admin')).headers.get('content-security-policy')).toMatch(/'nonce-/);
+    });
+
     it('keeps public pages open when the auth address is misconfigured', async () => {
         vi.stubEnv('NODE_ENV', 'production');
         vi.stubEnv('NEXTAUTH_URL', 'http://bvt.example.test');
