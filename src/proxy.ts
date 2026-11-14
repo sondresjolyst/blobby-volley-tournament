@@ -2,6 +2,7 @@ import { getToken } from 'next-auth/jwt';
 import { NextResponse, type NextRequest } from 'next/server';
 import { authMisconfigured, isAuthPath, isProtectedPath, logMisconfigured, signInUrl } from '@/lib/auth/gate';
 import { isAllowedUser } from '@/lib/auth/options';
+import { contentSecurityPolicy, newNonce } from '@/lib/csp';
 
 async function readToken(req: NextRequest) {
     try {
@@ -11,9 +12,24 @@ async function readToken(req: NextRequest) {
     }
 }
 
+/**
+ * Gives every response a Content-Security-Policy with a new nonce. Next reads the nonce from the
+ * policy on the request and puts it on the scripts of the page.
+ */
 export async function proxy(req: NextRequest) {
+    const nonce = newNonce();
+    const policy = contentSecurityPolicy(nonce, process.env.NODE_ENV !== 'production');
+    const headers = new Headers(req.headers);
+    headers.set('x-nonce', nonce);
+    headers.set('Content-Security-Policy', policy);
+    const res = await gate(req, () => NextResponse.next({ request: { headers } }));
+    res.headers.set('Content-Security-Policy', policy);
+    return res;
+}
+
+async function gate(req: NextRequest, next: () => NextResponse): Promise<NextResponse> {
     const { pathname } = req.nextUrl;
-    if (pathname === '/health') return NextResponse.next();
+    if (pathname === '/health') return next();
 
     const protectedPath = isProtectedPath(pathname);
 
@@ -24,7 +40,7 @@ export async function proxy(req: NextRequest) {
     }
 
     // Every other page is public. Player pages check the player session themselves.
-    if (!protectedPath) return NextResponse.next();
+    if (!protectedPath) return next();
 
     const token = await readToken(req);
     const isApi = pathname.toLowerCase().startsWith('/api/');
@@ -39,7 +55,7 @@ export async function proxy(req: NextRequest) {
         return NextResponse.redirect(new URL('/denied', req.nextUrl.origin));
     }
 
-    return NextResponse.next();
+    return next();
 }
 
 // Every path goes through the check, except the built static files. The protected paths are
