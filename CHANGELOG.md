@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.8.0](https://github.com/sondresjolyst/blobby-volley-tournament/compare/v0.7.0...v0.8.0) (2026-11-15)
+
+
+### Features
+
+* set a per-request nonce in the Content-Security-Policy ([#114](https://github.com/sondresjolyst/blobby-volley-tournament/issues/114)) ([81d65a4](https://github.com/sondresjolyst/blobby-volley-tournament/commit/81d65a402537336c5f3ef8e84a3761a0fe0ec713))
+* show a busy label on the submit button while a form posts ([#108](https://github.com/sondresjolyst/blobby-volley-tournament/issues/108)) ([3d399ea](https://github.com/sondresjolyst/blobby-volley-tournament/commit/3d399ead3b084f8d2354b764a21bb7de0a74747d))
+* **stats:** add a match page and an all games page ([#122](https://github.com/sondresjolyst/blobby-volley-tournament/issues/122)) ([118b721](https://github.com/sondresjolyst/blobby-volley-tournament/commit/118b721806339a1e0d72e0865ad9b01e97517c08))
+* **stats:** page the Resultat list ([#130](https://github.com/sondresjolyst/blobby-volley-tournament/issues/130)) ([90b5a00](https://github.com/sondresjolyst/blobby-volley-tournament/commit/90b5a00fdac9a0c09cf8f1cc13e5e1526a43c5dc))
+* **stats:** show stats on the player profile ([#123](https://github.com/sondresjolyst/blobby-volley-tournament/issues/123)) ([fc8bf0d](https://github.com/sondresjolyst/blobby-volley-tournament/commit/fc8bf0dd7402ec3263d4066b3df3f3fb216a66b7))
+* **stats:** store match stats from the game server ([#121](https://github.com/sondresjolyst/blobby-volley-tournament/issues/121)) ([52a0941](https://github.com/sondresjolyst/blobby-volley-tournament/commit/52a0941f038cd1d10b2a799016c3718f82d98572))
+* **training:** show the rules in the training stats tables ([#128](https://github.com/sondresjolyst/blobby-volley-tournament/issues/128)) ([ee22579](https://github.com/sondresjolyst/blobby-volley-tournament/commit/ee225799f6a8be1fd688586ec6932c3ecc6c9e5c))
+
+
+### Bug Fixes
+
+* add error pages, stricter headers and session cleanup ([#113](https://github.com/sondresjolyst/blobby-volley-tournament/issues/113)) ([3d27e5f](https://github.com/sondresjolyst/blobby-volley-tournament/commit/3d27e5f190d469591142f5c93b50233e3e35b2c5))
+* **nav:** keep the menu links in the same order on every page ([#119](https://github.com/sondresjolyst/blobby-volley-tournament/issues/119)) ([17dd921](https://github.com/sondresjolyst/blobby-volley-tournament/commit/17dd921023b74625a0ff7dc693d6af60f12e36cb))
+* say the game needs macOS 26 or newer on the download page ([#109](https://github.com/sondresjolyst/blobby-volley-tournament/issues/109)) ([1fee812](https://github.com/sondresjolyst/blobby-volley-tournament/commit/1fee812435307116463ebe1707eacfa7951d5fc5))
+
+
+### Dependencies
+
+* **docker:** update node from 26.13.0-slim to 26.13.1-slim ([ae5bb65](https://github.com/sondresjolyst/blobby-volley-tournament/commit/ae5bb651063a66e47877e3792ca2842c77fc29e2))
+* **npm:** update next from 16.4.3 to 16.4.5 ([820dc06](https://github.com/sondresjolyst/blobby-volley-tournament/commit/820dc061d5cb05445289ef50357adf0fee602c37))
+* **pip:** update numpy from ==2.4.6 to ==2.5.4 ([4d9b108](https://github.com/sondresjolyst/blobby-volley-tournament/commit/4d9b10826a1054b323432df7b6ec4033fb4b5f34))
+* **pip:** update scipy from ==1.17.1 to ==1.18.1 ([4d9b108](https://github.com/sondresjolyst/blobby-volley-tournament/commit/4d9b10826a1054b323432df7b6ec4033fb4b5f34))
+
 ## [0.7.0](https://github.com/sondresjolyst/blobby-volley-tournament/compare/v0.6.0...v0.7.0) (2026-11-10)
 
 
