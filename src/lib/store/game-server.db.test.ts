@@ -9,6 +9,8 @@ import type { EventInput } from '@/lib/events/input';
 import { isJoinCode, newJoinCode } from '@/lib/players/join-code';
 import { createEvent, setActiveEvent } from './events';
 import { getLiveScore, getServerSync, updateLiveScore } from './game-server';
+import { parseGameReport } from '@/lib/game-server/input';
+import type { PlayerGameStats } from '@/lib/game-server/stats';
 import { callMatch, createChallenge, acceptChallenge, enterGameResult, getMatch, listAwaitingDecision, listMatches, reportPlayersConnected, reportServerGame, resetMatch, restartCurrentGame, setSeriesScore, type ServerGameReport } from './matches';
 import { getJoinCode, rotateJoinCode, signUpPlayer } from './players';
 import { getTournament, saveTournament, setNextGameDelay } from './tournaments';
@@ -306,6 +308,86 @@ describe('getServerSync', () => {
         const done = await getServerSync(pool, NOW);
         expect(done.matches).toEqual([]);
         expect(done.syncVersion).not.toBe(called.syncVersion);
+    });
+
+    describe('final stats', () => {
+        const statsOf = (a: number, b: number) => ({
+            players: [
+                { playerId: a, ballSteps: 4120, touches: 31, errors: 2, netHits: 1 },
+                { playerId: b, ballSteps: 3480, touches: 27, errors: 4, netHits: 0 },
+            ] as [PlayerGameStats, PlayerGameStats],
+            rallies: 14,
+            longestRally: 9,
+            rallyTouches: 58,
+        });
+        const rows = async (matchId: number) => (await pool.query('SELECT * FROM match_game_stats WHERE match_id = $1 ORDER BY game_number, slot', [matchId])).rows;
+
+        it('report_without_stats_stores_result', async () => {
+            const s = await setup({ bestOf: 1 });
+            const [m1] = s.ids;
+            await callMatch(pool, m1);
+            expect(await reportServerGame(pool, { ...serverReport(m1, 1, s.players[0], [s.players[0], 15, s.players[3], 4]), stats: null })).toMatchObject({ ok: true, status: 'applied' });
+            expect((await pool.query('SELECT 1 FROM match_games WHERE match_id = $1', [m1])).rowCount).toBe(1);
+            expect(await rows(m1)).toEqual([]);
+        });
+
+        it('report_with_bad_stats_stores_result_without_stats', async () => {
+            const s = await setup({ bestOf: 1 });
+            const [m1] = s.ids;
+            await callMatch(pool, m1);
+            const parsed = parseGameReport({
+                reportId: nextUuid(),
+                matchId: m1,
+                game: 1,
+                status: 'finished',
+                winnerId: s.players[0],
+                points: [
+                    { playerId: s.players[0], points: 15 },
+                    { playerId: s.players[3], points: 4 },
+                ],
+                stats: { ...statsOf(s.players[0], s.players[3]), longestRally: 99 },
+                startedAt: '2026-11-20T18:00:00Z',
+                endedAt: '2026-11-20T18:05:00Z',
+            });
+            if (!parsed.ok) throw new Error(parsed.field);
+            expect(parsed.value.stats).toBeNull();
+            expect(await reportServerGame(pool, parsed.value)).toMatchObject({ ok: true, status: 'applied' });
+            expect(await rows(m1)).toEqual([]);
+        });
+
+        it('report_with_stats_stores_two_rows', async () => {
+            const s = await setup({ bestOf: 1 });
+            const [m1] = s.ids;
+            const { player1_id: p1, player2_id: p2 } = (await pool.query<{ player1_id: number; player2_id: number }>('SELECT player1_id, player2_id FROM matches WHERE id = $1', [m1])).rows[0];
+            await callMatch(pool, m1);
+            // The report lists the second player first, so the slots must come from the match.
+            const report = { ...serverReport(m1, 1, p1, [p2, 4, p1, 15]), stats: statsOf(p2, p1) };
+            expect(await reportServerGame(pool, report)).toMatchObject({ ok: true, status: 'applied' });
+            const stored = await rows(m1);
+            expect(stored).toHaveLength(2);
+            expect(stored[0]).toMatchObject({ game_number: 1, slot: 1, ball_steps: '3480', touches: 27, errors: 4, net_hits: 0, rallies: 14, longest_rally: 9, rally_touches: 58 });
+            expect(stored[1]).toMatchObject({ game_number: 1, slot: 2, ball_steps: '4120', touches: 31, errors: 2, net_hits: 1, rallies: 14, longest_rally: 9, rally_touches: 58 });
+        });
+
+        it('repeated_report_id_does_not_duplicate_stats', async () => {
+            const s = await setup({ bestOf: 1 });
+            const [m1] = s.ids;
+            await callMatch(pool, m1);
+            const report = { ...serverReport(m1, 1, s.players[0], [s.players[0], 15, s.players[3], 4]), stats: statsOf(s.players[0], s.players[3]) };
+            expect(await reportServerGame(pool, report)).toMatchObject({ ok: true, status: 'applied' });
+            expect(await reportServerGame(pool, report)).toMatchObject({ ok: true, status: 'duplicate' });
+            expect(await rows(m1)).toHaveLength(2);
+        });
+
+        it('stores no stats for an ignored report', async () => {
+            const s = await setup({ bestOf: 1 });
+            const [m1] = s.ids;
+            await callMatch(pool, m1);
+            await reportServerGame(pool, serverReport(m1, 1, s.players[0], [s.players[0], 15, s.players[3], 4]));
+            const late = { ...serverReport(m1, 1, s.players[3], [s.players[0], 3, s.players[3], 15]), stats: statsOf(s.players[0], s.players[3]) };
+            expect(await reportServerGame(pool, late)).toMatchObject({ ok: true, status: 'ignored' });
+            expect(await rows(m1)).toEqual([]);
+        });
     });
 
     it('moves the next game on and marks an abandoned game that waits for the admin', async () => {

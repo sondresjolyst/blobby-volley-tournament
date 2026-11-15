@@ -17,6 +17,8 @@ if (!process.env.TEST_DATABASE_URL) {
 
 const pool = new Pool({ connectionString: process.env.TEST_DATABASE_URL });
 const NAME = '0021_accounts.sql';
+/** This file and the ones after it, which a fresh migrate applies. */
+const applied = () => readMigrations().map((m) => m.name).filter((name) => name >= NAME);
 const now = new Date('2026-11-21T12:00:00Z');
 
 afterAll(async () => {
@@ -119,6 +121,11 @@ async function seed(): Promise<Seed> {
 }
 
 /** Every row the accounts must not change, as JSON. Nicknames and the live counter are left out. */
+async function columnsOf(table: string): Promise<string[]> {
+    const { rows } = await pool.query<{ column_name: string }>('SELECT column_name FROM information_schema.columns WHERE table_name = $1 ORDER BY ordinal_position', [table]);
+    return rows.map((r) => r.column_name);
+}
+
 async function untouched(): Promise<Record<string, unknown[]>> {
     const read = async (sql: string) => (await pool.query(sql)).rows;
     return {
@@ -131,7 +138,8 @@ async function untouched(): Promise<Record<string, unknown[]>> {
         match_games: await read('SELECT * FROM match_games ORDER BY match_id, number'),
         bets: await read('SELECT * FROM bets ORDER BY id'),
         foza_ledger: await read('SELECT * FROM foza_ledger ORDER BY id'),
-        training_matches: await read('SELECT * FROM training_matches ORDER BY id'),
+        // Without the stats column, which a later migration adds.
+        training_matches: await read(`SELECT ${(await columnsOf('training_matches')).filter((c) => c !== 'stats').join(', ')} FROM training_matches ORDER BY id`),
         sessions: await read('SELECT token_hash, player_id, created_at, expires_at FROM player_sessions ORDER BY token_hash'),
     };
 }
@@ -149,7 +157,7 @@ describe('0021_accounts.sql', () => {
 
     it('merges players by nickname into accounts, keeps the newest PIN and changes nothing else', async () => {
         const before = await untouched();
-        expect(await migrate(pool)).toEqual([NAME]);
+        expect(await migrate(pool)).toEqual(applied());
 
         const accounts = (
             await pool.query<{ id: number; nickname: string; nickname_key: string; pin_hash: Buffer; failed_pin_attempts: number; lock_level: number; last_failed_pin_at: Date | null; created_at: Date }>(
