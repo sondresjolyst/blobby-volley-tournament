@@ -193,6 +193,21 @@ describe('match stats', () => {
         expect(page?.totals.players[0]).toEqual({ possession: 0.25, touches: 8, errors: 6, netHits: 4 });
     });
 
+    it('gives the player ids and the settings of a match', async () => {
+        const s = await play();
+        const row = (await pool.query<{ player1_id: number; player2_id: number; score_to_win: number; game_speed: number }>('SELECT player1_id, player2_id, score_to_win, game_speed FROM matches WHERE id = $1', [s.id])).rows[0];
+        const page = await getMatchStats(pool, s.id);
+        expect(page).toMatchObject({ playerIds: [row.player1_id, row.player2_id], ruleFile: 'default.lua', scoreToWin: row.score_to_win, speed: row.game_speed, bestOf: 3, bot: null });
+        expect(typeof page?.speed).toBe('number');
+    });
+
+    it('gives the player id and the settings of a training match', async () => {
+        const s = await play();
+        const page = await getMatchStats(pool, s.trainingId);
+        expect(page).toMatchObject({ playerIds: [s.ola, 0], ruleFile: 'default.lua', scoreToWin: 15, bestOf: null, bot: { name: 'hyp014', difficulty: 13 } });
+        expect(typeof page?.speed).toBe('number');
+    });
+
     it('gives null for an id that is neither', async () => {
         await setup();
         expect(await getMatchStats(pool, 99999)).toBeNull();

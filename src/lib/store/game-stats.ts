@@ -130,6 +130,16 @@ export interface MatchStatsPage {
     eventId: number;
     /** The second is the bot of a training match. Null for a player that is not known yet. */
     names: [string | null, string | null];
+    /** The player ids in the order of the names. The bot of a training match has id 0. */
+    playerIds: [number | null, number | null];
+    ruleFile: string;
+    scoreToWin: number;
+    /** Game speed in frames per second. */
+    speed: number;
+    /** Null for a training match. */
+    bestOf: number | null;
+    /** The bot and its difficulty. Null for a match between players. */
+    bot: { name: string; difficulty: number } | null;
     state: string;
     /** The finished games, and the stats of those that have them. */
     games: GameStatsView[];
@@ -154,8 +164,8 @@ function pageTotals(games: GameStatsView[]): MatchStatTotals {
 }
 
 async function matchPage(pool: Pool, id: number): Promise<MatchStatsPage | null> {
-    const { rows } = await pool.query<{ event_id: number; state: string; player1_id: number | null; player2_id: number | null; name1: string | null; name2: string | null }>(
-        `SELECT m.event_id, m.state, m.player1_id, m.player2_id, p1.nickname AS name1, p2.nickname AS name2
+    const { rows } = await pool.query<{ event_id: number; state: string; player1_id: number | null; player2_id: number | null; best_of: number; rule_file: string; score_to_win: number; game_speed: number; name1: string | null; name2: string | null }>(
+        `SELECT m.event_id, m.state, m.player1_id, m.player2_id, m.best_of, m.rule_file, m.score_to_win, m.game_speed, p1.nickname AS name1, p2.nickname AS name2
          FROM matches m
          LEFT JOIN players p1 ON p1.id = m.player1_id
          LEFT JOIN players p2 ON p2.id = m.player2_id
@@ -186,12 +196,25 @@ async function matchPage(pool: Pool, id: number): Promise<MatchStatsPage | null>
                 : null;
         return { game, points: entry.points, stats };
     });
-    return { kind: 'match', eventId: match.event_id, names: [match.name1, match.name2], state: match.state, games: views, totals: pageTotals(views) };
+    return {
+        kind: 'match',
+        eventId: match.event_id,
+        names: [match.name1, match.name2],
+        playerIds: [match.player1_id, match.player2_id],
+        ruleFile: match.rule_file,
+        scoreToWin: match.score_to_win,
+        speed: match.game_speed,
+        bestOf: match.best_of,
+        bot: null,
+        state: match.state,
+        games: views,
+        totals: pageTotals(views),
+    };
 }
 
 async function trainingPage(pool: Pool, id: number): Promise<MatchStatsPage | null> {
-    const { rows } = await pool.query<{ event_id: number; state: string; player_id: number; nickname: string; bot: string; difficulty: number; player_points: number | null; bot_points: number | null; stats: GameStats | null }>(
-        `SELECT t.event_id, t.state, t.player_id, p.nickname, t.bot, t.difficulty, t.player_points, t.bot_points, t.stats
+    const { rows } = await pool.query<{ event_id: number; state: string; player_id: number; nickname: string; bot: string; difficulty: number; rule_file: string; score_to_win: number; game_speed: number; player_points: number | null; bot_points: number | null; stats: GameStats | null }>(
+        `SELECT t.event_id, t.state, t.player_id, p.nickname, t.bot, t.difficulty, t.rule_file, t.score_to_win, t.game_speed, t.player_points, t.bot_points, t.stats
          FROM training_matches t JOIN players p ON p.id = t.player_id
          WHERE t.id = $1`,
         [id],
@@ -203,7 +226,20 @@ async function trainingPage(pool: Pool, id: number): Promise<MatchStatsPage | nu
     const bot = t.stats?.players.find((p) => p.playerId === BOT_PLAYER_ID);
     const stats: GameStats | null = t.stats && own && bot ? { ...t.stats, players: [own, bot] } : null;
     const views: GameStatsView[] = finished ? [{ game: 1, points: [t.player_points!, t.bot_points!], stats }] : [];
-    return { kind: 'training', eventId: t.event_id, names: [t.nickname, trainingBotName(t.bot, t.difficulty)], state: t.state, games: views, totals: pageTotals(views) };
+    return {
+        kind: 'training',
+        eventId: t.event_id,
+        names: [t.nickname, trainingBotName(t.bot, t.difficulty)],
+        playerIds: [t.player_id, BOT_PLAYER_ID],
+        ruleFile: t.rule_file,
+        scoreToWin: t.score_to_win,
+        speed: t.game_speed,
+        bestOf: null,
+        bot: { name: t.bot, difficulty: t.difficulty },
+        state: t.state,
+        games: views,
+        totals: pageTotals(views),
+    };
 }
 
 /** The stats page of a match or of a training match. They share one sequence of ids. Null when the id is neither. */

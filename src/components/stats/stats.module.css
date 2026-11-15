@@ -348,3 +348,105 @@
         padding: 0 12px;
     }
 }
+
+/* The match page. */
+.back {
+    margin: 0 0 8px;
+    font-size: 14px;
+}
+
+.badge {
+    display: inline-block;
+    margin-left: 12px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--ink);
+    color: var(--gold);
+    font-family: var(--font-inter), system-ui, sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    vertical-align: middle;
+}
+
+.gameBlock {
+    margin-top: 24px;
+}
+
+.gameHead {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 12px;
+    margin: 0 0 10px;
+    font-family: var(--font-lilita-one), 'Arial Rounded MT Bold', system-ui, sans-serif;
+    font-weight: 400;
+    font-size: 24px;
+}
+
+.gameScore {
+    color: var(--red);
+}
+
+.cards {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.statCard {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px;
+    border: 2px solid var(--line);
+    border-radius: 16px;
+    background: #fff;
+}
+
+.statLabel {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+}
+
+.statSides {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.statSide {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.statSide:last-child {
+    text-align: right;
+}
+
+.statValue {
+    font-family: var(--font-lilita-one), 'Arial Rounded MT Bold', system-ui, sans-serif;
+    font-size: 26px;
+    color: var(--red);
+}
+
+.statWho {
+    color: var(--muted);
+    font-size: 13px;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+    .badge {
+        margin-left: 8px;
+    }
+
+    .cards {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
