@@ -902,8 +902,8 @@ describe('down files of the stats migrations', () => {
 
         for (const name of ['0023_live_stats.sql', '0022_game_stats.sql']) await pool.query(readFileSync(join(MIGRATIONS_DIR, 'down', name), 'utf8'));
         const columns = async (table: string) => (await pool.query<{ column_name: string }>('SELECT column_name FROM information_schema.columns WHERE table_name = $1', [table])).rows.map((r) => r.column_name);
-        expect(await columns('training_matches')).not.toEqual(expect.arrayContaining(['stats']));
-        expect(await columns('training_matches')).not.toEqual(expect.arrayContaining(['live_stats']));
+        expect(await columns('training_matches')).not.toContain('stats');
+        expect(await columns('training_matches')).not.toContain('live_stats');
         expect(await columns('live_scores')).not.toContain('stats');
         expect((await pool.query("SELECT to_regclass('match_game_stats') AS t")).rows[0].t).toBeNull();
         expect((await pool.query('SELECT id, state FROM training_matches ORDER BY id')).rows).toEqual(before);
