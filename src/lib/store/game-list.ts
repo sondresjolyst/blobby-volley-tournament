@@ -20,9 +20,11 @@ export interface GameListRow {
     names: [string | null, string | null];
     /** The player ids in the order of the names. The bot has id 0. */
     playerIds: [number | null, number | null];
-    /** The series score of a match, or the points of a training game. Null while a game runs. */
+    /** The series score of a match, or the points of a training game. Null while a training game runs and for a walkover. */
     score: [number, number] | null;
     running: boolean;
+    /** A match decided by a no-show. It has no score. */
+    walkover: boolean;
     ruleFile: string;
 }
 
@@ -36,6 +38,7 @@ interface Row {
     score1: number | null;
     score2: number | null;
     running: boolean;
+    walkover: boolean;
     rule_file: string;
     bot: string | null;
     difficulty: number | null;
@@ -45,12 +48,12 @@ interface Row {
 export async function listEventGames(pool: Pool, eventId: number, filter: GameListFilter = {}): Promise<GameListRow[]> {
     const known = new Set<number>((await pool.query<{ id: number }>('SELECT id FROM players WHERE event_id = $1', [eventId])).rows.map((r) => r.id));
     const player = filter.playerId !== undefined && known.has(filter.playerId) ? filter.playerId : null;
-    const opponent = player !== null && filter.opponentId !== undefined && known.has(filter.opponentId) ? filter.opponentId : null;
+    const opponent = player !== null && filter.opponentId !== undefined && filter.opponentId !== player && known.has(filter.opponentId) ? filter.opponentId : null;
     const { rows } = await pool.query<Row>(
         `SELECT * FROM (
              SELECT m.id, CASE WHEN m.tournament_id IS NULL THEN '1v1' ELSE 'tournament' END AS kind,
                     p1.nickname AS name1, p2.nickname AS name2, m.player1_id AS id1, m.player2_id AS id2,
-                    m.score1, m.score2, m.state = 'started' AS running, m.rule_file, NULL::text AS bot, NULL::integer AS difficulty,
+                    m.score1, m.score2, m.state = 'started' AS running, COALESCE(m.result = 'forfeit', false) AS walkover, m.rule_file, NULL::text AS bot, NULL::integer AS difficulty,
                     COALESCE(m.finished_at, m.started_at, m.created_at) AS at
              FROM matches m
              LEFT JOIN players p1 ON p1.id = m.player1_id
@@ -59,7 +62,7 @@ export async function listEventGames(pool: Pool, eventId: number, filter: GameLi
                AND ($2::integer IS NULL OR ((m.player1_id = $2 OR m.player2_id = $2) AND ($3::integer IS NULL OR m.player1_id = $3 OR m.player2_id = $3)))
              UNION ALL
              SELECT t.id, 'training', p.nickname, NULL, t.player_id, ${BOT_PLAYER_ID},
-                    t.player_points, t.bot_points, t.state = 'started', t.rule_file, t.bot, t.difficulty,
+                    t.player_points, t.bot_points, t.state = 'started', false, t.rule_file, t.bot, t.difficulty,
                     COALESCE(t.finished_at, t.started_at, t.created_at)
              FROM training_matches t JOIN players p ON p.id = t.player_id
              WHERE t.event_id = $1 AND t.state IN ('started', 'finished')
@@ -73,8 +76,9 @@ export async function listEventGames(pool: Pool, eventId: number, filter: GameLi
         kind: r.kind,
         names: [r.name1, r.kind === 'training' ? trainingBotName(r.bot!, r.difficulty!) : r.name2],
         playerIds: [r.id1, r.id2],
-        score: r.running || r.score1 === null || r.score2 === null ? null : [r.score1, r.score2],
+        score: r.walkover || r.score1 === null || r.score2 === null || (r.running && r.kind === 'training') ? null : [r.score1, r.score2],
         running: r.running,
+        walkover: r.walkover,
         ruleFile: r.rule_file,
     }));
 }

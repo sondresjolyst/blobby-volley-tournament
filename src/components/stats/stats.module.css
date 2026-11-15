@@ -452,6 +452,11 @@
 }
 
 /* The Resultat page. */
+.liveTag {
+    background: var(--red);
+    color: #fff;
+}
+
 .filter {
     display: flex;
     flex-wrap: wrap;
@@ -523,7 +528,7 @@
     overflow-wrap: anywhere;
 }
 
-.gameScore {
+.resultScore {
     font-family: var(--font-lilita-one), 'Arial Rounded MT Bold', system-ui, sans-serif;
     font-size: 22px;
     color: var(--red);

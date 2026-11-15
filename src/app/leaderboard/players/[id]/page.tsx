@@ -157,9 +157,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ id
                                             </td>
                                             <td>{h.won}</td>
                                             <td>{h.lost}</td>
-                                            <td>
-                                                <Link href={resultHref(player.id, h.opponentId)}>{RESULT_TEXT.see}</Link>
-                                            </td>
+                                            <td>{active?.id === player.eventId && <Link href={resultHref(player.id, h.opponentId)}>{RESULT_TEXT.seeAll}</Link>}</td>
                                         </tr>
                                     ))}
                                 </tbody>

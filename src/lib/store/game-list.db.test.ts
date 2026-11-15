@@ -7,7 +7,8 @@ import type { TrainingOptions } from '@/lib/training/settings';
 import { withAccount } from './db-test-sql';
 import { createEvent, setActiveEvent } from './events';
 import { listEventGames } from './game-list';
-import { acceptChallenge, cancelMatch, createChallenge, reportServerGame } from './matches';
+import { getMatchStats } from './game-stats';
+import { acceptChallenge, cancelMatch, createChallenge, recordNoShow, reportServerGame } from './matches';
 import { createTraining, reportTrainingConnected, reportTrainingGame } from './training';
 
 if (!process.env.TEST_DATABASE_URL) {
@@ -119,7 +120,7 @@ describe('listEventGames', () => {
         expect(rows.map((r) => r.id)).toEqual([running, second, training, first]);
         expect(rows.map((r) => r.kind)).toEqual(['training', '1v1', 'training', '1v1']);
         expect(rows[0]).toMatchObject({ names: ['Ida', 'Bot (hyp014, vanskegrad 13)'], playerIds: [s.ida, 0], score: null, running: true, ruleFile: 'default.lua' });
-        expect(rows[1]).toMatchObject({ running: true, score: null });
+        expect(rows[1]).toMatchObject({ running: true, score: [1, 0] });
         expect(rows[2]).toMatchObject({ score: [15, 4], running: false });
         expect(rows[3]).toMatchObject({ names: ['Bob', 'Kevin'], playerIds: [s.bob, s.kevin], score: [2, 0], running: false });
     });
@@ -165,5 +166,29 @@ describe('listEventGames', () => {
         expect(sorted((await listEventGames(pool, s.eventId, { playerId: 9999 })).map((r) => r.id))).toEqual(all);
         expect(sorted((await listEventGames(pool, s.eventId, { playerId: 9999, opponentId: s.bob })).map((r) => r.id))).toEqual(all);
         expect((await listEventGames(pool, s.eventId, { playerId: s.bob, opponentId: 9999 })).map((r) => r.id)).toEqual([a]);
+    });
+
+    it('marks_a_walkover_without_a_score', async () => {
+        const s = await setup();
+        const id = await match(s.bob, s.kevin);
+        expect((await recordNoShow(pool, id, 2)).ok).toBe(true);
+        const [row] = await listEventGames(pool, s.eventId, {});
+        expect(row).toMatchObject({ id, walkover: true, running: false, score: null });
+        expect(await getMatchStats(pool, id)).toMatchObject({ state: 'finished', result: 'forfeit', score: [0, 0], games: [] });
+    });
+
+    it('shows_the_series_score_of_a_running_match', async () => {
+        const s = await setup();
+        const id = await match(s.bob, s.kevin);
+        await win(id, 1, s.bob, s.kevin);
+        const [row] = await listEventGames(pool, s.eventId, {});
+        expect(row).toMatchObject({ running: true, walkover: false, score: [1, 0] });
+    });
+
+    it('treats_the_same_player_as_no_opponent', async () => {
+        const s = await setup();
+        const id = await match(s.bob, s.kevin);
+        await win(id, 1, s.bob, s.kevin);
+        expect((await listEventGames(pool, s.eventId, { playerId: s.bob, opponentId: s.bob })).map((r) => r.id)).toEqual([id]);
     });
 });

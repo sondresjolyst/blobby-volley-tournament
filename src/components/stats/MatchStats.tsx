@@ -72,12 +72,13 @@ function totalLines(totals: MatchStatTotals): GameLines {
     return { players: totals.players, rallies: totals.rallies, longestRally: totals.longestRally, averageRally: totals.averageRally };
 }
 
-/** The whole match first, then the finished games. A game without stats shows only the score. */
-export function FinishedGames({ names, ids, games, totals }: { names: Names; ids: PlayerIds; games: GameStatsView[]; totals: MatchStatTotals }) {
+/** The whole match first with its series score, then the finished games. A game without stats shows only the score. A walkover has no games and shows a note. */
+export function FinishedGames({ names, ids, games, totals, score = null, walkover = false }: { names: Names; ids: PlayerIds; games: GameStatsView[]; totals: MatchStatTotals; score?: [number, number] | null; walkover?: boolean }) {
+    if (walkover) return <p className={styles.empty}>{MATCH_TEXT.walkoverNote}</p>;
     if (games.length === 0) return <p className={styles.empty}>{MATCH_TEXT.noGames}</p>;
     return (
         <>
-            {totals.games > 0 && <GameBlock title={MATCH_TEXT.whole} score={null} names={names} lines={totalLines(totals)} />}
+            {totals.games > 0 && <GameBlock title={MATCH_TEXT.whole} score={score} names={names} lines={totalLines(totals)} />}
             {games.map((g) => (
                 <GameBlock key={g.game} title={gameTitle(g.game)} score={g.points} names={names} lines={gameLines(g.stats, ids)} />
             ))}

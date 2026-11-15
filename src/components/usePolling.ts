@@ -10,8 +10,9 @@ export type PollResult<T> = { ok: true; data: T } | { ok: false; status: number 
  * page shows. The next read is planned when the last one is done, so slow answers never pile up.
  * A new address starts over. The address may hold a key, so no referrer is sent. With
  * `pauseWhenHidden` it does not read while the tab is hidden, and reads at once when it shows again.
+ * With `immediate` the first read comes at once instead of after `ms`.
  */
-export function usePolling<T>(url: string, ms: number, onResult: (result: PollResult<T>) => void, { pauseWhenHidden = false } = {}): void {
+export function usePolling<T>(url: string, ms: number, onResult: (result: PollResult<T>) => void, { pauseWhenHidden = false, immediate = false } = {}): void {
     const handle = useEffectEvent(onResult);
     useEffect(() => {
         let stopped = false;
@@ -38,12 +39,12 @@ export function usePolling<T>(url: string, ms: number, onResult: (result: PollRe
             paused = false;
             void poll();
         };
-        timer = setTimeout(poll, ms);
+        timer = setTimeout(poll, immediate ? 0 : ms);
         if (pauseWhenHidden) document.addEventListener('visibilitychange', resume);
         return () => {
             stopped = true;
             clearTimeout(timer);
             document.removeEventListener('visibilitychange', resume);
         };
-    }, [url, ms, pauseWhenHidden]);
+    }, [url, ms, pauseWhenHidden, immediate]);
 }

@@ -82,7 +82,7 @@ test('finished match shows stats for both players', async ({ browser }) => {
 
     const page = await ctx.newPage();
     await page.goto(`/kamp/${duel.id}`);
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(`${x} mot ${y}`);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(`${x} vs ${y}`);
     await expect(page.getByText('Best av 3 · Vanlig · først te 15 · 75 fps')).toBeVisible();
 
     // The whole match first. The left side is player 1.
@@ -183,7 +183,7 @@ test('training game page shows the bot name', async ({ browser }) => {
     expect(await (await context.request.post('/api/server/games', { headers: auth(), data })).json()).toEqual({ status: 'stored' });
 
     await page.goto(`/kamp/${training.matchId}`);
-    await expect(page.getByRole('heading', { level: 1 })).toContainText(`${nickname} mot Bot (hyp014, vanskegrad 13)`);
+    await expect(page.getByRole('heading', { level: 1 })).toContainText(`${nickname} vs Bot (hyp014, vanskegrad 13)`);
     await expect(page.getByRole('heading', { level: 1 })).toContainText('TRENING');
     await expect(page.getByText('Bot hyp014 · vanskegrad 13 · Vanlig · først te 5 · 75 fps')).toBeVisible();
     const game = page.getByRole('region', { name: 'Kamp 1' });
@@ -215,7 +215,7 @@ test('resultat filter Bob vs Kevin', async ({ browser }) => {
     expect(page.url()).toMatch(new RegExp(`/resultat[?]spelar=${a}&mot=${b}$`));
     const games = page.getByRole('list', { name: 'Kampa' }).getByRole('listitem');
     await expect(games).toHaveCount(1);
-    await expect(games.first()).toContainText(`${duel.names[0]} mot ${duel.names[1]}`);
+    await expect(games.first()).toContainText(`${duel.names[0]} vs ${duel.names[1]}`);
     await expect(games.first()).toContainText('1–0');
     await expect(games.first()).toContainText('1v1');
     await expect(games.first().getByRole('link', { name: 'Sjå kampen' })).toHaveAttribute('href', `/kamp/${duel.id}`);

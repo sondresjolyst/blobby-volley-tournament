@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { connection } from 'next/server';
-import { RESULT_TEXT, gameNames, gameScore, kindTag } from '@/components/stats/game-list-text';
+import { RESULT_TEXT, gameNames, gameScore, kindTag, seeGameLabel } from '@/components/stats/game-list-text';
 import styles from '@/components/stats/stats.module.css';
 import { siteHeader } from '@/components/site/header';
 import { SiteShell } from '@/components/site/SiteShell';
@@ -38,7 +38,7 @@ export default async function ResultPage({ searchParams }: { searchParams: Promi
     const asked = parseId(one(search.spelar));
     const playerId = asked !== null && known.has(asked) ? asked : undefined;
     const against = parseId(one(search.mot));
-    const opponentId = playerId !== undefined && against !== null && known.has(against) ? against : undefined;
+    const opponentId = playerId !== undefined && against !== null && against !== playerId && known.has(against) ? against : undefined;
     const games = await listEventGames(pool, event.id, { playerId, opponentId });
     const filtered = playerId !== undefined;
 
@@ -80,12 +80,13 @@ export default async function ResultPage({ searchParams }: { searchParams: Promi
                         {games.map((g) => (
                             <li key={g.id} className={`${styles.game} ${g.running ? styles.gameRunning : ''}`}>
                                 <span className={styles.gameNames}>{gameNames(g)}</span>
-                                <span className={styles.gameScore}>{gameScore(g)}</span>
+                                <span className={styles.resultScore}>{gameScore(g)}</span>
                                 <span className={styles.gameInfo}>
                                     <span className={styles.badge}>{kindTag(g.kind)}</span>
+                                    {g.running && <span className={`${styles.badge} ${styles.liveTag}`}>{RESULT_TEXT.live}</span>}
                                     <span>{rulesName(g.ruleFile)}</span>
                                 </span>
-                                <Link href={`/kamp/${g.id}`}>{RESULT_TEXT.see}</Link>
+                                <Link href={`/kamp/${g.id}`} aria-label={seeGameLabel(g.names)}>{RESULT_TEXT.see}</Link>
                             </li>
                         ))}
                     </ul>

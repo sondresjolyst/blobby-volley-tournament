@@ -141,6 +141,10 @@ export interface MatchStatsPage {
     /** The bot and its difficulty. Null for a match between players. */
     bot: { name: string; difficulty: number } | null;
     state: string;
+    /** How a finished match was decided. `forfeit` is a walkover. Null for training and for a match that is not finished. */
+    result: 'played' | 'forfeit' | null;
+    /** The series score of a match, with a score an admin set by hand. Null for training. */
+    score: [number, number] | null;
     /** The finished games, and the stats of those that have them. */
     games: GameStatsView[];
     totals: MatchStatTotals;
@@ -164,8 +168,8 @@ function pageTotals(games: GameStatsView[]): MatchStatTotals {
 }
 
 async function matchPage(pool: Pool, id: number): Promise<MatchStatsPage | null> {
-    const { rows } = await pool.query<{ event_id: number; state: string; player1_id: number | null; player2_id: number | null; best_of: number; rule_file: string; score_to_win: number; game_speed: number; name1: string | null; name2: string | null }>(
-        `SELECT m.event_id, m.state, m.player1_id, m.player2_id, m.best_of, m.rule_file, m.score_to_win, m.game_speed, p1.nickname AS name1, p2.nickname AS name2
+    const { rows } = await pool.query<{ event_id: number; state: string; player1_id: number | null; player2_id: number | null; score1: number; score2: number; result: 'played' | 'forfeit' | null; best_of: number; rule_file: string; score_to_win: number; game_speed: number; name1: string | null; name2: string | null }>(
+        `SELECT m.event_id, m.state, m.player1_id, m.player2_id, m.score1, m.score2, m.result, m.best_of, m.rule_file, m.score_to_win, m.game_speed, p1.nickname AS name1, p2.nickname AS name2
          FROM matches m
          LEFT JOIN players p1 ON p1.id = m.player1_id
          LEFT JOIN players p2 ON p2.id = m.player2_id
@@ -207,6 +211,8 @@ async function matchPage(pool: Pool, id: number): Promise<MatchStatsPage | null>
         bestOf: match.best_of,
         bot: null,
         state: match.state,
+        result: match.result,
+        score: [match.score1, match.score2],
         games: views,
         totals: pageTotals(views),
     };
@@ -237,6 +243,8 @@ async function trainingPage(pool: Pool, id: number): Promise<MatchStatsPage | nu
         bestOf: null,
         bot: { name: t.bot, difficulty: t.difficulty },
         state: t.state,
+        result: null,
+        score: null,
         games: views,
         totals: pageTotals(views),
     };
