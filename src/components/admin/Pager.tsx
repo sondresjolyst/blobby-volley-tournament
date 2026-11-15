@@ -21,19 +21,49 @@ export function listHref(path: string, state: ListState, key: string, page: numb
     return `${path}${search === '' ? '' : `?${search}`}#${hash}`;
 }
 
+/** The words and class names of a pager. The defaults are the English text and the classes of the admin pages. */
+export interface PagerText {
+    previous: string;
+    next: string;
+    page: (n: number) => string;
+    count: (list: Page<unknown>) => string;
+}
+
+export interface PagerClasses {
+    nav: string;
+    count: string;
+}
+
+const ADMIN_CLASSES: PagerClasses = { nav: 'admin-pager', count: 'admin-pager-count' };
+
+function adminText(noun: readonly [one: string, many: string]): PagerText {
+    return {
+        previous: 'Previous',
+        next: 'Next',
+        page: (n) => `Page ${n}`,
+        count: (list) => {
+            const name = list.total === 1 ? noun[0] : noun[1];
+            return list.total === 0 ? `No ${noun[1]}` : list.pages === 1 ? `${list.total} ${name}` : `${list.first} to ${list.last} of ${list.total} ${name}`;
+        },
+    };
+}
+
+type PagerWords = { noun: readonly [one: string, many: string]; text?: undefined; classes?: undefined } | { noun?: undefined; text: PagerText; classes: PagerClasses };
+
 /**
  * The count and the page links of a long list: Previous, the page numbers and Next. Shows only
- * the count while the list fits on one page.
+ * the count while the list fits on one page. The admin pages give a noun. Other pages give their
+ * own words and classes.
  */
-export function Pager({ label, noun, list, href }: { label: string; noun: readonly [one: string, many: string]; list: Page<unknown>; href: (page: number) => string }) {
-    const name = list.total === 1 ? noun[0] : noun[1];
-    const count = list.total === 0 ? `No ${noun[1]}` : list.pages === 1 ? `${list.total} ${name}` : `${list.first} to ${list.last} of ${list.total} ${name}`;
+export function Pager({ label, list, href, ...words }: { label: string; list: Page<unknown>; href: (page: number) => string } & PagerWords) {
+    const text = words.text ?? adminText(words.noun);
+    const classes = words.classes ?? ADMIN_CLASSES;
     return (
-        <nav className="admin-pager" aria-label={label}>
-            <p className="admin-pager-count">{count}</p>
+        <nav className={classes.nav} aria-label={label}>
+            <p className={classes.count}>{text.count(list)}</p>
             {list.pages > 1 && (
                 <ul>
-                    <li>{list.page > 1 ? <Link href={href(list.page - 1)}>Previous</Link> : <span aria-disabled="true">Previous</span>}</li>
+                    <li>{list.page > 1 ? <Link href={href(list.page - 1)}>{text.previous}</Link> : <span aria-disabled="true">{text.previous}</span>}</li>
                     {pageLinks(list.page, list.pages).map((n, i) =>
                         n === 'gap' ? (
                             <li key={`gap-${i}`} aria-hidden="true">
@@ -41,13 +71,13 @@ export function Pager({ label, noun, list, href }: { label: string; noun: readon
                             </li>
                         ) : (
                             <li key={n}>
-                                <Link href={href(n)} aria-label={`Page ${n}`} aria-current={n === list.page ? 'page' : undefined}>
+                                <Link href={href(n)} aria-label={text.page(n)} aria-current={n === list.page ? 'page' : undefined}>
                                     {n}
                                 </Link>
                             </li>
                         ),
                     )}
-                    <li>{list.page < list.pages ? <Link href={href(list.page + 1)}>Next</Link> : <span aria-disabled="true">Next</span>}</li>
+                    <li>{list.page < list.pages ? <Link href={href(list.page + 1)}>{text.next}</Link> : <span aria-disabled="true">{text.next}</span>}</li>
                 </ul>
             )}
         </nav>

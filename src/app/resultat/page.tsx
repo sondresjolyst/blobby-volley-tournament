@@ -1,18 +1,20 @@
 import Link from 'next/link';
 import { connection } from 'next/server';
+import { Pager } from '@/components/admin/Pager';
 import { GameList } from '@/components/stats/GameList';
-import { RESULT_TEXT } from '@/components/stats/game-list-text';
+import { RESULT_TEXT, gameCount, pageLabel, resultPageHref } from '@/components/stats/game-list-text';
 import styles from '@/components/stats/stats.module.css';
 import { siteHeader } from '@/components/site/header';
 import { SiteShell } from '@/components/site/SiteShell';
 import { getPool } from '@/lib/db';
 import { parseId } from '@/lib/http';
+import { parsePage } from '@/lib/paging';
 import { NO_LAN, NO_LAN_OPEN } from '@/lib/texts';
 import { getActiveEvent } from '@/lib/store/events';
-import { listEventGames } from '@/lib/store/game-list';
+import { listEventGamesPage } from '@/lib/store/game-list';
 import { listPlayers } from '@/lib/store/players';
 
-type Search = { spelar?: string | string[]; mot?: string | string[] };
+type Search = { spelar?: string | string[]; mot?: string | string[]; side?: string | string[] };
 
 const one = (value: string | string[] | undefined) => (typeof value === 'string' ? value : '');
 
@@ -39,7 +41,7 @@ export default async function ResultPage({ searchParams }: { searchParams: Promi
     const playerId = asked !== null && known.has(asked) ? asked : undefined;
     const against = parseId(one(search.mot));
     const opponentId = playerId !== undefined && against !== null && against !== playerId && known.has(against) ? against : undefined;
-    const games = await listEventGames(pool, event.id, { playerId, opponentId });
+    const games = await listEventGamesPage(pool, event.id, { playerId, opponentId }, parsePage(one(search.side)));
     const filtered = playerId !== undefined;
 
     return (
@@ -73,10 +75,19 @@ export default async function ResultPage({ searchParams }: { searchParams: Promi
                     <button type="submit">{RESULT_TEXT.filter}</button>
                     {filtered && <Link href="/resultat">{RESULT_TEXT.reset}</Link>}
                 </form>
-                {games.length === 0 ? (
+                {games.total === 0 ? (
                     <p className={styles.empty}>{filtered ? RESULT_TEXT.noneFiltered : RESULT_TEXT.none}</p>
                 ) : (
-                    <GameList games={games} />
+                    <>
+                        <GameList games={games.items} />
+                        <Pager
+                            label={RESULT_TEXT.pages}
+                            list={games}
+                            href={(n) => resultPageHref(playerId, opponentId, n)}
+                            text={{ previous: RESULT_TEXT.previous, next: RESULT_TEXT.next, page: pageLabel, count: gameCount }}
+                            classes={{ nav: styles.pager, count: styles.pagerCount }}
+                        />
+                    </>
                 )}
             </div>
         </SiteShell>

@@ -32,8 +32,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ id
     // Only the active event changes, so only a player of it gets the live refresh.
     const stamp = active?.id === page.player.eventId ? activeStamp : null;
     const { player, stats, betting, elo, placings } = page;
-    const [totals, games] = await Promise.all([getPlayerStatTotals(pool, id), listEventGames(pool, player.eventId, { playerId: id })]);
-    const recent = games.slice(0, RECENT_GAMES);
+    const [totals, recent] = await Promise.all([getPlayerStatTotals(pool, id), listEventGames(pool, player.eventId, { playerId: id, limit: RECENT_GAMES })]);
     const hasStats = totals.all.games > 0;
     const name = nicknameOf(page.nicknames);
     const back = active?.id === player.eventId ? '/leaderboard' : `/leaderboard?event=${player.eventId}`;

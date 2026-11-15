@@ -18,7 +18,19 @@ export const RESULT_TEXT = {
     see: 'Sjå kampen',
     seeAll: 'Sjå kampane',
     list: 'Kampa',
+    pages: 'Sidene i lista',
+    previous: 'Førre',
+    next: 'Neste',
 } as const;
+
+/** Such as `Side 2` for the link of a page. */
+export const pageLabel = (n: number) => `Side ${n}`;
+
+/** Such as `11 te 20 av 34 spel`, or `5 spel` when all fit on one page. */
+export function gameCount(list: { total: number; pages: number; first: number; last: number }): string {
+    if (list.pages === 1) return `${list.total} spel`;
+    return `${list.first} te ${list.last} av ${list.total} spel`;
+}
 
 const KIND_TAGS: Record<GameListRow['kind'], string> = { tournament: 'Turnering', '1v1': '1v1', training: TRAINING_TAG };
 
@@ -35,3 +47,13 @@ export const seeGameLabel = (names: readonly [string | null, string | null]) => 
 
 /** The link of the Resultat page for a player and an opponent. */
 export const resultHref = (playerId: number, opponentId?: number) => `/resultat?spelar=${playerId}${opponentId === undefined ? '' : `&mot=${opponentId}`}`;
+
+/** The address of a page of the Resultat list with the same filter. Page 1 has no page number. */
+export function resultPageHref(playerId: number | undefined, opponentId: number | undefined, page: number): string {
+    const params = new URLSearchParams();
+    if (playerId !== undefined) params.set('spelar', String(playerId));
+    if (opponentId !== undefined) params.set('mot', String(opponentId));
+    if (page > 1) params.set('side', String(page));
+    const query = params.toString();
+    return query === '' ? '/resultat' : `/resultat?${query}`;
+}
