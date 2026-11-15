@@ -231,3 +231,54 @@ test('resultat filter Bob vs Kevin', async ({ browser }) => {
     await expect(games.filter({ hasText: duel.names[0] })).toHaveCount(1);
     await Promise.all([...duel.contexts, ...other.contexts].map((c) => c.close()));
 });
+
+/** One more finished best-of-1 match between the two players of the duel, played by API calls. */
+async function rematch(duel: Duel): Promise<number> {
+    const [asker, asked] = duel.contexts;
+    const before = new Set((await sync(asked)).matches.map((m) => m.matchId));
+    await asker.request.post('/api/player/challenges', { form: { opponent: String(duel.ids[1]) }, headers: sameOrigin, maxRedirects: 0 });
+    const waiting = await asked.newPage();
+    await waiting.goto('/me');
+    await waiting.getByRole('list', { name: 'Utfordringa te deg' }).getByRole('button', { name: 'Godta' }).click();
+    await expect(waiting.getByRole('status')).toHaveText('Du godtok kampen. Dåkke kan spela med ein gang.');
+    await waiting.close();
+    const called = (await sync(asked)).matches.find((m) => !before.has(m.matchId) && m.players.some((p) => p.playerId === duel.ids[1]))!;
+    await asked.request.post(`/api/server/matches/${called.matchId}/connected`, { headers: auth(), data: { playerIds: duel.ids } });
+    await report(asker, { ...duel, id: called.matchId }, 1, 15, 3);
+    return called.matchId;
+}
+
+test('resultat pages the list and keeps the filter on page 2', async ({ browser }) => {
+    const duel = await startDuel(browser, {});
+    await report(duel.contexts[0], duel, 1, 15, 3);
+    for (let i = 0; i < 11; i++) await rematch(duel);
+    const [a, b] = duel.ids;
+    const page = await duel.contexts[0].newPage();
+    const games = page.getByRole('list', { name: 'Kampa' }).getByRole('listitem');
+    const pager = page.getByRole('navigation', { name: 'Sidene i lista' });
+
+    await page.goto(`/resultat?spelar=${a}&mot=${b}`);
+    await expect(games).toHaveCount(10);
+    await expect(pager.getByText('1 te 10 av 12 spel')).toBeVisible();
+    await expect(pager.getByRole('link', { name: 'Side 1' })).toHaveAttribute('aria-current', 'page');
+    await expect(pager.getByText('Førre')).toHaveAttribute('aria-disabled', 'true');
+
+    // The next link keeps the filter and works without scripts: it is a plain link.
+    await pager.getByRole('link', { name: 'Neste' }).click();
+    await expect(page).toHaveURL(new RegExp(`/resultat[?]spelar=${a}&mot=${b}&side=2$`));
+    await expect(games).toHaveCount(2);
+    await expect(pager.getByText('11 te 12 av 12 spel')).toBeVisible();
+    await expect(pager.getByRole('link', { name: 'Side 2' })).toHaveAttribute('aria-current', 'page');
+    await expect(pager.getByText('Neste')).toHaveAttribute('aria-disabled', 'true');
+
+    // A page past the last shows the last page.
+    await page.goto(`/resultat?spelar=${a}&mot=${b}&side=99`);
+    await expect(games).toHaveCount(2);
+
+    // Submitting the filter form starts at page 1.
+    await page.goto(`/resultat?spelar=${a}&mot=${b}&side=2`);
+    await page.getByRole('button', { name: 'Vis' }).click();
+    await expect(page).toHaveURL(new RegExp(`/resultat[?]spelar=${a}&mot=${b}$`));
+    await expect(games).toHaveCount(10);
+    await Promise.all(duel.contexts.map((c) => c.close()));
+});

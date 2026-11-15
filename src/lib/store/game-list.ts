@@ -1,6 +1,7 @@
 // Lists the games of an event for the Resultat page: matches and training together.
 // Only games that have started count. Upcoming, called and cancelled games are left out.
 import type { Pool } from 'pg';
+import { PAGE_SIZE, type Page } from '@/lib/paging';
 import { trainingBotName } from '@/lib/training/settings';
 import { BOT_PLAYER_ID } from './training';
 
@@ -9,6 +10,8 @@ export interface GameListFilter {
     playerId?: number;
     /** With a player, only the games between the two. Training never matches two players. Ignored without a player. */
     opponentId?: number;
+    /** Only the newest games, up to this many. Without it all the games are read. */
+    limit?: number;
 }
 
 export interface GameListRow {
@@ -44,13 +47,16 @@ interface Row {
     difficulty: number | null;
 }
 
-/** The games of the event, running ones first and then the newest. */
-export async function listEventGames(pool: Pool, eventId: number, filter: GameListFilter = {}): Promise<GameListRow[]> {
+/** The ids of a filter that count: the player and the opponent, or null when they are unknown or the same. */
+async function knownFilter(pool: Pool, eventId: number, filter: GameListFilter): Promise<[number | null, number | null]> {
     const known = new Set<number>((await pool.query<{ id: number }>('SELECT id FROM players WHERE event_id = $1', [eventId])).rows.map((r) => r.id));
     const player = filter.playerId !== undefined && known.has(filter.playerId) ? filter.playerId : null;
     const opponent = player !== null && filter.opponentId !== undefined && filter.opponentId !== player && known.has(filter.opponentId) ? filter.opponentId : null;
-    const { rows } = await pool.query<Row>(
-        `SELECT * FROM (
+    return [player, opponent];
+}
+
+/** The games of the event as a CTE named g. Takes the event as $1, the player as $2 and the opponent as $3. */
+const GAMES_CTE = `WITH g AS (
              SELECT m.id, CASE WHEN m.tournament_id IS NULL THEN '1v1' ELSE 'tournament' END AS kind,
                     p1.nickname AS name1, p2.nickname AS name2, m.player1_id AS id1, m.player2_id AS id2,
                     m.score1, m.score2, m.state = 'started' AS running, COALESCE(m.result = 'forfeit', false) AS walkover, m.rule_file, NULL::text AS bot, NULL::integer AS difficulty,
@@ -67,18 +73,35 @@ export async function listEventGames(pool: Pool, eventId: number, filter: GameLi
              FROM training_matches t JOIN players p ON p.id = t.player_id
              WHERE t.event_id = $1 AND t.state IN ('started', 'finished')
                AND $3::integer IS NULL AND ($2::integer IS NULL OR t.player_id = $2)
-         ) g
-         ORDER BY running DESC, at DESC, id DESC`,
-        [eventId, player, opponent],
-    );
-    return rows.map((r) => ({
-        id: r.id,
-        kind: r.kind,
-        names: [r.name1, r.kind === 'training' ? trainingBotName(r.bot!, r.difficulty!) : r.name2],
-        playerIds: [r.id1, r.id2],
-        score: r.walkover || r.score1 === null || r.score2 === null || (r.running && r.kind === 'training') ? null : [r.score1, r.score2],
-        running: r.running,
-        walkover: r.walkover,
-        ruleFile: r.rule_file,
-    }));
+         )`;
+
+const toRow = (r: Row): GameListRow => ({
+    id: r.id,
+    kind: r.kind,
+    names: [r.name1, r.kind === 'training' ? trainingBotName(r.bot!, r.difficulty!) : r.name2],
+    playerIds: [r.id1, r.id2],
+    score: r.walkover || r.score1 === null || r.score2 === null || (r.running && r.kind === 'training') ? null : [r.score1, r.score2],
+    running: r.running,
+    walkover: r.walkover,
+    ruleFile: r.rule_file,
+});
+
+/** The games of the event, running ones first and then the newest. With a limit, only the first ones. */
+export async function listEventGames(pool: Pool, eventId: number, filter: GameListFilter = {}): Promise<GameListRow[]> {
+    const [player, opponent] = await knownFilter(pool, eventId, filter);
+    const limit = filter.limit === undefined ? null : Math.max(0, Math.floor(filter.limit));
+    const { rows } = await pool.query<Row>(`${GAMES_CTE} SELECT * FROM g ORDER BY running DESC, at DESC, id DESC LIMIT $4::integer`, [eventId, player, opponent, limit]);
+    return rows.map(toRow);
+}
+
+/** One page of the games, in the same order as listEventGames. A page past the last gives the last page. */
+export async function listEventGamesPage(pool: Pool, eventId: number, filter: GameListFilter, requested: number, size = PAGE_SIZE): Promise<Page<GameListRow>> {
+    const [player, opponent] = await knownFilter(pool, eventId, filter);
+    const counted = await pool.query<{ total: string }>(`${GAMES_CTE} SELECT count(*) AS total FROM g`, [eventId, player, opponent]);
+    const total = Number(counted.rows[0].total);
+    const pages = Math.max(1, Math.ceil(total / size));
+    const page = Math.min(Math.max(1, requested), pages);
+    const start = (page - 1) * size;
+    const { rows } = await pool.query<Row>(`${GAMES_CTE} SELECT * FROM g ORDER BY running DESC, at DESC, id DESC LIMIT $4::integer OFFSET $5::integer`, [eventId, player, opponent, size, start]);
+    return { items: rows.map(toRow), page, pages, total, first: rows.length === 0 ? 0 : start + 1, last: start + rows.length };
 }

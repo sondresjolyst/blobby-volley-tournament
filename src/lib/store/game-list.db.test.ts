@@ -6,7 +6,7 @@ import { newJoinCode } from '@/lib/players/join-code';
 import type { TrainingOptions } from '@/lib/training/settings';
 import { withAccount } from './db-test-sql';
 import { createEvent, setActiveEvent } from './events';
-import { listEventGames } from './game-list';
+import { listEventGames, listEventGamesPage } from './game-list';
 import { getMatchStats } from './game-stats';
 import { acceptChallenge, cancelMatch, createChallenge, recordNoShow, reportServerGame } from './matches';
 import { createTraining, reportTrainingConnected, reportTrainingGame } from './training';
@@ -190,5 +190,80 @@ describe('listEventGames', () => {
         const id = await match(s.bob, s.kevin);
         await win(id, 1, s.bob, s.kevin);
         expect((await listEventGames(pool, s.eventId, { playerId: s.bob, opponentId: s.bob })).map((r) => r.id)).toEqual([id]);
+    });
+});
+
+describe('listEventGamesPage', () => {
+    /** Twelve finished 1v1 matches between Bob and Kevin, oldest first by id, one minute apart. */
+    async function twelve(s: Awaited<ReturnType<typeof setup>>): Promise<number[]> {
+        const ids: number[] = [];
+        for (let i = 0; i < 12; i++) {
+            const id = await match(s.bob, s.kevin);
+            await win(id, 1, s.bob, s.kevin);
+            await win(id, 2, s.bob, s.kevin);
+            await pool.query(`UPDATE matches SET finished_at = $2 WHERE id = $1`, [id, new Date(Date.UTC(2026, 10, 20, 18, i))]);
+            ids.push(id);
+        }
+        return ids;
+    }
+
+    it('reads_page_1_and_page_2_with_the_total', async () => {
+        const s = await setup();
+        const ids = await twelve(s);
+        const newest = [...ids].reverse();
+        const one = await listEventGamesPage(pool, s.eventId, {}, 1);
+        expect(one.items.map((r) => r.id)).toEqual(newest.slice(0, 10));
+        expect(one).toMatchObject({ page: 1, pages: 2, total: 12, first: 1, last: 10 });
+        const two = await listEventGamesPage(pool, s.eventId, {}, 2);
+        expect(two.items.map((r) => r.id)).toEqual(newest.slice(10));
+        expect(two).toMatchObject({ page: 2, pages: 2, total: 12, first: 11, last: 12 });
+    });
+
+    it('puts_running_games_first_on_page_1', async () => {
+        const s = await setup();
+        const ids = await twelve(s);
+        const running = await train(s.ida, false);
+        const one = await listEventGamesPage(pool, s.eventId, {}, 1);
+        expect(one.items[0].id).toBe(running);
+        expect(one.items).toHaveLength(10);
+        expect(one.total).toBe(13);
+        const two = await listEventGamesPage(pool, s.eventId, {}, 2);
+        expect(two.items.map((r) => r.id)).toEqual([...ids].reverse().slice(9));
+    });
+
+    it('pages_inside_a_filter', async () => {
+        const s = await setup();
+        await twelve(s);
+        const other = await match(s.pia, s.ida);
+        await win(other, 1, s.pia, s.ida);
+        await train(s.bob, true);
+        const filtered = await listEventGamesPage(pool, s.eventId, { playerId: s.bob, opponentId: s.kevin }, 2);
+        expect(filtered).toMatchObject({ page: 2, pages: 2, total: 12 });
+        expect(filtered.items).toHaveLength(2);
+        const player = await listEventGamesPage(pool, s.eventId, { playerId: s.bob }, 2);
+        expect(player.total).toBe(13);
+        expect(player.items).toHaveLength(3);
+        const unknown = await listEventGamesPage(pool, s.eventId, { playerId: 9999 }, 1);
+        expect(unknown.total).toBe(14);
+    });
+
+    it('shows_the_last_page_for_a_page_past_the_end', async () => {
+        const s = await setup();
+        const ids = await twelve(s);
+        const past = await listEventGamesPage(pool, s.eventId, {}, 99);
+        expect(past).toMatchObject({ page: 2, pages: 2, total: 12, first: 11, last: 12 });
+        expect(past.items.map((r) => r.id)).toEqual([...ids].reverse().slice(10));
+    });
+
+    it('gives_an_empty_first_page_when_there_are_no_games', async () => {
+        const s = await setup();
+        expect(await listEventGamesPage(pool, s.eventId, {}, 3)).toEqual({ items: [], page: 1, pages: 1, total: 0, first: 0, last: 0 });
+    });
+
+    it('limits_the_plain_list', async () => {
+        const s = await setup();
+        const ids = await twelve(s);
+        const rows = await listEventGames(pool, s.eventId, { playerId: s.bob, limit: 3 });
+        expect(rows.map((r) => r.id)).toEqual([...ids].reverse().slice(0, 3));
     });
 });
