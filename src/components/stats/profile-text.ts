@@ -6,13 +6,13 @@ export const SCOPE_LABELS: Record<StatsScope, string> = { matches: 'Kampa', trai
 export const PROFILE_TEXT = {
     stats: 'Statistikk frå spela',
     recent: 'Siste kampa',
-    touchesPerGame: 'Touch per kamp',
-    errorsPerGame: 'Feil per kamp',
-    games: 'Kampa med statistikk',
+    touchesPerGame: 'Touch per sett',
+    errorsPerGame: 'Feil per sett',
+    games: 'Sett med statistikk',
     noStats: {
-        matches: 'Ingen kampa med statistikk ennå.',
+        matches: 'Ingen sett med statistikk ennå.',
         training: 'Ingen treninga med statistikk ennå.',
-        all: 'Ingen spel med statistikk ennå.',
+        all: 'Ingen sett med statistikk ennå.',
     },
 } as const;
 

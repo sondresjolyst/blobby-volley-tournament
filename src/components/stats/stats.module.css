@@ -578,8 +578,19 @@
     cursor: pointer;
 }
 
+.scopeTab:focus-visible {
+    outline: 3px solid var(--yellow);
+    outline-offset: 2px;
+}
+
 .scopeTab[aria-pressed='true'] {
     border-color: var(--red);
     background: var(--red);
     color: #fff;
+}
+
+@media (max-width: 760px) {
+    .cards.profileCards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }

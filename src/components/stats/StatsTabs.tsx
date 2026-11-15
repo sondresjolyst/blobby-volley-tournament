@@ -34,7 +34,7 @@ export function StatsTabs({ totals }: { totals: Record<StatsScope, StatTotals> }
             {shown.games === 0 ? (
                 <p className={styles.empty}>{PROFILE_TEXT.noStats[scope]}</p>
             ) : (
-                <div className={styles.cards}>
+                <div className={`${styles.cards} ${styles.profileCards}`}>
                     <Card label={MATCH_TEXT.possession} value={percent(shown.possession)} />
                     <Card label={PROFILE_TEXT.touchesPerGame} value={average(shown.touchesPerGame)} />
                     <Card label={PROFILE_TEXT.errorsPerGame} value={average(shown.errorsPerGame)} />

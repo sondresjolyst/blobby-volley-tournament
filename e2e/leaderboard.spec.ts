@@ -110,7 +110,7 @@ async function signUp(browser: Browser, nickname: string): Promise<BrowserContex
     return context;
 }
 
-type Sync = { players: { playerId: number; nickname: string }[]; matches: { matchId: number; players: { playerId: number }[] }[] };
+type Sync = { players: { playerId: number; nickname: string }[]; matches: { matchId: number; players: { playerId: number }[]; training?: unknown }[] };
 const sync = async (context: BrowserContext): Promise<Sync> => (await context.request.get('/api/server/sync', { headers: auth() })).json();
 
 const line = (playerId: number, ballSteps: number, touches: number, errors: number, netHits: number) => ({ playerId, ballSteps, touches, errors, netHits });
@@ -157,29 +157,73 @@ test('profile shows match stats by default', async ({ browser }) => {
     const block = page.getByRole('region', { name: 'Statistikk frå spela' });
     await expect(block.getByRole('button', { name: 'Kampa' })).toHaveAttribute('aria-pressed', 'true');
     await expect(block.getByRole('group', { name: 'Ballinnehav' })).toHaveText('Ballinnehav40 %');
-    await expect(block.getByRole('group', { name: 'Touch per kamp' })).toHaveText('Touch per kamp30,0');
-    await expect(block.getByRole('group', { name: 'Feil per kamp' })).toHaveText('Feil per kamp2,0');
+    await expect(block.getByRole('group', { name: 'Touch per sett' })).toHaveText('Touch per sett30,0');
+    await expect(block.getByRole('group', { name: 'Feil per sett' })).toHaveText('Feil per sett2,0');
     await expect(block.getByRole('group', { name: 'Nett-treff' })).toHaveText('Nett-treff1');
     await expect(block.getByRole('group', { name: 'Lengste ballveksling' })).toHaveText('Lengste ballveksling8');
     await expect(block.getByRole('group', { name: 'Snitt ballveksling' })).toHaveText('Snitt ballveksling5,0');
-    await expect(block.getByRole('group', { name: 'Kampa med statistikk' })).toHaveText('Kampa med statistikk1');
+    await expect(block.getByRole('group', { name: 'Sett med statistikk' })).toHaveText('Sett med statistikk1');
     await Promise.all(duel.contexts.map((c) => c.close()));
 });
 
 test('switching to Trening and Alt changes the numbers without a reload', async ({ browser }) => {
     const duel = await finishedDuel(browser);
     const page = await duel.contexts[0].newPage();
+    // The first player trains against the bot and the game ends with stats.
+    await page.goto('/trening');
+    const form = page.getByRole('region', { name: 'Tren mot bot' });
+    await form.getByLabel('Først te').fill('5');
+    await form.getByRole('button', { name: 'Start treninga' }).click();
+    await expect(page.getByRole('status')).toHaveText('Treninga e klar. Bli med i spelet med lenkjå di.');
+    const training = (await sync(duel.contexts[1])).matches.find((m) => 'training' in m && m.players[0].playerId === duel.ids[0])!;
+    const stats = { players: [line(duel.ids[0], 1000, 12, 3, 2), line(0, 3000, 5, 1, 0)], rallies: 4, longestRally: 6, rallyTouches: 16 };
+    const report = await page.request.post('/api/server/games', {
+        headers: auth(),
+        data: {
+            reportId: randomUUID(),
+            matchId: training.matchId,
+            game: 1,
+            status: 'finished',
+            winnerId: 0,
+            points: [
+                { playerId: duel.ids[0], points: 2 },
+                { playerId: 0, points: 5 },
+            ],
+            stats,
+            startedAt: '2026-11-20T18:00:00Z',
+            endedAt: '2026-11-20T18:02:00Z',
+            training: true,
+        },
+    });
+    expect(await report.json()).toEqual({ status: 'stored' });
+
     await page.goto(`/leaderboard/players/${duel.ids[0]}`);
     const block = page.getByRole('region', { name: 'Statistikk frå spela' });
-    await expect(block.getByRole('group', { name: 'Ballinnehav' })).toBeVisible();
+    await expect(block.getByRole('group', { name: 'Touch per sett' })).toHaveText('Touch per sett30,0');
     const requests: string[] = [];
     page.on('request', (r) => requests.push(new URL(r.url()).pathname));
+
     await block.getByRole('button', { name: 'Trening' }).click();
     await expect(block.getByRole('button', { name: 'Trening' })).toHaveAttribute('aria-pressed', 'true');
-    await expect(block.getByText('Ingen treninga med statistikk ennå.')).toBeVisible();
-    await expect(block.getByRole('group')).toHaveCount(0);
+    await expect(block.getByRole('group', { name: 'Ballinnehav' })).toHaveText('Ballinnehav25 %');
+    await expect(block.getByRole('group', { name: 'Touch per sett' })).toHaveText('Touch per sett12,0');
+    await expect(block.getByRole('group', { name: 'Feil per sett' })).toHaveText('Feil per sett3,0');
+    await expect(block.getByRole('group', { name: 'Nett-treff' })).toHaveText('Nett-treff2');
+    await expect(block.getByRole('group', { name: 'Lengste ballveksling' })).toHaveText('Lengste ballveksling6');
+    await expect(block.getByRole('group', { name: 'Snitt ballveksling' })).toHaveText('Snitt ballveksling4,0');
+    await expect(block.getByRole('group', { name: 'Sett med statistikk' })).toHaveText('Sett med statistikk1');
+
     await block.getByRole('button', { name: 'Alt' }).click();
-    await expect(block.getByRole('group', { name: 'Kampa med statistikk' })).toHaveText('Kampa med statistikk1');
+    await expect(block.getByRole('group', { name: 'Ballinnehav' })).toHaveText('Ballinnehav36 %');
+    await expect(block.getByRole('group', { name: 'Touch per sett' })).toHaveText('Touch per sett21,0');
+    await expect(block.getByRole('group', { name: 'Feil per sett' })).toHaveText('Feil per sett2,5');
+    await expect(block.getByRole('group', { name: 'Nett-treff' })).toHaveText('Nett-treff3');
+    await expect(block.getByRole('group', { name: 'Lengste ballveksling' })).toHaveText('Lengste ballveksling8');
+    await expect(block.getByRole('group', { name: 'Snitt ballveksling' })).toHaveText('Snitt ballveksling4,7');
+    await expect(block.getByRole('group', { name: 'Sett med statistikk' })).toHaveText('Sett med statistikk2');
+
+    await block.getByRole('button', { name: 'Kampa' }).click();
+    await expect(block.getByRole('group', { name: 'Touch per sett' })).toHaveText('Touch per sett30,0');
     expect(requests.filter((p) => p.startsWith('/api') || p.startsWith('/leaderboard/players'))).toEqual([]);
     await Promise.all(duel.contexts.map((c) => c.close()));
 });
