@@ -90,7 +90,7 @@ const toRow = (r: Row): GameListRow => ({
 export async function listEventGames(pool: Pool, eventId: number, filter: GameListFilter = {}): Promise<GameListRow[]> {
     const [player, opponent] = await knownFilter(pool, eventId, filter);
     const limit = filter.limit === undefined ? null : Math.max(0, Math.floor(filter.limit));
-    const { rows } = await pool.query<Row>(`${GAMES_CTE} SELECT * FROM g ORDER BY running DESC, at DESC, id DESC LIMIT $4::integer`, [eventId, player, opponent, limit]);
+    const { rows } = await pool.query<Row>(`${GAMES_CTE} SELECT * FROM g ORDER BY running DESC, at DESC, id DESC, kind LIMIT $4::integer`, [eventId, player, opponent, limit]);
     return rows.map(toRow);
 }
 
@@ -102,6 +102,6 @@ export async function listEventGamesPage(pool: Pool, eventId: number, filter: Ga
     const pages = Math.max(1, Math.ceil(total / size));
     const page = Math.min(Math.max(1, requested), pages);
     const start = (page - 1) * size;
-    const { rows } = await pool.query<Row>(`${GAMES_CTE} SELECT * FROM g ORDER BY running DESC, at DESC, id DESC LIMIT $4::integer OFFSET $5::integer`, [eventId, player, opponent, size, start]);
+    const { rows } = await pool.query<Row>(`${GAMES_CTE} SELECT * FROM g ORDER BY running DESC, at DESC, id DESC, kind LIMIT $4::integer OFFSET $5::integer`, [eventId, player, opponent, size, start]);
     return { items: rows.map(toRow), page, pages, total, first: rows.length === 0 ? 0 : start + 1, last: start + rows.length };
 }
