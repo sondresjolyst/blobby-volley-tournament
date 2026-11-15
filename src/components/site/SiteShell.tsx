@@ -12,7 +12,7 @@ interface ShellProps {
     /** The signed in player of the active event, or null. */
     player: { nickname: string; balance: number } | null;
     /** The page of the menu that is open, if it has a link there. */
-    current?: '/leaderboard' | '/trening' | '/last-ned';
+    current?: '/resultat' | '/leaderboard' | '/trening' | '/last-ned';
     children: ReactNode;
 }
 

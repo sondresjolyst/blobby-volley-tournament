@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { BoardMatch, BoardRound, BoardSlot } from '@/lib/tournaments/board';
 import styles from './player.module.css';
+import { MATCH_TEXT } from '@/components/stats/match-text';
 import { roundSettings } from './text';
 
 function SlotRow({ slot }: { slot: BoardSlot }) {
@@ -23,6 +24,11 @@ function BoardCard({ match }: { match: BoardMatch }) {
             </div>
             <SlotRow slot={match.slots[0]} />
             <SlotRow slot={match.slots[1]} />
+            {match.state === 'finished' && (
+                <Link href={`/kamp/${match.matchId}`} className={styles.betLink} aria-label={`${MATCH_TEXT.seeMatch}: ${match.slots[0].name} mot ${match.slots[1].name}`}>
+                    {MATCH_TEXT.seeMatch}
+                </Link>
+            )}
             {match.openForBets && (
                 <Link href={`/me#kamp-${match.matchId}`} className={styles.betLink}>
                     Sats nå

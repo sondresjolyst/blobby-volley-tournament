@@ -33,9 +33,9 @@ function readPlayer(value: unknown): PlayerGameStats | null {
 }
 
 /**
- * Reads the `stats` block of a report. It has two players with the ids of the points, and every
- * number is an integer from 0 to 10000000. The longest rally cannot be above the touches of all
- * rallies. Anything else gives null, and the report is handled as if it had no stats.
+ * Reads the `stats` block of a report. It has two players with the ids of the points. A player id
+ * is an integer from 0 to 2147483647 and every other number is an integer from 0 to 10000000. The
+ * longest rally cannot be above the touches of all rallies. Anything else gives null, and the report is handled as if it had no stats.
  */
 export function readStats(value: unknown, playerIds: readonly number[]): GameStats | null {
     if (!isObject(value) || playerIds.length !== 2 || !Array.isArray(value.players) || value.players.length !== 2) return null;

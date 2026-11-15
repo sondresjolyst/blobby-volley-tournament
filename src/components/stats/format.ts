@@ -1,5 +1,5 @@
 // Numbers on the leaderboards, written the way the pages write them.
-import { signed } from '@/lib/format';
+import { number, signed } from '@/lib/format';
 import { shownRating } from '@/lib/stats/elo';
 
 export { number, signed } from '@/lib/format';
@@ -14,3 +14,11 @@ const twoDecimals = new Intl.NumberFormat('nb-NO', { minimumFractionDigits: 2, m
 
 /** Payout divided by stake with a decimal comma, such as `4,20×`. Every page writes odds this way. */
 export const odds = (multiplier: number) => `${twoDecimals.format(multiplier)}×`;
+
+const oneDecimal = new Intl.NumberFormat('nb-NO', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+/** An average with one decimal and a decimal comma, such as `4,8`. A dash before there is anything to average. */
+export const average = (value: number | null) => (value === null ? '-' : oneDecimal.format(value));
+
+/** A count that may be missing, such as the longest rally of no rallies. A dash when missing. */
+export const countOrDash = (value: number | null) => (value === null ? '-' : number(value));

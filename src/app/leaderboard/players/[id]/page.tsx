@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { number, odds, percent, ratingChange, signed } from '@/components/stats/format';
 import { siteHeader } from '@/components/site/header';
 import { SiteShell } from '@/components/site/SiteShell';
+import { RESULT_TEXT, resultHref } from '@/components/stats/game-list-text';
 import styles from '@/components/stats/stats.module.css';
 import { LiveRefresh } from '@/components/LiveRefresh';
 import { getPool } from '@/lib/db';
@@ -145,6 +146,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ id
                                         <th scope="col">Motstandar</th>
                                         <th scope="col">Vunne</th>
                                         <th scope="col">Tapt</th>
+                                        <th scope="col">{RESULT_TEXT.list}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -155,6 +157,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ id
                                             </td>
                                             <td>{h.won}</td>
                                             <td>{h.lost}</td>
+                                            <td>{active?.id === player.eventId && <Link href={resultHref(player.id, h.opponentId)}>{RESULT_TEXT.seeAll}</Link>}</td>
                                         </tr>
                                     ))}
                                 </tbody>

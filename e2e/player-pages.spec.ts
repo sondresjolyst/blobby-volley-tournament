@@ -245,10 +245,11 @@ test('a player sees the bracket of a tournament with the own match marked', asyn
 
 test('a signed in player sees the same menu in the same order on every page', async ({ browser }) => {
     const { context, page } = await signUp(browser, `Un${randomBytes(2).toString('hex')}`);
-    const menu = ['Kampa', 'Kampoppsett', 'Toppliste', 'Trening', 'Storskjermen', 'Last ned'];
+    const menu = ['Kampa', 'Kampoppsett', 'Resultat', 'Toppliste', 'Trening', 'Storskjermen', 'Last ned'];
     const pages = [
         ['/me', 'Kampa'],
         ['/bracket', 'Kampoppsett'],
+        ['/resultat', 'Resultat'],
         ['/leaderboard', 'Toppliste'],
         ['/trening', 'Trening'],
         ['/last-ned', 'Last ned'],

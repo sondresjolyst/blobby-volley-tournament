@@ -42,6 +42,19 @@ describe('readStats', () => {
         expect(readStats({ ...stats(), rallies: 10_000_000, longestRally: 0 }, [12, 7])).toMatchObject({ rallies: 10_000_000 });
     });
 
+    it('accepts a player id from 0 to 2147483647 and refuses others', () => {
+        const withIds = (a: number, b: number) => {
+            const s = stats();
+            s.players[0].playerId = a;
+            s.players[1].playerId = b;
+            return s;
+        };
+        expect(readStats(withIds(0, 7), [0, 7])).not.toBeNull();
+        expect(readStats(withIds(2_147_483_647, 7), [2_147_483_647, 7])).not.toBeNull();
+        expect(readStats(withIds(-1, 7), [-1, 7])).toBeNull();
+        expect(readStats(withIds(2_147_483_648, 7), [2_147_483_648, 7])).toBeNull();
+    });
+
     it('returns null when the longest rally is above the touches of the rallies', () => {
         expect(readStats({ ...stats(), longestRally: 59 }, [12, 7])).toBeNull();
         expect(readStats({ ...stats(), longestRally: 58 }, [12, 7])).not.toBeNull();
