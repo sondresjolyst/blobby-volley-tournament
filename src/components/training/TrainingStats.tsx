@@ -1,9 +1,10 @@
 import p from '@/components/player/player.module.css';
 import t from './training.module.css';
+import { rulesName } from '@/lib/matches/rules';
 import type { PlayerTrainingStats, TrainingOverview } from '@/lib/store/training';
 import { hardestBeatenLine, TRAINING_TEXT, trainingCounts } from './text';
 
-/** The training stats of one player: the totals, the hardest bot beaten and a row per bot and difficulty. */
+/** The training stats of one player: the totals, the hardest bot beaten and a row per bot, rules and difficulty. */
 export function OwnTrainingStats({ stats, headingId }: { stats: PlayerTrainingStats; headingId: string }) {
     return (
         <section className={p.section} aria-labelledby={headingId}>
@@ -21,6 +22,7 @@ export function OwnTrainingStats({ stats, headingId }: { stats: PlayerTrainingSt
                             <thead>
                                 <tr>
                                     <th>{TRAINING_TEXT.bot}</th>
+                                    <th>{TRAINING_TEXT.rules}</th>
                                     <th>{TRAINING_TEXT.difficulty}</th>
                                     <th>{TRAINING_TEXT.games}</th>
                                     <th>{TRAINING_TEXT.wins}</th>
@@ -29,8 +31,9 @@ export function OwnTrainingStats({ stats, headingId }: { stats: PlayerTrainingSt
                             </thead>
                             <tbody>
                                 {stats.records.map((r) => (
-                                    <tr key={`${r.bot}-${r.difficulty}`}>
+                                    <tr key={`${r.bot}-${r.ruleFile}-${r.difficulty}`}>
                                         <td>{r.bot}</td>
+                                        <td>{rulesName(r.ruleFile)}</td>
                                         <td>{r.difficulty}</td>
                                         <td>{r.games}</td>
                                         <td>{r.wins}</td>
@@ -46,7 +49,7 @@ export function OwnTrainingStats({ stats, headingId }: { stats: PlayerTrainingSt
     );
 }
 
-/** The public training overview of an event: who trains the most, the most played bots and the wins per bot and difficulty. */
+/** The public training overview of an event: who trains the most, the most played bots and the wins per bot, rules and difficulty. */
 export function TrainingOverviewSection({ overview }: { overview: TrainingOverview }) {
     return (
         <section className={p.section} aria-labelledby="treningstoppen">
@@ -105,6 +108,7 @@ export function TrainingOverviewSection({ overview }: { overview: TrainingOvervi
                             <thead>
                                 <tr>
                                     <th>{TRAINING_TEXT.bot}</th>
+                                    <th>{TRAINING_TEXT.rules}</th>
                                     <th>{TRAINING_TEXT.difficulty}</th>
                                     <th>{TRAINING_TEXT.games}</th>
                                     <th>{TRAINING_TEXT.playerWins}</th>
@@ -113,8 +117,9 @@ export function TrainingOverviewSection({ overview }: { overview: TrainingOvervi
                             </thead>
                             <tbody>
                                 {overview.records.map((r) => (
-                                    <tr key={`${r.bot}-${r.difficulty}`}>
+                                    <tr key={`${r.bot}-${r.ruleFile}-${r.difficulty}`}>
                                         <td>{r.bot}</td>
+                                        <td>{rulesName(r.ruleFile)}</td>
                                         <td>{r.difficulty}</td>
                                         <td>{r.games}</td>
                                         <td>{r.wins}</td>

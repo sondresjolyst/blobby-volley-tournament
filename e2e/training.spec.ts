@@ -105,6 +105,14 @@ test('a player trains against the bot of the game server, the ring shows it as t
     await expect(page.getByRole('table', { name: 'Kem som tren mest' })).toContainText(nickname);
     await expect(page.getByRole('table', { name: 'Seira mot kvar bot' })).toContainText('hyp014');
 
+    // Both tables show the rules of the game in the Regla column.
+    const own = page.getByRole('region', { name: 'Treninga dine' });
+    await expect(own.getByRole('columnheader', { name: 'Regla' })).toBeVisible();
+    await expect(own.getByRole('row', { name: /^hyp014 Vanlig 13 1 0 1$/ })).toBeVisible();
+    const overview = page.getByRole('table', { name: 'Seira mot kvar bot' });
+    await expect(overview.getByRole('columnheader', { name: 'Regla' })).toBeVisible();
+    await expect(overview.getByRole('row', { name: /hyp014 Vanlig 13 1 0 1/ })).toBeVisible();
+
     // The front page no longer shows it.
     await page.goto('/');
     await expect(page.locator(`[data-training="${training.matchId}"]`)).toHaveCount(0);

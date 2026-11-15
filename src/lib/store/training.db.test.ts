@@ -4,6 +4,7 @@ import { migrate } from '../../../scripts/migrate.mjs';
 import type { EventInput } from '@/lib/events/input';
 import { parseTrainingReport } from '@/lib/game-server/input';
 import type { PlayerGameStats } from '@/lib/game-server/stats';
+import { rulesName } from '@/lib/matches/rules';
 import { newJoinCode } from '@/lib/players/join-code';
 import type { TrainingOptions } from '@/lib/training/settings';
 import { listMatchPools } from './bets';
@@ -220,10 +221,37 @@ describe('training stats', () => {
         const stats = await getPlayerTrainingStats(pool, ids.Ola);
         expect(stats).toMatchObject({ games: 5, wins: 3, losses: 2, hardestBeaten: { bot: 'hyp014', difficulty: 5 } });
         expect(stats.records).toEqual([
-            { bot: 'reduced', difficulty: 20, games: 3, wins: 2, losses: 1 },
-            { bot: 'Union', difficulty: 0, games: 1, wins: 0, losses: 1 },
-            { bot: 'hyp014', difficulty: 5, games: 1, wins: 1, losses: 0 },
+            { bot: 'reduced', ruleFile: 'default.lua', difficulty: 20, games: 3, wins: 2, losses: 1 },
+            { bot: 'Union', ruleFile: 'default.lua', difficulty: 0, games: 1, wins: 0, losses: 1 },
+            { bot: 'hyp014', ruleFile: 'default.lua', difficulty: 5, games: 1, wins: 1, losses: 0 },
         ]);
+    });
+
+    it('keeps games with different rules apart, for the player and for everyone', async () => {
+        const { eventId, ids } = await event(1, ['Ola', 'Kari']);
+        await train(ids.Ola, { bot: 'com_11', difficulty: 25, ruleFile: 'classic.lua' }, 15, 3);
+        await train(ids.Ola, { bot: 'com_11', difficulty: 15, ruleFile: 'default.lua' }, 3, 15);
+        await train(ids.Kari, { bot: 'com_11', difficulty: 15, ruleFile: 'default.lua' }, 15, 3);
+
+        expect((await getPlayerTrainingStats(pool, ids.Ola)).records).toEqual([
+            { bot: 'com_11', ruleFile: 'default.lua', difficulty: 15, games: 1, wins: 0, losses: 1 },
+            { bot: 'com_11', ruleFile: 'classic.lua', difficulty: 25, games: 1, wins: 1, losses: 0 },
+        ]);
+        expect((await getTrainingOverview(pool, eventId)).records).toEqual([
+            { bot: 'com_11', ruleFile: 'classic.lua', difficulty: 25, games: 1, wins: 1, losses: 0 },
+            { bot: 'com_11', ruleFile: 'default.lua', difficulty: 15, games: 2, wins: 1, losses: 1 },
+        ]);
+    });
+
+    it('keeps a rule file outside the list as its own row', async () => {
+        const { eventId, ids } = await event(1, ['Ola']);
+        // The form refuses a file outside the list, so an old row gets it directly.
+        const id = await train(ids.Ola, { bot: 'com_11', difficulty: 15 }, 15, 3);
+        await pool.query(`UPDATE training_matches SET rule_file = 'custom.lua' WHERE id = $1`, [id]);
+        const [record] = (await getPlayerTrainingStats(pool, ids.Ola)).records;
+        expect(record).toMatchObject({ bot: 'com_11', ruleFile: 'custom.lua' });
+        expect(rulesName(record.ruleFile)).toBe('custom.lua');
+        expect((await getTrainingOverview(pool, eventId)).records[0].ruleFile).toBe('custom.lua');
     });
 
     it('has no hardest bot before the first win', async () => {
@@ -252,9 +280,9 @@ describe('training stats', () => {
             { bot: 'hyp014', games: 1, playerWins: 1 },
         ]);
         expect(overview.records).toEqual([
-            { bot: 'hyp014', difficulty: 2, games: 1, wins: 1, losses: 0 },
-            { bot: 'reduced', difficulty: 13, games: 2, wins: 1, losses: 1 },
-            { bot: 'reduced', difficulty: 25, games: 2, wins: 1, losses: 1 },
+            { bot: 'hyp014', ruleFile: 'default.lua', difficulty: 2, games: 1, wins: 1, losses: 0 },
+            { bot: 'reduced', ruleFile: 'default.lua', difficulty: 13, games: 2, wins: 1, losses: 1 },
+            { bot: 'reduced', ruleFile: 'default.lua', difficulty: 25, games: 2, wins: 1, losses: 1 },
         ]);
     });
 

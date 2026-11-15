@@ -3,7 +3,7 @@
 // is one game. The game server reports it like a match, with player id 0 for the bot.
 import type { Pool, PoolClient } from 'pg';
 import { inOrder, type GameStats } from '@/lib/game-server/stats';
-import { realScoreToWin } from '@/lib/matches/rules';
+import { realScoreToWin, rulesName } from '@/lib/matches/rules';
 import { isScoreToWin, isWinningScore } from '@/lib/matches/settings';
 import { TRAINING_SPEED, isDifficulty, isTrainingBot, isTrainingRules, type TrainingOptions } from '@/lib/training/settings';
 import { lockEventMatches } from './matches';
@@ -261,6 +261,7 @@ export async function reportTrainingGame(pool: Pool, report: TrainingReport): Pr
 
 export interface TrainingRecord {
     bot: string;
+    ruleFile: string;
     difficulty: number;
     games: number;
     wins: number;
@@ -271,22 +272,28 @@ export interface PlayerTrainingStats {
     games: number;
     wins: number;
     losses: number;
-    /** Per bot and difficulty, the most played first. */
+    /** Per bot, rules and difficulty, the most played first. */
     records: TrainingRecord[];
     /** The strongest bot the player has beaten: the lowest difficulty, then the bot name. Null before the first win. */
     hardestBeaten: { bot: string; difficulty: number } | null;
 }
 
+const toRecords = (rows: { bot: string; rule_file: string; difficulty: number; games: number; wins: number }[]): TrainingRecord[] =>
+    rows.map((r) => ({ bot: r.bot, ruleFile: r.rule_file, difficulty: r.difficulty, games: r.games, wins: r.wins, losses: r.games - r.wins }));
+
+/** By bot, then the name of the rules, then the difficulty. The rule file breaks a tie between two files with the same name. */
+const byBotRulesDifficulty = (a: TrainingRecord, b: TrainingRecord) =>
+    a.bot.localeCompare(b.bot) || rulesName(a.ruleFile).localeCompare(rulesName(b.ruleFile)) || a.difficulty - b.difficulty || a.ruleFile.localeCompare(b.ruleFile);
+
 /** The training stats of one player. */
 export async function getPlayerTrainingStats(pool: Pool, playerId: number): Promise<PlayerTrainingStats> {
-    const { rows } = await pool.query<{ bot: string; difficulty: number; games: number; wins: number }>(
-        `SELECT bot, difficulty, count(*)::int AS games, count(*) FILTER (WHERE won)::int AS wins
+    const { rows } = await pool.query<{ bot: string; rule_file: string; difficulty: number; games: number; wins: number }>(
+        `SELECT bot, rule_file, difficulty, count(*)::int AS games, count(*) FILTER (WHERE won)::int AS wins
          FROM training_matches WHERE player_id = $1 AND state = 'finished'
-         GROUP BY bot, difficulty
-         ORDER BY games DESC, difficulty, bot`,
+         GROUP BY bot, rule_file, difficulty`,
         [playerId],
     );
-    const records = rows.map((r) => ({ bot: r.bot, difficulty: r.difficulty, games: r.games, wins: r.wins, losses: r.games - r.wins }));
+    const records = toRecords(rows).sort((a, b) => b.games - a.games || a.difficulty - b.difficulty || a.bot.localeCompare(b.bot) || rulesName(a.ruleFile).localeCompare(rulesName(b.ruleFile)) || a.ruleFile.localeCompare(b.ruleFile));
     const beaten = records.filter((r) => r.wins > 0).sort((a, b) => a.difficulty - b.difficulty || a.bot.localeCompare(b.bot))[0];
     const games = records.reduce((sum, r) => sum + r.games, 0);
     const wins = records.reduce((sum, r) => sum + r.wins, 0);
@@ -312,7 +319,7 @@ export interface TrainingOverview {
     trainers: TrainerEntry[];
     /** The most played bots first. */
     bots: BotEntry[];
-    /** Wins against each bot per difficulty, by bot and then from the strongest difficulty. */
+    /** Wins against each bot per rules and difficulty, by bot, then rules name, then from the strongest difficulty. */
     records: TrainingRecord[];
 }
 
@@ -327,11 +334,10 @@ export async function getTrainingOverview(pool: Pool, eventId: number): Promise<
              ORDER BY games DESC, wins DESC, lower(p.nickname), t.player_id`,
             [eventId],
         ),
-        pool.query<{ bot: string; difficulty: number; games: number; wins: number }>(
-            `SELECT bot, difficulty, count(*)::int AS games, count(*) FILTER (WHERE won)::int AS wins
+        pool.query<{ bot: string; rule_file: string; difficulty: number; games: number; wins: number }>(
+            `SELECT bot, rule_file, difficulty, count(*)::int AS games, count(*) FILTER (WHERE won)::int AS wins
              FROM training_matches WHERE event_id = $1 AND state = 'finished'
-             GROUP BY bot, difficulty
-             ORDER BY bot, difficulty`,
+             GROUP BY bot, rule_file, difficulty`,
             [eventId],
         ),
     ]);
@@ -345,7 +351,7 @@ export async function getTrainingOverview(pool: Pool, eventId: number): Promise<
     return {
         trainers: trainers.rows.map((r) => ({ playerId: r.player_id, nickname: r.nickname, games: r.games, wins: r.wins })),
         bots: [...perBot.values()].sort((a, b) => b.games - a.games || a.bot.localeCompare(b.bot)),
-        records: records.rows.map((r) => ({ bot: r.bot, difficulty: r.difficulty, games: r.games, wins: r.wins, losses: r.games - r.wins })),
+        records: toRecords(records.rows).sort(byBotRulesDifficulty),
     };
 }
 

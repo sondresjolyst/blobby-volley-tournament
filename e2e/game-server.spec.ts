@@ -134,7 +134,11 @@ test('the game server syncs a called match, starts it, sends a live score and re
     // The big screen reads the live score without any login.
     const screen = await browser.newContext({ baseURL: process.env.E2E_BASE_URL });
     const live = await (await screen.request.get(`/api/matches/${match.matchId}/live`)).json();
-    expect(live).toMatchObject({ matchId: match.matchId, state: 'started', training: false, live: { game: 1 }, stats });
+    expect(live).toMatchObject({ matchId: match.matchId, state: 'started', training: false, live: { game: 1 } });
+    // The site stores the stats in the slot order of the match, so the players are compared by id.
+    const byId = (x: { playerId: number }, y: { playerId: number }) => x.playerId - y.playerId;
+    expect([...live.stats.players].sort(byId)).toEqual([...stats.players].sort(byId));
+    expect(live.stats).toMatchObject({ rallies: stats.rallies, longestRally: stats.longestRally, rallyTouches: stats.rallyTouches });
     expect(live.live.points.sort((x: { playerId: number }, y: { playerId: number }) => x.playerId - y.playerId)).toEqual(points(7, 4).sort((x, y) => x.playerId - y.playerId));
 
     const report = { reportId: randomUUID(), matchId: match.matchId, game: 1, status: 'finished', winnerId: ids[1], points: points(18, 21), startedAt: '2026-11-20T18:00:00Z', endedAt: '2026-11-20T18:06:00Z' };

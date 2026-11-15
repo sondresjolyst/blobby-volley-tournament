@@ -10,6 +10,7 @@ export const TRAINING_TEXT = {
     title: 'Tren mot bot',
     intro: 'Spel mot ein bot på spelserveren. Treninga telle ikkje på Foza, betting, topplistå eller turneringa.',
     bot: 'Bot',
+    rules: 'Regla',
     difficulty: 'Vanskegrad',
     difficultyHint: `${MIN_DIFFICULTY} e sterkast, ${MAX_DIFFICULTY} e svakast`,
     difficultyInfo: 'Ka betyr vanskegrad?',
