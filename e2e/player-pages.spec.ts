@@ -243,6 +243,27 @@ test('a player sees the bracket of a tournament with the own match marked', asyn
     for (const player of players) await player.context.close();
 });
 
+test('a signed in player sees the same menu in the same order on every page', async ({ browser }) => {
+    const { context, page } = await signUp(browser, `Un${randomBytes(2).toString('hex')}`);
+    const menu = ['Kampa', 'Kampoppsett', 'Toppliste', 'Trening', 'Storskjermen', 'Last ned'];
+    const pages = [
+        ['/me', 'Kampa'],
+        ['/bracket', 'Kampoppsett'],
+        ['/leaderboard', 'Toppliste'],
+        ['/trening', 'Trening'],
+        ['/last-ned', 'Last ned'],
+    ] as const;
+    for (const [path, current] of pages) {
+        await page.goto(path);
+        const nav = page.getByRole('banner').getByRole('navigation');
+        const links = await nav.getByRole('link').allTextContents();
+        expect(links.slice(0, menu.length), path).toEqual(menu);
+        await expect(nav.getByRole('link', { name: current, exact: true })).toHaveAttribute('aria-current', 'page');
+        await expect(nav.locator('[aria-current="page"]')).toHaveCount(1);
+    }
+    await context.close();
+});
+
 test('the bracket page sends a visitor without a session to sign-in', async ({ page }) => {
     await page.goto('/bracket');
     await expect(page).toHaveURL(/\/login$/);

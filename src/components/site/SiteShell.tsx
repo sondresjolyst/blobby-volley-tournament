@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { EdgePizzas } from '@/components/pizza/Decor';
-import { HeaderNav, type HeaderLink } from '@/components/player/HeaderNav';
+import { HeaderNav } from '@/components/player/HeaderNav';
+import { menuLinks } from '@/components/player/menu';
 import p from '@/components/player/player.module.css';
 import s from './site.module.css';
 
@@ -26,13 +27,7 @@ export function AdminLink() {
 
 /** The header and theme of the front page and the leaderboards. The header is the one of the player pages. */
 export function SiteShell({ eventName, player, current, children }: ShellProps) {
-    const links: HeaderLink[] = [
-        ...(eventName ? [{ href: '/bracket', text: 'Kampoppsett' }] : []),
-        { href: '/leaderboard', text: 'Toppliste', current: current === '/leaderboard' },
-        ...(eventName ? [{ href: '/trening', text: 'Trening', current: current === '/trening' }] : []),
-        ...(eventName ? [{ href: '/big', text: 'Storskjermen' }] : []),
-        { href: '/last-ned', text: 'Last ned', current: current === '/last-ned' },
-    ];
+    const links = menuLinks({ eventOpen: Boolean(eventName), signedIn: player !== null, current });
     return (
         <div className={`${p.shell} ${s.site}`}>
             <EdgePizzas />

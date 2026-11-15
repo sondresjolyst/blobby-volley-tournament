@@ -1,9 +1,12 @@
 import type { ReactNode } from 'react';
 import { EdgePizzas } from '@/components/pizza/Decor';
 import { HeaderNav } from './HeaderNav';
+import { menuLinks, type MenuPage } from './menu';
 import styles from './player.module.css';
 
 export type PlayerPage = 'matches' | 'bracket' | 'training';
+
+const PAGE_PATHS: Record<PlayerPage, MenuPage> = { matches: '/me', bracket: '/bracket', training: '/trening' };
 
 interface ShellProps {
     page: PlayerPage;
@@ -15,13 +18,7 @@ interface ShellProps {
 
 /** The header, the theme and the main area that every player page shares. */
 export function PlayerShell({ page, eventName, nickname, balance, children }: ShellProps) {
-    const links = [
-        { href: '/me', text: 'Kampa', current: page === 'matches' },
-        { href: '/bracket', text: 'Kampoppsett', current: page === 'bracket' },
-        { href: '/trening', text: 'Trening', current: page === 'training' },
-        { href: '/leaderboard', text: 'Toppliste' },
-        { href: '/last-ned', text: 'Last ned' },
-    ];
+    const links = menuLinks({ eventOpen: true, signedIn: true, current: PAGE_PATHS[page] });
     return (
         <div className={styles.shell} lang="nn">
             <EdgePizzas />
