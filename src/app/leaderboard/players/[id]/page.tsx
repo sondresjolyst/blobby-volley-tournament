@@ -3,6 +3,9 @@ import { notFound } from 'next/navigation';
 import { number, odds, percent, ratingChange, signed } from '@/components/stats/format';
 import { siteHeader } from '@/components/site/header';
 import { SiteShell } from '@/components/site/SiteShell';
+import { GameList } from '@/components/stats/GameList';
+import { PROFILE_TEXT, RECENT_GAMES } from '@/components/stats/profile-text';
+import { StatsTabs } from '@/components/stats/StatsTabs';
 import { RESULT_TEXT, resultHref } from '@/components/stats/game-list-text';
 import styles from '@/components/stats/stats.module.css';
 import { LiveRefresh } from '@/components/LiveRefresh';
@@ -11,6 +14,8 @@ import { parseId } from '@/lib/http';
 import { shownRating } from '@/lib/stats/elo';
 import { nicknameOf } from '@/lib/stats/players';
 import { getActiveEvent } from '@/lib/store/events';
+import { listEventGames } from '@/lib/store/game-list';
+import { getPlayerStatTotals } from '@/lib/store/game-stats';
 import { liveStamp } from '@/lib/store/live';
 import { getPlayerStats } from '@/lib/store/stats';
 
@@ -27,6 +32,9 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ id
     // Only the active event changes, so only a player of it gets the live refresh.
     const stamp = active?.id === page.player.eventId ? activeStamp : null;
     const { player, stats, betting, elo, placings } = page;
+    const [totals, games] = await Promise.all([getPlayerStatTotals(pool, id), listEventGames(pool, player.eventId, { playerId: id })]);
+    const recent = games.slice(0, RECENT_GAMES);
+    const hasStats = totals.all.games > 0;
     const name = nicknameOf(page.nicknames);
     const back = active?.id === player.eventId ? '/leaderboard' : `/leaderboard?event=${player.eventId}`;
 
@@ -72,6 +80,24 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ id
                         </dd>
                     </div>
                 </dl>
+
+                {hasStats && (
+                    <section aria-labelledby="statistikk" className={styles.section}>
+                        <h2 id="statistikk" className={styles.heading}>
+                            {PROFILE_TEXT.stats}
+                        </h2>
+                        <StatsTabs totals={totals} />
+                    </section>
+                )}
+
+                {recent.length > 0 && (
+                    <section aria-labelledby="siste" className={styles.section}>
+                        <h2 id="siste" className={styles.heading}>
+                            {PROFILE_TEXT.recent}
+                        </h2>
+                        <GameList games={recent} label={PROFILE_TEXT.recent} />
+                    </section>
+                )}
 
                 <section aria-labelledby="kampar" className={styles.section}>
                     <h2 id="kampar" className={styles.heading}>

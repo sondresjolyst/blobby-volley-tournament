@@ -559,3 +559,27 @@
         min-width: 0;
     }
 }
+
+/* The stats block of the player profile. */
+.scopeTabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.scopeTab {
+    padding: 8px 16px;
+    border: 2px solid var(--line);
+    border-radius: 999px;
+    background: #fff;
+    color: inherit;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.scopeTab[aria-pressed='true'] {
+    border-color: var(--red);
+    background: var(--red);
+    color: #fff;
+}
