@@ -20,12 +20,15 @@ export interface GameStats {
 }
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
+const MAX_ID = 2_147_483_647;
+/** A player id as the game server sends it. 0 is the bot of a training match. */
+const isPlayerId = (value: unknown): value is number => Number.isInteger(value) && (value as number) >= 0 && (value as number) <= MAX_ID;
 const isStat = (value: unknown): value is number => Number.isInteger(value) && (value as number) >= 0 && (value as number) <= MAX_STAT;
 
 function readPlayer(value: unknown): PlayerGameStats | null {
     if (!isObject(value)) return null;
     const { playerId, ballSteps, touches, errors, netHits } = value;
-    if (!isStat(playerId) || !isStat(ballSteps) || !isStat(touches) || !isStat(errors) || !isStat(netHits)) return null;
+    if (!isPlayerId(playerId) || !isStat(ballSteps) || !isStat(touches) || !isStat(errors) || !isStat(netHits)) return null;
     return { playerId, ballSteps, touches, errors, netHits };
 }
 
@@ -43,4 +46,16 @@ export function readStats(value: unknown, playerIds: readonly number[]): GameSta
     const { rallies, longestRally, rallyTouches } = value;
     if (!isStat(rallies) || !isStat(longestRally) || !isStat(rallyTouches) || longestRally > rallyTouches) return null;
     return { players: [first, second], rallies, longestRally, rallyTouches };
+}
+
+/**
+ * The stats with the players in the order of the two ids, or null when the ids are not exactly
+ * these two. A game has its stats in slot order: player 1 first, and for training the player first.
+ */
+export function inOrder(stats: GameStats | null | undefined, first: number, second: number): GameStats | null {
+    if (!stats) return null;
+    const [a, b] = stats.players;
+    if (a.playerId === first && b.playerId === second) return stats;
+    if (a.playerId === second && b.playerId === first) return { ...stats, players: [b, a] };
+    return null;
 }

@@ -1,5 +1,5 @@
 // The words of training against the bot of the game server, in the Rogaland dialect of the LAN.
-import { MAX_DIFFICULTY, MIN_DIFFICULTY } from '@/lib/training/settings';
+import { MAX_DIFFICULTY, MIN_DIFFICULTY, trainingBotName } from '@/lib/training/settings';
 import { realScoreToWin, rulesName } from '@/lib/matches/rules';
 import { MAX_SCORE_TO_WIN, MIN_SCORE_TO_WIN } from '@/lib/matches/settings';
 
@@ -47,9 +47,6 @@ export const trainingCounts = (games: number, wins: number, losses: number) => `
 export const hardestBeatenLine = (bot: string, difficulty: number) => `Tøffaste bot du har slått: ${bot} på vanskegrad ${difficulty}`;
 
 /** Such as `Ola vs Bot (hyp014, vanskegrad 13)`. */
-/** How the site names the bot of a training match. */
-export const trainingBotName = (bot: string, difficulty: number) => `Bot (${bot}, vanskegrad ${difficulty})`;
-
 export const trainingVersus = (nickname: string, bot: string, difficulty: number) => `${nickname} vs ${trainingBotName(bot, difficulty)}`;
 
 /** Such as `Vanlig · først te 15`, with the points the rules really play to. */

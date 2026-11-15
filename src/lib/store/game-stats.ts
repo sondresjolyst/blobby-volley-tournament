@@ -2,8 +2,8 @@
 // game an admin set or restarted has no stats, even if rows are left from an earlier report.
 // Totals add the raw numbers first and divide after.
 import type { Pool } from 'pg';
-import { trainingBotName } from '@/components/training/text';
 import type { GameStats, PlayerGameStats } from '@/lib/game-server/stats';
+import { trainingBotName } from '@/lib/training/settings';
 import { BOT_PLAYER_ID } from './training';
 
 /** matches: tournament and 1v1 games. training: games against a bot. all: both. */
@@ -25,7 +25,7 @@ export interface StatTotals {
 /** One game seen from one player. */
 interface OwnGame {
     own: PlayerGameStats;
-    opponent: PlayerGameStats;
+    opponent: { ballSteps: number };
     rallies: number;
     longestRally: number;
     rallyTouches: number;
@@ -64,8 +64,8 @@ const STAT_COLUMNS = 's.slot, s.ball_steps, s.touches, s.errors, s.net_hits, s.r
 
 /** The games of a player in matches whose stats count, with the player and the opponent. */
 async function matchGames(pool: Pool, playerId: number): Promise<OwnGame[]> {
-    const { rows } = await pool.query<StatRow & { opponent_steps: string; opponent_touches: number; opponent_errors: number; opponent_net_hits: number }>(
-        `SELECT ${STAT_COLUMNS}, o.ball_steps AS opponent_steps, o.touches AS opponent_touches, o.errors AS opponent_errors, o.net_hits AS opponent_net_hits
+    const { rows } = await pool.query<StatRow & { opponent_steps: string }>(
+        `SELECT ${STAT_COLUMNS}, o.ball_steps AS opponent_steps
          FROM match_game_stats s
          JOIN match_game_stats o ON o.match_id = s.match_id AND o.game_number = s.game_number AND o.slot = 3 - s.slot
          JOIN match_games g ON g.match_id = s.match_id AND g.number = s.game_number
@@ -76,7 +76,7 @@ async function matchGames(pool: Pool, playerId: number): Promise<OwnGame[]> {
     );
     return rows.map((r) => ({
         own: playerOf(playerId, r),
-        opponent: { playerId: 0, ballSteps: Number(r.opponent_steps), touches: r.opponent_touches, errors: r.opponent_errors, netHits: r.opponent_net_hits },
+        opponent: { ballSteps: Number(r.opponent_steps) },
         rallies: r.rallies,
         longestRally: r.longest_rally,
         rallyTouches: r.rally_touches,

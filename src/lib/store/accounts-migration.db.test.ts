@@ -120,12 +120,12 @@ async function seed(): Promise<Seed> {
     return { lan1, lan2, ids, pins };
 }
 
-/** Every row the accounts must not change, as JSON. Nicknames and the live counter are left out. */
 async function columnsOf(table: string): Promise<string[]> {
     const { rows } = await pool.query<{ column_name: string }>('SELECT column_name FROM information_schema.columns WHERE table_name = $1 ORDER BY ordinal_position', [table]);
     return rows.map((r) => r.column_name);
 }
 
+/** Every row the accounts must not change, as JSON. Nicknames and the live counter are left out. */
 async function untouched(): Promise<Record<string, unknown[]>> {
     const read = async (sql: string) => (await pool.query(sql)).rows;
     return {

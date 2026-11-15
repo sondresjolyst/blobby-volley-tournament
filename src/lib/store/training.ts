@@ -2,7 +2,7 @@
 // never reach Foza, bets, the leaderboards, Elo, tournaments or the big screen. A training match
 // is one game. The game server reports it like a match, with player id 0 for the bot.
 import type { Pool, PoolClient } from 'pg';
-import type { GameStats } from '@/lib/game-server/stats';
+import { inOrder, type GameStats } from '@/lib/game-server/stats';
 import { realScoreToWin } from '@/lib/matches/rules';
 import { isScoreToWin, isWinningScore } from '@/lib/matches/settings';
 import { TRAINING_SPEED, isDifficulty, isTrainingBot, isTrainingRules, type TrainingOptions } from '@/lib/training/settings';
@@ -243,6 +243,7 @@ export async function reportTrainingGame(pool: Pool, report: TrainingReport): Pr
             return { status: 'stored' };
         }
         const won = report.winnerId === match.player_id;
+        const ordered = inOrder(report.stats, match.player_id, BOT_PLAYER_ID);
         // Lyn always plays to 2 and Brannmur to 10 times the points, like for a match.
         if (!isWinningScore(won ? 1 : 2, playerPoints, botPoints, realScoreToWin(match.rule_file, match.score_to_win))) return { status: 'refused', reason: 'score' };
         await client.query(
@@ -250,7 +251,7 @@ export async function reportTrainingGame(pool: Pool, report: TrainingReport): Pr
                  player_points = $4, bot_points = $5, won = $6, game_started_at = $3, game_ended_at = $7, stats = $8,
                  live_game = NULL, live_points = NULL, live_stats = NULL, live_updated_at = NULL
              WHERE id = $1`,
-            [match.id, report.reportId, report.startedAt, playerPoints, botPoints, won, report.endedAt, report.stats ? JSON.stringify(report.stats) : null],
+            [match.id, report.reportId, report.startedAt, playerPoints, botPoints, won, report.endedAt, ordered ? JSON.stringify(ordered) : null],
         );
         return { status: 'stored' };
     });

@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import type { Pool } from 'pg';
 import { DEFAULT_NEXT_GAME_DELAY } from '@/lib/matches/settings';
 import type { PlayerPoints } from '@/lib/game-server/input';
-import type { GameStats } from '@/lib/game-server/stats';
+import { inOrder, type GameStats } from '@/lib/game-server/stats';
 import type { MatchState } from '@/lib/matches/state';
 import { listSyncTraining, type SyncTrainingRow, type TrainingState } from './training';
 
@@ -202,12 +202,14 @@ export async function updateLiveScore(pool: Pool, input: LiveInput, now: Date): 
     if (input.game < match.next_game) return { status: 'ignored', reason: 'game-closed' };
     // Only the game being played is stored, so one wrong number cannot block the real game.
     if (input.game > match.next_game) return { status: 'ignored', reason: 'game-ahead' };
+    // The stats are kept in slot order like the points. Stats for other players are dropped.
+    const stats = inOrder(input.stats, match.player1_id, match.player2_id);
     const pointsOf = (playerId: number | null) => input.points.find((p) => p.playerId === playerId)!.points;
     const stored = await pool.query(
         `INSERT INTO live_scores (match_id, game_number, points1, points2, stats, updated_at) VALUES ($1, $2, $3, $4, $5, $6)
          ON CONFLICT (match_id) DO UPDATE SET game_number = EXCLUDED.game_number, points1 = EXCLUDED.points1, points2 = EXCLUDED.points2, stats = EXCLUDED.stats, updated_at = EXCLUDED.updated_at
          WHERE live_scores.game_number <= EXCLUDED.game_number`,
-        [input.matchId, input.game, pointsOf(match.player1_id), pointsOf(match.player2_id), input.stats ? JSON.stringify(input.stats) : null, now],
+        [input.matchId, input.game, pointsOf(match.player1_id), pointsOf(match.player2_id), stats ? JSON.stringify(stats) : null, now],
     );
     return stored.rowCount === 1 ? { status: 'stored' } : { status: 'ignored', reason: 'game-closed' };
 }
@@ -225,9 +227,11 @@ async function updateTrainingLive(pool: Pool, input: LiveInput, now: Date): Prom
     const ids = input.points.map((p) => p.playerId);
     if (ids.length !== 2 || !ids.includes(match.player_id) || !ids.includes(0)) return { status: 'ignored', reason: 'players' };
     if (input.game > 1) return { status: 'ignored', reason: 'game-ahead' };
+    // The player first and the bot second, in the points and the stats.
+    const stats = inOrder(input.stats, match.player_id, 0);
     const stored = await pool.query(
         `UPDATE training_matches SET live_game = $2, live_points = $3, live_stats = $4, live_updated_at = $5 WHERE id = $1 AND state = 'started'`,
-        [input.matchId, input.game, JSON.stringify(input.points.map((p) => ({ playerId: p.playerId, points: p.points }))), input.stats ? JSON.stringify(input.stats) : null, now],
+        [input.matchId, input.game, JSON.stringify([match.player_id, 0].map((id) => input.points.find((p) => p.playerId === id)!)), stats ? JSON.stringify(stats) : null, now],
     );
     return stored.rowCount === 1 ? { status: 'stored' } : { status: 'ignored', reason: 'state' };
 }

@@ -6,6 +6,7 @@ ALTER TABLE live_scores ADD COLUMN stats jsonb;
 ALTER TABLE training_matches ADD COLUMN live_game integer, ADD COLUMN live_points jsonb, ADD COLUMN live_stats jsonb, ADD COLUMN live_updated_at timestamptz;
 
 -- A live write must not make the open pages load again. The trigger now fires on the columns
--- that are not live ones.
+-- that are not live ones. A new column on training_matches must be added to this list, or
+-- changes to it stop refreshing the open pages.
 DROP TRIGGER training_matches_live_version ON training_matches;
 CREATE CONSTRAINT TRIGGER training_matches_live_version AFTER INSERT OR UPDATE OF event_id, player_id, bot, difficulty, rule_file, score_to_win, game_speed, state, cancel_reason, report_id, player_points, bot_points, won, game_started_at, game_ended_at, created_at, started_at, finished_at, cancelled_at, stats OR DELETE ON training_matches DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION training_live_version_bump();

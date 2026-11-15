@@ -3,7 +3,7 @@
 // same transaction.
 import type { Pool, PoolClient } from 'pg';
 import { DEFAULT_RULES, finalPlacings, isBestOf, isRuleFile, roundName, type FormatId, type MatchLink, type Placing, type Section } from '@/lib/bracket';
-import type { GameStats, PlayerGameStats } from '@/lib/game-server/stats';
+import { inOrder, type GameStats } from '@/lib/game-server/stats';
 import { fitsScoreToWin, realScoreToWin } from '@/lib/matches/rules';
 import { DEFAULT_GAME_SPEED, DEFAULT_SCORE_TO_WIN, isGameSpeed, isPoints, isScoreToWin, isWinningScore } from '@/lib/matches/settings';
 import { isOpenForBets, isValidSeriesScore, nextState, seriesScore, type GameResult, type MatchAction, type MatchState } from '@/lib/matches/state';
@@ -718,7 +718,7 @@ const isValidReport = (report: GameReport) =>
     isWinningScore(report.winnerSlot, report.points1, report.points2, 1);
 
 /** Stores one report on the locked match and applies it when it is for the next game. */
-async function storeReport(tx: MatchTx, report: GameReport, times: { startedAt: Date; endedAt: Date } | null, stats: SlotStats | null = null): Promise<ReportStatus> {
+async function storeReport(tx: MatchTx, report: GameReport, times: { startedAt: Date; endedAt: Date } | null, stats: GameStats | null = null): Promise<ReportStatus> {
     // A finished game from the game server ends at the points to win of the match or later. The rules can change those points.
     if (!isWinningScore(report.winnerSlot, report.points1, report.points2, realScoreToWin(tx.match.rule_file, tx.match.score_to_win))) throw new Refused('score');
     const games = await readGames(tx.client, tx.match.id);
@@ -774,14 +774,6 @@ async function storeReport(tx: MatchTx, report: GameReport, times: { startedAt: 
     return decision;
 }
 
-/** The stats of a game with the players in slot order. */
-interface SlotStats {
-    players: [PlayerGameStats, PlayerGameStats];
-    rallies: number;
-    longestRally: number;
-    rallyTouches: number;
-}
-
 /**
  * Stores a game result from the game server. Each report id is stored once. A report for a game
  * that already has a result, from an admin or an earlier report, is kept but changes nothing. A
@@ -835,10 +827,8 @@ export async function reportServerGame(pool: Pool, report: ServerGameReport): Pr
             leftSlot: left === null ? null : left === player1 ? 1 : 2,
         };
         if (!isValidReport(slots)) throw new Refused('score');
-        const stats = report.stats ?? null;
-        const slotStats: SlotStats | null = stats ? { ...stats, players: player1 === stats.players[0].playerId ? stats.players : [stats.players[1], stats.players[0]] } : null;
-        if (slotStats && (slotStats.players[0].playerId !== player1 || slotStats.players[1].playerId !== player2)) throw new Refused('players');
-        return storeReport(tx, slots, { startedAt: report.startedAt, endedAt: report.endedAt }, slotStats);
+        // Stats never refuse a report. Stats for other players than the two are dropped.
+        return storeReport(tx, slots, { startedAt: report.startedAt, endedAt: report.endedAt }, inOrder(report.stats, player1, player2));
     });
 }
 

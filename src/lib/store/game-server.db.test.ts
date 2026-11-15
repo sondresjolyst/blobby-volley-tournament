@@ -1,4 +1,4 @@
-import { copyFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { copyFileSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Pool } from 'pg';
@@ -354,6 +354,15 @@ describe('getServerSync', () => {
             if (!parsed.ok) throw new Error(parsed.field);
             expect(parsed.value.stats).toBeNull();
             expect(await reportServerGame(pool, parsed.value)).toMatchObject({ ok: true, status: 'applied' });
+            expect(await rows(m1)).toEqual([]);
+        });
+
+        it('report_with_stats_for_other_players_stores_result_without_stats', async () => {
+            const s = await setup({ bestOf: 1 });
+            const [m1] = s.ids;
+            await callMatch(pool, m1);
+            const report = { ...serverReport(m1, 1, s.players[0], [s.players[0], 15, s.players[3], 4]), stats: statsOf(s.players[0], s.players[1]) };
+            expect(await reportServerGame(pool, report)).toMatchObject({ ok: true, status: 'applied' });
             expect(await rows(m1)).toEqual([]);
         });
 
@@ -746,11 +755,51 @@ describe('live stats', () => {
         const stats = statsFor(b, a);
         expect(await updateLiveScore(pool, { matchId: m1, game: 1, points: [{ playerId: b, points: 4 }, { playerId: a, points: 2 }], stats }, NOW)).toEqual({ status: 'stored' });
         const got = (await getLiveScore(pool, m1))!;
-        expect(got.stats).toEqual(stats);
+        // The body listed player 2 first. The stored stats are in slot order like the points.
+        expect(got.stats).toEqual({ ...stats, players: [stats.players[1], stats.players[0]] });
+        expect(got.stats!.players.map((p) => p.playerId)).toEqual(got.live!.points.map((p) => p.playerId));
         expect(got.training).toBe(false);
-        const later = statsFor(b, a, 33);
+        const later = statsFor(a, b, 33);
         await updateLiveScore(pool, { matchId: m1, game: 1, points: [{ playerId: b, points: 5 }, { playerId: a, points: 2 }], stats: later }, NOW);
         expect((await getLiveScore(pool, m1))!.stats).toEqual(later);
+    });
+
+    it('live_stats_for_other_players_are_dropped_but_score_is_stored', async () => {
+        const s = await setup();
+        const [m1] = s.ids;
+        const [a, b] = [s.players[0], s.players[3]];
+        await callMatch(pool, m1);
+        expect(await updateLiveScore(pool, { matchId: m1, game: 1, points: [{ playerId: a, points: 1 }, { playerId: b, points: 0 }], stats: statsFor(a, s.players[1]) }, NOW)).toEqual({ status: 'stored' });
+        expect(await getLiveScore(pool, m1)).toMatchObject({ live: { game: 1 }, stats: null });
+    });
+
+    it('live_training_flag_on_a_match_id_is_not_found_and_changes_nothing', async () => {
+        const s = await setup();
+        const [m1] = s.ids;
+        const a = s.players[0];
+        await callMatch(pool, m1);
+        const points = [
+            { playerId: a, points: 1 },
+            { playerId: 0, points: 0 },
+        ];
+        expect(await updateLiveScore(pool, { matchId: m1, game: 1, points, stats: statsFor(a, 0), training: true }, NOW)).toEqual({ status: 'ignored', reason: 'not-found' });
+        expect((await pool.query('SELECT count(*)::int AS n FROM live_scores')).rows[0].n).toBe(0);
+    });
+
+    it('live_training_stats_in_player_then_bot_order', async () => {
+        const eventId = await createEvent(pool, lan);
+        await setActiveEvent(pool, eventId);
+        const [p] = await addPlayers(eventId, 1);
+        const id = await training(p, true);
+        const botFirst = [
+            { playerId: 0, points: 2 },
+            { playerId: p, points: 3 },
+        ];
+        const stats = statsFor(0, p);
+        expect(await updateLiveScore(pool, { matchId: id, game: 1, points: botFirst, stats, training: true }, NOW)).toEqual({ status: 'stored' });
+        const got = (await getLiveScore(pool, id))!;
+        expect(got.live!.points).toEqual(trainingPoints(p, 3, 2));
+        expect(got.stats).toEqual({ ...stats, players: [stats.players[1], stats.players[0]] });
     });
 
     it('live_stats_for_closed_game_ignored', async () => {
@@ -823,6 +872,51 @@ describe('live stats', () => {
         expect(await getLiveScore(pool, id)).toMatchObject({ state: 'finished', live: null, stats: null });
         const row = (await pool.query('SELECT live_game, live_points, live_stats, live_updated_at FROM training_matches WHERE id = $1', [id])).rows[0];
         expect(row).toMatchObject({ live_game: null, live_points: null, live_stats: null, live_updated_at: null });
+    });
+});
+
+describe('down files of the stats migrations', () => {
+    it('turns 0023 and 0022 back on seeded data and applies them again', async () => {
+        const s = await setup({ bestOf: 1 });
+        const [m1] = s.ids;
+        const [a, b] = [s.players[0], s.players[3]];
+        const stats = (x: number, y: number): GameStats => ({
+            players: [
+                { playerId: x, ballSteps: 10, touches: 3, errors: 1, netHits: 0 },
+                { playerId: y, ballSteps: 8, touches: 2, errors: 0, netHits: 1 },
+            ],
+            rallies: 2,
+            longestRally: 4,
+            rallyTouches: 5,
+        });
+        await callMatch(pool, m1);
+        await updateLiveScore(pool, { matchId: m1, game: 1, points: [{ playerId: a, points: 3 }, { playerId: b, points: 1 }], stats: stats(a, b) }, NOW);
+        expect(await reportServerGame(pool, { ...serverReport(m1, 1, a, [a, 15, b, 4]), stats: stats(a, b) })).toMatchObject({ ok: true });
+        const [p] = await addPlayers(s.eventId, 1, 'T');
+        const created = await createTraining(pool, p, { bot: 'hyp014', difficulty: 13, ruleFile: 'default.lua', scoreToWin: 15 });
+        if (!created.ok) throw new Error(created.error);
+        await reportTrainingConnected(pool, created.id, [p, 0]);
+        await updateLiveScore(pool, { matchId: created.id, game: 1, points: [{ playerId: p, points: 2 }, { playerId: 0, points: 1 }], stats: stats(p, 0), training: true }, NOW);
+        expect((await pool.query('SELECT count(*)::int AS n FROM match_game_stats')).rows[0].n).toBe(2);
+        const before = (await pool.query('SELECT id, state FROM training_matches ORDER BY id')).rows;
+
+        for (const name of ['0023_live_stats.sql', '0022_game_stats.sql']) await pool.query(readFileSync(join(MIGRATIONS_DIR, 'down', name), 'utf8'));
+        const columns = async (table: string) => (await pool.query<{ column_name: string }>('SELECT column_name FROM information_schema.columns WHERE table_name = $1', [table])).rows.map((r) => r.column_name);
+        expect(await columns('training_matches')).not.toEqual(expect.arrayContaining(['stats']));
+        expect(await columns('training_matches')).not.toEqual(expect.arrayContaining(['live_stats']));
+        expect(await columns('live_scores')).not.toContain('stats');
+        expect((await pool.query("SELECT to_regclass('match_game_stats') AS t")).rows[0].t).toBeNull();
+        expect((await pool.query('SELECT id, state FROM training_matches ORDER BY id')).rows).toEqual(before);
+        expect((await pool.query('SELECT count(*)::int AS n FROM match_games')).rows[0].n).toBe(1);
+
+        expect(await migrate(pool)).toEqual(['0022_game_stats.sql', '0023_live_stats.sql']);
+        expect((await pool.query('SELECT count(*)::int AS n FROM match_game_stats')).rows[0].n).toBe(0);
+        // The trigger is back and ignores live columns only.
+        const stamp = await liveStamp(pool, s.eventId);
+        await pool.query(`UPDATE training_matches SET live_game = 1 WHERE id = $1`, [created.id]);
+        expect(await liveStamp(pool, s.eventId)).toBe(stamp);
+        await pool.query(`UPDATE training_matches SET state = 'cancelled', cancel_reason = 'player', cancelled_at = now() WHERE id = $1`, [created.id]);
+        expect(await liveStamp(pool, s.eventId)).not.toBe(stamp);
     });
 });
 
