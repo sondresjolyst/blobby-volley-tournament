@@ -197,3 +197,37 @@ test('an unknown match gives not found', async ({ page }) => {
     expect((await page.goto('/kamp/99999999'))?.status()).toBe(404);
     expect((await page.goto('/kamp/abc'))?.status()).toBe(404);
 });
+
+test('resultat filter Bob vs Kevin', async ({ browser }) => {
+    const duel = await startDuel(browser, {});
+    const other = await startDuel(browser, {});
+    await report(duel.contexts[0], duel, 1, 15, 6);
+    await report(other.contexts[0], other, 1, 15, 9);
+    const page = await duel.contexts[0].newPage();
+    const [a, b] = duel.ids;
+    await page.goto('/resultat');
+    await expect(page.getByRole('banner').getByRole('navigation').getByRole('link', { name: 'Resultat', exact: true })).toHaveAttribute('aria-current', 'page');
+
+    // The form works as a plain GET form: pick two players and submit.
+    await page.getByLabel('Spelar').selectOption(String(a));
+    await page.getByLabel('Motstandar').selectOption(String(b));
+    await page.getByRole('button', { name: 'Vis' }).click();
+    expect(page.url()).toMatch(new RegExp(`/resultat[?]spelar=${a}&mot=${b}$`));
+    const games = page.getByRole('list', { name: 'Kampa' }).getByRole('listitem');
+    await expect(games).toHaveCount(1);
+    await expect(games.first()).toContainText(`${duel.names[0]} mot ${duel.names[1]}`);
+    await expect(games.first()).toContainText('1–0');
+    await expect(games.first()).toContainText('1v1');
+    await expect(games.first().getByRole('link', { name: 'Sjå kampen' })).toHaveAttribute('href', `/kamp/${duel.id}`);
+    await expect(games.filter({ hasText: other.names[0] })).toHaveCount(0);
+
+    // A player and an opponent that never met.
+    await page.goto(`/resultat?spelar=${a}&mot=${other.ids[0]}`);
+    await expect(page.getByText('Ingen kampa funne med dette utvalget.')).toBeVisible();
+
+    // An id that is not a player shows the full list.
+    await page.goto('/resultat?spelar=999999999&mot=abc');
+    await expect(games.filter({ hasText: other.names[0] })).toHaveCount(1);
+    await expect(games.filter({ hasText: duel.names[0] })).toHaveCount(1);
+    await Promise.all([...duel.contexts, ...other.contexts].map((c) => c.close()));
+});

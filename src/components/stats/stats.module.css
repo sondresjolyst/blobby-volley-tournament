@@ -450,3 +450,107 @@
         grid-template-columns: minmax(0, 1fr);
     }
 }
+
+/* The Resultat page. */
+.filter {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px;
+    margin: 0 0 20px;
+}
+
+.filter label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--muted);
+}
+
+.filter select {
+    min-height: 44px;
+    min-width: 180px;
+    padding: 0 12px;
+    border: 2px solid var(--line);
+    border-radius: 12px;
+    background: #fff;
+    color: var(--ink);
+    font: inherit;
+    font-size: 16px;
+}
+
+.filter button {
+    min-height: 44px;
+    padding: 0 22px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--red);
+    color: #fff;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.games {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.game {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 16px;
+    align-items: center;
+    padding: 12px 14px;
+    border: 2px solid var(--line);
+    border-radius: 16px;
+    background: #fff;
+}
+
+.gameRunning {
+    border-color: var(--red);
+}
+
+.gameNames {
+    font-weight: 700;
+    font-size: 16px;
+    overflow-wrap: anywhere;
+}
+
+.gameScore {
+    font-family: var(--font-lilita-one), 'Arial Rounded MT Bold', system-ui, sans-serif;
+    font-size: 22px;
+    color: var(--red);
+    white-space: nowrap;
+}
+
+.gameInfo {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.gameInfo .badge {
+    margin-left: 0;
+    font-size: 12px;
+}
+
+@media (max-width: 760px) {
+    .filter label,
+    .filter select {
+        width: 100%;
+    }
+
+    .filter select {
+        min-width: 0;
+    }
+}
