@@ -293,7 +293,7 @@ export async function getPlayerTrainingStats(pool: Pool, playerId: number): Prom
          GROUP BY bot, rule_file, difficulty`,
         [playerId],
     );
-    const records = toRecords(rows).sort((a, b) => b.games - a.games || byBotRulesDifficulty(a, b));
+    const records = toRecords(rows).sort((a, b) => b.games - a.games || a.difficulty - b.difficulty || a.bot.localeCompare(b.bot) || rulesName(a.ruleFile).localeCompare(rulesName(b.ruleFile)) || a.ruleFile.localeCompare(b.ruleFile));
     const beaten = records.filter((r) => r.wins > 0).sort((a, b) => a.difficulty - b.difficulty || a.bot.localeCompare(b.bot))[0];
     const games = records.reduce((sum, r) => sum + r.games, 0);
     const wins = records.reduce((sum, r) => sum + r.wins, 0);
