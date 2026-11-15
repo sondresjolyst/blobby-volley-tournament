@@ -1,12 +1,12 @@
 import Link from 'next/link';
 import { connection } from 'next/server';
-import { RESULT_TEXT, gameNames, gameScore, kindTag, seeGameLabel } from '@/components/stats/game-list-text';
+import { GameList } from '@/components/stats/GameList';
+import { RESULT_TEXT } from '@/components/stats/game-list-text';
 import styles from '@/components/stats/stats.module.css';
 import { siteHeader } from '@/components/site/header';
 import { SiteShell } from '@/components/site/SiteShell';
 import { getPool } from '@/lib/db';
 import { parseId } from '@/lib/http';
-import { rulesName } from '@/lib/matches/rules';
 import { NO_LAN, NO_LAN_OPEN } from '@/lib/texts';
 import { getActiveEvent } from '@/lib/store/events';
 import { listEventGames } from '@/lib/store/game-list';
@@ -76,20 +76,7 @@ export default async function ResultPage({ searchParams }: { searchParams: Promi
                 {games.length === 0 ? (
                     <p className={styles.empty}>{filtered ? RESULT_TEXT.noneFiltered : RESULT_TEXT.none}</p>
                 ) : (
-                    <ul className={styles.games} aria-label={RESULT_TEXT.list}>
-                        {games.map((g) => (
-                            <li key={g.id} className={`${styles.game} ${g.running ? styles.gameRunning : ''}`}>
-                                <span className={styles.gameNames}>{gameNames(g)}</span>
-                                <span className={styles.resultScore}>{gameScore(g)}</span>
-                                <span className={styles.gameInfo}>
-                                    <span className={styles.badge}>{kindTag(g.kind)}</span>
-                                    {g.running && <span className={`${styles.badge} ${styles.liveTag}`}>{RESULT_TEXT.live}</span>}
-                                    <span>{rulesName(g.ruleFile)}</span>
-                                </span>
-                                <Link href={`/kamp/${g.id}`} aria-label={seeGameLabel(g.names)}>{RESULT_TEXT.see}</Link>
-                            </li>
-                        ))}
-                    </ul>
+                    <GameList games={games} />
                 )}
             </div>
         </SiteShell>

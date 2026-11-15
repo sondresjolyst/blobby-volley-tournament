@@ -1,6 +1,6 @@
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { join } from 'node:path';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Browser, type BrowserContext } from '@playwright/test';
 
 // Set SITE_SHOTS to a folder to save screenshots of /elo there.
 const shots = process.env.SITE_SHOTS;
@@ -90,4 +90,166 @@ test('the info button of the Elo board links to the page that explains Elo', asy
         expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
         if (shots) await page.screenshot({ path: join(shots, `elo-${width}.png`), fullPage: true });
     }
+});
+
+const auth = () => ({ authorization: `Bearer ${process.env.E2E_GAME_SERVER_TOKEN ?? ''}` });
+const sameOrigin = { 'sec-fetch-site': 'same-origin' };
+// These sign-ups come from their own made-up network, so they do not use up the limit the other tests share.
+const network = { 'x-e2e-client': '192.0.2.51' };
+
+async function signUp(browser: Browser, nickname: string): Promise<BrowserContext> {
+    const context = await browser.newContext({ baseURL: process.env.E2E_BASE_URL, extraHTTPHeaders: network });
+    const page = await context.newPage();
+    await page.goto('/join');
+    await page.getByLabel('LAN-kode').fill(process.env.E2E_EVENT_CODE ?? '');
+    await page.getByLabel('Kallenavn', { exact: true }).fill(nickname);
+    await page.getByLabel('PIN-kode (4 siffer)').fill('1234');
+    await page.getByRole('button', { name: 'Bli med på LANet' }).click();
+    await expect(page).toHaveURL(/\/me$/);
+    await page.close();
+    return context;
+}
+
+type Sync = { players: { playerId: number; nickname: string }[]; matches: { matchId: number; players: { playerId: number }[]; training?: unknown }[] };
+const sync = async (context: BrowserContext): Promise<Sync> => (await context.request.get('/api/server/sync', { headers: auth() })).json();
+
+const line = (playerId: number, ballSteps: number, touches: number, errors: number, netHits: number) => ({ playerId, ballSteps, touches, errors, netHits });
+
+/** Two new players with a finished 1v1 that has stats. The first player lost the game 8-15 and has 30 touches. */
+async function finishedDuel(browser: Browser) {
+    const tag = randomBytes(2).toString('hex');
+    const names: [string, string] = [`Profil${tag}`, `Motpart${tag}`];
+    const [asker, asked] = [await signUp(browser, names[0]), await signUp(browser, names[1])];
+    const players = new Map((await sync(asked)).players.map((p) => [p.nickname, p.playerId]));
+    const ids: [number, number] = [players.get(names[0])!, players.get(names[1])!];
+    await asker.request.post('/api/player/challenges', { form: { opponent: String(ids[1]), bestOf: '1', scoreToWin: '15', speed: '75' }, headers: sameOrigin, maxRedirects: 0 });
+    const before = new Set((await sync(asked)).matches.map((m) => m.matchId));
+    const page = await asked.newPage();
+    await page.goto('/me');
+    await page.getByRole('list', { name: 'Utfordringa te deg' }).getByRole('button', { name: 'Godta' }).click();
+    await expect(page.getByRole('status')).toHaveText('Du godtok kampen. Dåkke kan spela med ein gang.');
+    await page.close();
+    const matchId = (await sync(asked)).matches.find((m) => !before.has(m.matchId) && m.players.some((p) => p.playerId === ids[1]))!.matchId;
+    await asked.request.post(`/api/server/matches/${matchId}/connected`, { headers: auth(), data: { playerIds: ids } });
+    const stats = { players: [line(ids[0], 4000, 30, 2, 1), line(ids[1], 6000, 20, 4, 0)], rallies: 10, longestRally: 8, rallyTouches: 50 };
+    const data = {
+        reportId: randomUUID(),
+        matchId,
+        game: 1,
+        status: 'finished',
+        winnerId: ids[1],
+        points: [
+            { playerId: ids[0], points: 8 },
+            { playerId: ids[1], points: 15 },
+        ],
+        stats,
+        startedAt: '2026-11-20T18:00:00Z',
+        endedAt: '2026-11-20T18:05:00Z',
+    };
+    expect(await (await asker.request.post('/api/server/games', { headers: auth(), data })).json()).toEqual({ status: 'stored' });
+    return { matchId, ids, names, contexts: [asker, asked] };
+}
+
+test('profile shows match stats by default', async ({ browser }) => {
+    const duel = await finishedDuel(browser);
+    const page = await duel.contexts[0].newPage();
+    await page.goto(`/leaderboard/players/${duel.ids[0]}`);
+    const block = page.getByRole('region', { name: 'Statistikk frå spela' });
+    await expect(block.getByRole('button', { name: 'Kampa' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(block.getByRole('group', { name: 'Ballinnehav' })).toHaveText('Ballinnehav40 %');
+    await expect(block.getByRole('group', { name: 'Touch per sett' })).toHaveText('Touch per sett30,0');
+    await expect(block.getByRole('group', { name: 'Feil per sett' })).toHaveText('Feil per sett2,0');
+    await expect(block.getByRole('group', { name: 'Nett-treff' })).toHaveText('Nett-treff1');
+    await expect(block.getByRole('group', { name: 'Lengste ballveksling' })).toHaveText('Lengste ballveksling8');
+    await expect(block.getByRole('group', { name: 'Snitt ballveksling' })).toHaveText('Snitt ballveksling5,0');
+    await expect(block.getByRole('group', { name: 'Sett med statistikk' })).toHaveText('Sett med statistikk1');
+    await Promise.all(duel.contexts.map((c) => c.close()));
+});
+
+test('switching to Trening and Alt changes the numbers without a reload', async ({ browser }) => {
+    const duel = await finishedDuel(browser);
+    const page = await duel.contexts[0].newPage();
+    // The first player trains against the bot and the game ends with stats.
+    await page.goto('/trening');
+    const form = page.getByRole('region', { name: 'Tren mot bot' });
+    await form.getByLabel('Først te').fill('5');
+    await form.getByRole('button', { name: 'Start treninga' }).click();
+    await expect(page.getByRole('status')).toHaveText('Treninga e klar. Bli med i spelet med lenkjå di.');
+    const training = (await sync(duel.contexts[1])).matches.find((m) => 'training' in m && m.players[0].playerId === duel.ids[0])!;
+    const stats = { players: [line(duel.ids[0], 1000, 12, 3, 2), line(0, 3000, 5, 1, 0)], rallies: 4, longestRally: 6, rallyTouches: 16 };
+    const report = await page.request.post('/api/server/games', {
+        headers: auth(),
+        data: {
+            reportId: randomUUID(),
+            matchId: training.matchId,
+            game: 1,
+            status: 'finished',
+            winnerId: 0,
+            points: [
+                { playerId: duel.ids[0], points: 2 },
+                { playerId: 0, points: 5 },
+            ],
+            stats,
+            startedAt: '2026-11-20T18:00:00Z',
+            endedAt: '2026-11-20T18:02:00Z',
+            training: true,
+        },
+    });
+    expect(await report.json()).toEqual({ status: 'stored' });
+
+    await page.goto(`/leaderboard/players/${duel.ids[0]}`);
+    const block = page.getByRole('region', { name: 'Statistikk frå spela' });
+    await expect(block.getByRole('group', { name: 'Touch per sett' })).toHaveText('Touch per sett30,0');
+    const requests: string[] = [];
+    page.on('request', (r) => requests.push(new URL(r.url()).pathname));
+
+    await block.getByRole('button', { name: 'Trening' }).click();
+    await expect(block.getByRole('button', { name: 'Trening' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(block.getByRole('group', { name: 'Ballinnehav' })).toHaveText('Ballinnehav25 %');
+    await expect(block.getByRole('group', { name: 'Touch per sett' })).toHaveText('Touch per sett12,0');
+    await expect(block.getByRole('group', { name: 'Feil per sett' })).toHaveText('Feil per sett3,0');
+    await expect(block.getByRole('group', { name: 'Nett-treff' })).toHaveText('Nett-treff2');
+    await expect(block.getByRole('group', { name: 'Lengste ballveksling' })).toHaveText('Lengste ballveksling6');
+    await expect(block.getByRole('group', { name: 'Snitt ballveksling' })).toHaveText('Snitt ballveksling4,0');
+    await expect(block.getByRole('group', { name: 'Sett med statistikk' })).toHaveText('Sett med statistikk1');
+
+    await block.getByRole('button', { name: 'Alt' }).click();
+    await expect(block.getByRole('group', { name: 'Ballinnehav' })).toHaveText('Ballinnehav36 %');
+    await expect(block.getByRole('group', { name: 'Touch per sett' })).toHaveText('Touch per sett21,0');
+    await expect(block.getByRole('group', { name: 'Feil per sett' })).toHaveText('Feil per sett2,5');
+    await expect(block.getByRole('group', { name: 'Nett-treff' })).toHaveText('Nett-treff3');
+    await expect(block.getByRole('group', { name: 'Lengste ballveksling' })).toHaveText('Lengste ballveksling8');
+    await expect(block.getByRole('group', { name: 'Snitt ballveksling' })).toHaveText('Snitt ballveksling4,7');
+    await expect(block.getByRole('group', { name: 'Sett med statistikk' })).toHaveText('Sett med statistikk2');
+
+    await block.getByRole('button', { name: 'Kampa' }).click();
+    await expect(block.getByRole('group', { name: 'Touch per sett' })).toHaveText('Touch per sett30,0');
+    expect(requests.filter((p) => p.startsWith('/api') || p.startsWith('/leaderboard/players'))).toEqual([]);
+    await Promise.all(duel.contexts.map((c) => c.close()));
+});
+
+test('siste kampa links to the match page', async ({ browser }) => {
+    const duel = await finishedDuel(browser);
+    const page = await duel.contexts[0].newPage();
+    await page.goto(`/leaderboard/players/${duel.ids[0]}`);
+    const recent = page.getByRole('region', { name: 'Siste kampa' });
+    const row = recent.getByRole('listitem').first();
+    await expect(row).toContainText(`${duel.names[0]} vs ${duel.names[1]}`);
+    await expect(row).toContainText('0–1');
+    await expect(row).toContainText('1v1');
+    await row.getByRole('link', { name: `Sjå kampen: ${duel.names[0]} mot ${duel.names[1]}` }).click();
+    await expect(page).toHaveURL(new RegExp(`/kamp/${duel.matchId}$`));
+    await Promise.all(duel.contexts.map((c) => c.close()));
+});
+
+test('profile without stats shows no stats block', async ({ browser }) => {
+    const nickname = `Ny${randomBytes(2).toString('hex')}`;
+    const context = await signUp(browser, nickname);
+    const id = (await sync(context)).players.find((p) => p.nickname === nickname)!.playerId;
+    const page = await context.newPage();
+    await page.goto(`/leaderboard/players/${id}`);
+    await expect(page.getByRole('heading', { level: 1, name: nickname })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Statistikk frå spela' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Trening' })).toHaveCount(0);
+    await context.close();
 });

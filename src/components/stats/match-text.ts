@@ -12,10 +12,10 @@ export const MATCH_TEXT = {
     rallies: 'Ballvekslingar',
     longestRally: 'Lengste ballveksling',
     averageRally: 'Snitt ballveksling',
-    noStats: 'Ingen statistikk for denne kampen',
+    noStats: 'Ingen statistikk for dette settet',
     noStatsYet: 'Ingen statistikk ennå',
     whole: 'Heile kampen',
-    noGames: 'Ingen kampa e spelt ennå.',
+    noGames: 'Ingen sett e spelt ennå.',
     waiting: 'Vente på at spelet skal starta.',
     live: 'LIVE',
     cancelled: 'Denne kampen blei avlyst.',
@@ -23,15 +23,15 @@ export const MATCH_TEXT = {
     backToTraining: 'Tebake te treninga',
     seeMatch: 'Sjå kampen',
     walkover: 'Walkover',
-    walkoverNote: 'Kampen blei avgjort på walkover. Ingen kampa e spelt.',
+    walkoverNote: 'Kampen blei avgjort på walkover. Ingen sett e spelt.',
     backToResults: 'Tebake te resultata',
     backToLeaderboard: 'Tebake te topplistå',
 } as const;
 
-/** Such as `Kamp 2`. */
-export const gameTitle = (game: number) => `Kamp ${game}`;
+/** Such as `Sett 2`. */
+export const gameTitle = (game: number) => `Sett ${game}`;
 
-/** Such as `Kamp 2 · LIVE`. */
+/** Such as `Sett 2 · LIVE`. */
 export const liveTitle = (game: number) => `${gameTitle(game)} · ${MATCH_TEXT.live}`;
 
 /** The name of a player that is not known yet. */

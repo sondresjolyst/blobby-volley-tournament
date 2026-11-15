@@ -95,13 +95,13 @@ test('finished match shows stats for both players', async ({ browser }) => {
     await expect(whole.getByRole('group', { name: 'Lengste ballveksling' })).toContainText('12');
     await expect(whole.getByRole('group', { name: 'Snitt ballveksling' })).toContainText('4,7');
 
-    const first = page.getByRole('region', { name: 'Kamp 1' });
+    const first = page.getByRole('region', { name: 'Sett 1' });
     await expect(first).toContainText('15–8');
     await expect(first.getByRole('group', { name: 'Touch' })).toHaveText(`Touch30${x}20${y}`);
-    const second = page.getByRole('region', { name: 'Kamp 2' });
+    const second = page.getByRole('region', { name: 'Sett 2' });
     await expect(second).toContainText('15–12');
     await expect(second.getByRole('group', { name: 'Ballinnehav' })).toContainText('50 %');
-    await expect(page.getByText('Ingen statistikk for denne kampen')).toHaveCount(0);
+    await expect(page.getByText('Ingen statistikk for dette settet')).toHaveCount(0);
     await Promise.all(duel.contexts.map((c) => c.close()));
 });
 
@@ -110,9 +110,9 @@ test('match without stats shows score only', async ({ browser }) => {
     await report(duel.contexts[0], duel, 1, 15, 6);
     const page = await duel.contexts[0].newPage();
     await page.goto(`/kamp/${duel.id}`);
-    const game = page.getByRole('region', { name: 'Kamp 1' });
+    const game = page.getByRole('region', { name: 'Sett 1' });
     await expect(game).toContainText('15–6');
-    await expect(game).toContainText('Ingen statistikk for denne kampen');
+    await expect(game).toContainText('Ingen statistikk for dette settet');
     await expect(game.getByRole('group')).toHaveCount(0);
     await expect(page.getByRole('region', { name: 'Heile kampen' })).toHaveCount(0);
     await Promise.all(duel.contexts.map((c) => c.close()));
@@ -135,7 +135,7 @@ test('running match updates stats from live', async ({ browser }) => {
 
     const page = await ctx.newPage();
     await page.goto(`/kamp/${duel.id}`);
-    const running = page.getByRole('region', { name: 'Kamp 1 · LIVE' });
+    const running = page.getByRole('region', { name: 'Sett 1 · LIVE' });
     await expect(running.getByRole('group', { name: 'Touch' })).toHaveText(`Touch5${x}4${y}`, { timeout: 10_000 });
     await expect(running).toContainText('1–0');
     await expect(running.getByRole('group', { name: 'Ballinnehav' })).toContainText('25 %');
@@ -146,9 +146,9 @@ test('running match updates stats from live', async ({ browser }) => {
 
     // When the game ends the page loads again and shows the final stats of the game.
     await report(ctx, duel, 1, 15, 3, gameStats(line(a, 900, 33, 1, 0), line(b, 700, 21, 2, 1), 6, 9, 40));
-    const done = page.getByRole('region', { name: 'Kamp 1', exact: true });
+    const done = page.getByRole('region', { name: 'Sett 1', exact: true });
     await expect(done.getByRole('group', { name: 'Touch' })).toHaveText(`Touch33${x}21${y}`, { timeout: 15_000 });
-    await expect(page.getByRole('region', { name: 'Kamp 1 · LIVE' })).toHaveCount(0);
+    await expect(page.getByRole('region', { name: 'Sett 1 · LIVE' })).toHaveCount(0);
     await Promise.all(duel.contexts.map((c) => c.close()));
 });
 
@@ -186,7 +186,7 @@ test('training game page shows the bot name', async ({ browser }) => {
     await expect(page.getByRole('heading', { level: 1 })).toContainText(`${nickname} vs Bot (hyp014, vanskegrad 13)`);
     await expect(page.getByRole('heading', { level: 1 })).toContainText('TRENING');
     await expect(page.getByText('Bot hyp014 · vanskegrad 13 · Vanlig · først te 5 · 75 fps')).toBeVisible();
-    const game = page.getByRole('region', { name: 'Kamp 1' });
+    const game = page.getByRole('region', { name: 'Sett 1' });
     await expect(game).toContainText('5–2');
     await expect(game.getByRole('group', { name: 'Ballinnehav' })).toHaveText(`Ballinnehav25 %${nickname}75 %Bot (hyp014, vanskegrad 13)`);
     await expect(game.getByRole('group', { name: 'Touch' })).toContainText('8');
