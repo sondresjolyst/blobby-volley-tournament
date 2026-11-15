@@ -356,6 +356,7 @@ describe('POST /api/server/games', () => {
                     { playerId: 12, points: 11 },
                     { playerId: 17, points: 15 },
                 ],
+                stats: null,
                 startedAt: new Date('2026-11-20T18:00:00Z'),
                 endedAt: new Date('2026-11-20T18:05:00Z'),
             },
@@ -420,7 +421,7 @@ describe('POST /api/server/live', () => {
     it('stores the score and answers what happened', async () => {
         updateLiveScore.mockResolvedValueOnce({ status: 'stored' }).mockResolvedValueOnce({ status: 'ignored', reason: 'game-closed' });
         expect(await (await live(request('live', liveBody))).json()).toEqual({ status: 'stored' });
-        expect(updateLiveScore).toHaveBeenCalledWith({}, liveBody, expect.any(Date));
+        expect(updateLiveScore).toHaveBeenCalledWith({}, { ...liveBody, stats: null, training: false }, expect.any(Date));
         expect(await (await live(request('live', liveBody))).json()).toEqual({ status: 'ignored', reason: 'game-closed' });
     });
 

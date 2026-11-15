@@ -52,3 +52,6 @@ export function parseTrainingForm(form: Record<string, string>): TrainingOptions
     if (!isTrainingBot(bot) || !isDifficulty(difficulty) || !isScoreToWin(scoreToWin) || !isTrainingRules(ruleFile, scoreToWin)) return null;
     return { bot, difficulty, ruleFile, scoreToWin };
 }
+
+/** How the site names the bot of a training match. */
+export const trainingBotName = (bot: string, difficulty: number) => `Bot (${bot}, vanskegrad ${difficulty})`;

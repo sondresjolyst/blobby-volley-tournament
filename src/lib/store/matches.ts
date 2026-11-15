@@ -3,6 +3,7 @@
 // same transaction.
 import type { Pool, PoolClient } from 'pg';
 import { DEFAULT_RULES, finalPlacings, isBestOf, isRuleFile, roundName, type FormatId, type MatchLink, type Placing, type Section } from '@/lib/bracket';
+import { inOrder, type GameStats } from '@/lib/game-server/stats';
 import { fitsScoreToWin, realScoreToWin } from '@/lib/matches/rules';
 import { DEFAULT_GAME_SPEED, DEFAULT_SCORE_TO_WIN, isGameSpeed, isPoints, isScoreToWin, isWinningScore } from '@/lib/matches/settings';
 import { isOpenForBets, isValidSeriesScore, nextState, seriesScore, type GameResult, type MatchAction, type MatchState } from '@/lib/matches/state';
@@ -717,7 +718,7 @@ const isValidReport = (report: GameReport) =>
     isWinningScore(report.winnerSlot, report.points1, report.points2, 1);
 
 /** Stores one report on the locked match and applies it when it is for the next game. */
-async function storeReport(tx: MatchTx, report: GameReport, times: { startedAt: Date; endedAt: Date } | null): Promise<ReportStatus> {
+async function storeReport(tx: MatchTx, report: GameReport, times: { startedAt: Date; endedAt: Date } | null, stats: GameStats | null = null): Promise<ReportStatus> {
     // A finished game from the game server ends at the points to win of the match or later. The rules can change those points.
     if (!isWinningScore(report.winnerSlot, report.points1, report.points2, realScoreToWin(tx.match.rule_file, tx.match.score_to_win))) throw new Refused('score');
     const games = await readGames(tx.client, tx.match.id);
@@ -759,6 +760,16 @@ async function storeReport(tx: MatchTx, report: GameReport, times: { startedAt: 
         report.points2,
         report.leftSlot ?? null,
     ]);
+    if (stats) {
+        for (const slot of [1, 2] as const) {
+            const p = stats.players[slot - 1];
+            await tx.client.query(
+                `INSERT INTO match_game_stats (match_id, game_number, slot, ball_steps, touches, errors, net_hits, rallies, longest_rally, rally_touches)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                [tx.match.id, report.game, slot, p.ballSteps, p.touches, p.errors, p.netHits, stats.rallies, stats.longestRally, stats.rallyTouches],
+            );
+        }
+    }
     await settleSeries(tx);
     return decision;
 }
@@ -784,6 +795,8 @@ export interface ServerGameReport {
     leftPlayerId?: number | null;
     /** The points of each of the two players of the match, in any order. */
     points: readonly { playerId: number; points: number }[];
+    /** The final stats. Null or left out when the report has none. */
+    stats?: GameStats | null;
     startedAt: Date;
     endedAt: Date;
 }
@@ -814,7 +827,8 @@ export async function reportServerGame(pool: Pool, report: ServerGameReport): Pr
             leftSlot: left === null ? null : left === player1 ? 1 : 2,
         };
         if (!isValidReport(slots)) throw new Refused('score');
-        return storeReport(tx, slots, { startedAt: report.startedAt, endedAt: report.endedAt });
+        // Stats never refuse a report. Stats for other players than the two are dropped.
+        return storeReport(tx, slots, { startedAt: report.startedAt, endedAt: report.endedAt }, inOrder(report.stats, player1, player2));
     });
 }
 

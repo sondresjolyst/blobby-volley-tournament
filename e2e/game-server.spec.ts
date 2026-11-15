@@ -129,17 +129,18 @@ test('the game server syncs a called match, starts it, sends a live score and re
         { playerId: ids[0], points: a },
         { playerId: ids[1], points: b },
     ];
-    expect(await (await request.post('/api/server/live', { headers: auth(), data: { matchId: match.matchId, game: 1, points: points(7, 4) } })).json()).toEqual({ status: 'stored' });
+    const stats = { players: [{ playerId: ids[0], ballSteps: 410, touches: 9, errors: 1, netHits: 0 }, { playerId: ids[1], ballSteps: 380, touches: 7, errors: 2, netHits: 1 }], rallies: 3, longestRally: 5, rallyTouches: 16 };
+    expect(await (await request.post('/api/server/live', { headers: auth(), data: { matchId: match.matchId, game: 1, points: points(7, 4), stats } })).json()).toEqual({ status: 'stored' });
     // The big screen reads the live score without any login.
     const screen = await browser.newContext({ baseURL: process.env.E2E_BASE_URL });
     const live = await (await screen.request.get(`/api/matches/${match.matchId}/live`)).json();
-    expect(live).toMatchObject({ matchId: match.matchId, state: 'started', live: { game: 1 } });
+    expect(live).toMatchObject({ matchId: match.matchId, state: 'started', training: false, live: { game: 1 }, stats });
     expect(live.live.points.sort((x: { playerId: number }, y: { playerId: number }) => x.playerId - y.playerId)).toEqual(points(7, 4).sort((x, y) => x.playerId - y.playerId));
 
     const report = { reportId: randomUUID(), matchId: match.matchId, game: 1, status: 'finished', winnerId: ids[1], points: points(18, 21), startedAt: '2026-11-20T18:00:00Z', endedAt: '2026-11-20T18:06:00Z' };
     expect(await (await request.post('/api/server/games', { headers: auth(), data: report })).json()).toEqual({ status: 'stored' });
     expect(await (await request.post('/api/server/games', { headers: auth(), data: report })).json()).toEqual({ status: 'duplicate' });
-    expect(await (await screen.request.get(`/api/matches/${match.matchId}/live`)).json()).toMatchObject({ state: 'finished', live: null });
+    expect(await (await screen.request.get(`/api/matches/${match.matchId}/live`)).json()).toMatchObject({ state: 'finished', live: null, stats: null });
     await screen.close();
 
     // The best-of-1 match is decided, so it leaves the sync.

@@ -2,6 +2,8 @@ import { Pool } from 'pg';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { migrate } from '../../../scripts/migrate.mjs';
 import type { EventInput } from '@/lib/events/input';
+import { parseTrainingReport } from '@/lib/game-server/input';
+import type { PlayerGameStats } from '@/lib/game-server/stats';
 import { newJoinCode } from '@/lib/players/join-code';
 import type { TrainingOptions } from '@/lib/training/settings';
 import { listMatchPools } from './bets';
@@ -276,5 +278,69 @@ describe('training stats', () => {
         for (const entry of board?.elo ?? []) expect(entry).toMatchObject({ matches: 0, change: 0 });
         const { rows } = await pool.query('SELECT count(*)::int AS n FROM foza_ledger');
         expect(rows[0].n).toBe(0);
+    });
+});
+
+describe('training match stats', () => {
+    const statsOf = (playerId: number) => ({
+        players: [
+            { playerId, ballSteps: 4120, touches: 31, errors: 2, netHits: 1 },
+            { playerId: 0, ballSteps: 3480, touches: 27, errors: 4, netHits: 0 },
+        ] as [PlayerGameStats, PlayerGameStats],
+        rallies: 14,
+        longestRally: 9,
+        rallyTouches: 58,
+    });
+    const started = async (name: string) => {
+        const { ids } = await event(1, [name]);
+        const created = await createTraining(pool, ids[name], OPTIONS);
+        if (!created.ok) throw new Error(created.error);
+        await reportTrainingConnected(pool, created.id, [ids[name], 0]);
+        return { id: created.id, playerId: ids[name] };
+    };
+    const statsColumn = async (id: number) => (await pool.query<{ stats: unknown }>('SELECT stats FROM training_matches WHERE id = $1', [id])).rows[0].stats;
+
+    it('report_without_stats_stores_result', async () => {
+        const { id, playerId } = await started('Ola');
+        expect(await reportTrainingGame(pool, { ...report(id, playerId, 15, 4), stats: null })).toEqual({ status: 'stored' });
+        expect(await statsColumn(id)).toBeNull();
+        expect((await pool.query('SELECT state FROM training_matches WHERE id = $1', [id])).rows[0].state).toBe('finished');
+    });
+
+    it('report_with_bad_stats_stores_result_without_stats', async () => {
+        const { id, playerId } = await started('Ola');
+        const parsed = parseTrainingReport({
+            reportId: reportId(),
+            matchId: id,
+            game: 1,
+            status: 'finished',
+            training: true,
+            winnerId: playerId,
+            points: [
+                { playerId, points: 15 },
+                { playerId: 0, points: 4 },
+            ],
+            stats: { ...statsOf(playerId), rallies: 1.5 },
+            startedAt: '2026-11-20T18:00:00Z',
+            endedAt: '2026-11-20T18:05:00Z',
+        });
+        if (!parsed.ok) throw new Error(parsed.field);
+        expect(await reportTrainingGame(pool, parsed.value)).toEqual({ status: 'stored' });
+        expect(await statsColumn(id)).toBeNull();
+    });
+
+    it('report_with_stats_stores_the_block', async () => {
+        const { id, playerId } = await started('Ola');
+        expect(await reportTrainingGame(pool, { ...report(id, playerId, 15, 4), stats: statsOf(playerId) })).toEqual({ status: 'stored' });
+        expect(await statsColumn(id)).toEqual(statsOf(playerId));
+    });
+
+    it('repeated_report_id_does_not_change_stats', async () => {
+        const { id, playerId } = await started('Ola');
+        const first = { ...report(id, playerId, 15, 4), stats: statsOf(playerId) };
+        await reportTrainingGame(pool, first);
+        const other = { ...statsOf(playerId), rallies: 99, rallyTouches: 99 };
+        expect(await reportTrainingGame(pool, { ...first, stats: other })).toEqual({ status: 'duplicate' });
+        expect(await statsColumn(id)).toEqual(statsOf(playerId));
     });
 });

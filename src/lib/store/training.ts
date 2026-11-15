@@ -2,6 +2,7 @@
 // never reach Foza, bets, the leaderboards, Elo, tournaments or the big screen. A training match
 // is one game. The game server reports it like a match, with player id 0 for the bot.
 import type { Pool, PoolClient } from 'pg';
+import { inOrder, type GameStats } from '@/lib/game-server/stats';
 import { realScoreToWin } from '@/lib/matches/rules';
 import { isScoreToWin, isWinningScore } from '@/lib/matches/settings';
 import { TRAINING_SPEED, isDifficulty, isTrainingBot, isTrainingRules, type TrainingOptions } from '@/lib/training/settings';
@@ -203,6 +204,8 @@ export interface TrainingReport {
     winnerId: number | null;
     /** The points of the player and of the bot, which has id 0. */
     points: readonly { playerId: number; points: number }[];
+    /** The final stats. Null or left out when the report has none. */
+    stats?: GameStats | null;
     startedAt: Date;
     endedAt: Date;
 }
@@ -232,20 +235,23 @@ export async function reportTrainingGame(pool: Pool, report: TrainingReport): Pr
         const botPoints = report.points.find((p) => p.playerId === BOT_PLAYER_ID)!.points;
         if (report.status === 'abandoned') {
             await client.query(
-                `UPDATE training_matches SET state = 'cancelled', cancel_reason = 'left', cancelled_at = now(), report_id = $2, game_started_at = $3
+                `UPDATE training_matches SET state = 'cancelled', cancel_reason = 'left', cancelled_at = now(), report_id = $2, game_started_at = $3,
+                 live_game = NULL, live_points = NULL, live_stats = NULL, live_updated_at = NULL
                  WHERE id = $1`,
                 [match.id, report.reportId, report.startedAt],
             );
             return { status: 'stored' };
         }
         const won = report.winnerId === match.player_id;
+        const ordered = inOrder(report.stats, match.player_id, BOT_PLAYER_ID);
         // Lyn always plays to 2 and Brannmur to 10 times the points, like for a match.
         if (!isWinningScore(won ? 1 : 2, playerPoints, botPoints, realScoreToWin(match.rule_file, match.score_to_win))) return { status: 'refused', reason: 'score' };
         await client.query(
             `UPDATE training_matches SET state = 'finished', finished_at = now(), started_at = coalesce(started_at, $3), report_id = $2,
-                 player_points = $4, bot_points = $5, won = $6, game_started_at = $3, game_ended_at = $7
+                 player_points = $4, bot_points = $5, won = $6, game_started_at = $3, game_ended_at = $7, stats = $8,
+                 live_game = NULL, live_points = NULL, live_stats = NULL, live_updated_at = NULL
              WHERE id = $1`,
-            [match.id, report.reportId, report.startedAt, playerPoints, botPoints, won, report.endedAt],
+            [match.id, report.reportId, report.startedAt, playerPoints, botPoints, won, report.endedAt, ordered ? JSON.stringify(ordered) : null],
         );
         return { status: 'stored' };
     });

@@ -41,6 +41,8 @@ function match(id: number, state: MatchState, players: [number | null, number | 
 const live = (matchId: number, points: [number, number] | null): LiveScore => ({
     matchId,
     state: 'started',
+    training: false,
+    stats: null,
     live: points ? { game: 2, points: [{ playerId: 0, points: points[0] }, { playerId: 0, points: points[1] }], updatedAt: '2026-11-20T18:00:00.000Z' } : null,
 });
 

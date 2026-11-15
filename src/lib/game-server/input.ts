@@ -1,6 +1,7 @@
 // Reads the JSON bodies the game server sends. Each parser names the first bad field.
 import { readCappedBody } from '@/lib/http';
 import { isPoints } from '@/lib/matches/settings';
+import { readStats, type GameStats } from './stats';
 
 /** The largest body read. Every request of the game server is far smaller. */
 export const MAX_BODY_BYTES = 16 * 1024;
@@ -73,6 +74,8 @@ export interface GameReportInput {
     /** The player who left an abandoned game, when the server knows. Always null for a finished game. */
     leftPlayerId: number | null;
     points: PlayerPoints[];
+    /** The final stats, or null when the report has none or a bad block. */
+    stats: GameStats | null;
     startedAt: Date;
     endedAt: Date;
 }
@@ -112,23 +115,27 @@ export function parseGameReport(body: unknown): Parsed<GameReportInput> {
     const endedAt = readTime(body.endedAt);
     if (!endedAt || endedAt < startedAt) return { ok: false, field: 'endedAt' };
     // Lower case, so the same UUID in another case is still the same report.
-    return { ok: true, value: { reportId: body.reportId.toLowerCase(), matchId: body.matchId, game: body.game, status, winnerId, leftPlayerId, points, startedAt, endedAt } };
+    return { ok: true, value: { reportId: body.reportId.toLowerCase(), matchId: body.matchId, game: body.game, status, winnerId, leftPlayerId, points, stats: readStats(body.stats, points.map((p) => p.playerId)), startedAt, endedAt } };
 }
 
 export interface LiveInputBody {
     matchId: number;
     game: number;
     points: PlayerPoints[];
+    stats: GameStats | null;
+    /** True for a training match, where the bot has player id 0. */
+    training: boolean;
 }
 
-/** Body of POST /api/server/live. */
+/** Body of POST /api/server/live. A training match has `"training": true` and the bot as player 0. */
 export function parseLive(body: unknown): Parsed<LiveInputBody> {
     if (!isObject(body)) return { ok: false, field: 'body' };
     if (!isId(body.matchId)) return { ok: false, field: 'matchId' };
     if (!isId(body.game)) return { ok: false, field: 'game' };
-    const points = readPoints(body.points);
+    const training = isTrainingBody(body);
+    const points = training ? readTrainingPoints(body.points) : readPoints(body.points);
     if (!points) return { ok: false, field: 'points' };
-    return { ok: true, value: { matchId: body.matchId, game: body.game, points } };
+    return { ok: true, value: { matchId: body.matchId, game: body.game, points, stats: readStats(body.stats, points.map((p) => p.playerId)), training } };
 }
 
 /** The player id the game server gives its bot in a training match. */
@@ -164,6 +171,8 @@ export interface TrainingReportInput {
     /** The player, or 0 when the bot won. Null for an abandoned game. */
     winnerId: number | null;
     points: PlayerPoints[];
+    /** The final stats, or null when the report has none or a bad block. */
+    stats: GameStats | null;
     startedAt: Date;
     endedAt: Date;
 }
@@ -195,7 +204,7 @@ export function parseTrainingReport(body: unknown): Parsed<TrainingReportInput> 
     if (!startedAt) return { ok: false, field: 'startedAt' };
     const endedAt = readTime(body.endedAt);
     if (!endedAt || endedAt < startedAt) return { ok: false, field: 'endedAt' };
-    return { ok: true, value: { reportId: body.reportId.toLowerCase(), matchId: body.matchId, game: body.game, status, winnerId, points, startedAt, endedAt } };
+    return { ok: true, value: { reportId: body.reportId.toLowerCase(), matchId: body.matchId, game: body.game, status, winnerId, points, stats: readStats(body.stats, points.map((p) => p.playerId)), startedAt, endedAt } };
 }
 
 /** The 400 answer for a body that could not be read. */
