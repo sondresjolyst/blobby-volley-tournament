@@ -421,7 +421,7 @@ describe('POST /api/server/live', () => {
     it('stores the score and answers what happened', async () => {
         updateLiveScore.mockResolvedValueOnce({ status: 'stored' }).mockResolvedValueOnce({ status: 'ignored', reason: 'game-closed' });
         expect(await (await live(request('live', liveBody))).json()).toEqual({ status: 'stored' });
-        expect(updateLiveScore).toHaveBeenCalledWith({}, { ...liveBody, stats: null }, expect.any(Date));
+        expect(updateLiveScore).toHaveBeenCalledWith({}, { ...liveBody, stats: null, training: false }, expect.any(Date));
         expect(await (await live(request('live', liveBody))).json()).toEqual({ status: 'ignored', reason: 'game-closed' });
     });
 

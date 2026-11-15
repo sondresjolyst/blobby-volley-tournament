@@ -2,8 +2,10 @@
 import { createHash } from 'node:crypto';
 import type { Pool } from 'pg';
 import { DEFAULT_NEXT_GAME_DELAY } from '@/lib/matches/settings';
+import type { PlayerPoints } from '@/lib/game-server/input';
+import type { GameStats } from '@/lib/game-server/stats';
 import type { MatchState } from '@/lib/matches/state';
-import { listSyncTraining, type SyncTrainingRow } from './training';
+import { listSyncTraining, type SyncTrainingRow, type TrainingState } from './training';
 
 export interface SyncPlayer {
     playerId: number;
@@ -167,6 +169,10 @@ export interface LiveInput {
     game: number;
     /** The points of each of the two players of the match, in any order. */
     points: readonly { playerId: number; points: number }[];
+    /** The live stats of the game. Left out or null when the body has none. */
+    stats?: GameStats | null;
+    /** A training match, which has the bot as player 0. */
+    training?: boolean;
 }
 
 export type LiveResult = { status: 'stored' } | { status: 'ignored'; reason: 'not-found' | 'state' | 'players' | 'game-closed' | 'game-ahead' };
@@ -184,6 +190,7 @@ interface LiveMatchRow {
  * already has a result, or for a later game than the next one, is ignored.
  */
 export async function updateLiveScore(pool: Pool, input: LiveInput, now: Date): Promise<LiveResult> {
+    if (input.training) return updateTrainingLive(pool, input, now);
     const { rows } = await pool.query<LiveMatchRow>(`SELECT m.state, m.player1_id, m.player2_id, ${GAME_STATE} FROM matches m ${LAST_GAME} WHERE m.id = $1`, [input.matchId]);
     const match = rows[0];
     if (!match) return { status: 'ignored', reason: 'not-found' };
@@ -197,38 +204,63 @@ export async function updateLiveScore(pool: Pool, input: LiveInput, now: Date): 
     if (input.game > match.next_game) return { status: 'ignored', reason: 'game-ahead' };
     const pointsOf = (playerId: number | null) => input.points.find((p) => p.playerId === playerId)!.points;
     const stored = await pool.query(
-        `INSERT INTO live_scores (match_id, game_number, points1, points2, updated_at) VALUES ($1, $2, $3, $4, $5)
-         ON CONFLICT (match_id) DO UPDATE SET game_number = EXCLUDED.game_number, points1 = EXCLUDED.points1, points2 = EXCLUDED.points2, updated_at = EXCLUDED.updated_at
+        `INSERT INTO live_scores (match_id, game_number, points1, points2, stats, updated_at) VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (match_id) DO UPDATE SET game_number = EXCLUDED.game_number, points1 = EXCLUDED.points1, points2 = EXCLUDED.points2, stats = EXCLUDED.stats, updated_at = EXCLUDED.updated_at
          WHERE live_scores.game_number <= EXCLUDED.game_number`,
-        [input.matchId, input.game, pointsOf(match.player1_id), pointsOf(match.player2_id), now],
+        [input.matchId, input.game, pointsOf(match.player1_id), pointsOf(match.player2_id), input.stats ? JSON.stringify(input.stats) : null, now],
     );
     return stored.rowCount === 1 ? { status: 'stored' } : { status: 'ignored', reason: 'game-closed' };
 }
 
+/**
+ * The live score of a training game goes on its row while the match is started. A training match
+ * is one game, so any other game number is ignored. The live columns are not in the live version
+ * trigger of the table (migration 0023), so this never moves the live version.
+ */
+async function updateTrainingLive(pool: Pool, input: LiveInput, now: Date): Promise<LiveResult> {
+    const { rows } = await pool.query<{ state: string; player_id: number }>('SELECT state, player_id FROM training_matches WHERE id = $1', [input.matchId]);
+    const match = rows[0];
+    if (!match) return { status: 'ignored', reason: 'not-found' };
+    if (match.state !== 'started') return { status: 'ignored', reason: 'state' };
+    const ids = input.points.map((p) => p.playerId);
+    if (ids.length !== 2 || !ids.includes(match.player_id) || !ids.includes(0)) return { status: 'ignored', reason: 'players' };
+    if (input.game > 1) return { status: 'ignored', reason: 'game-ahead' };
+    const stored = await pool.query(
+        `UPDATE training_matches SET live_game = $2, live_points = $3, live_stats = $4, live_updated_at = $5 WHERE id = $1 AND state = 'started'`,
+        [input.matchId, input.game, JSON.stringify(input.points.map((p) => ({ playerId: p.playerId, points: p.points }))), input.stats ? JSON.stringify(input.stats) : null, now],
+    );
+    return stored.rowCount === 1 ? { status: 'stored' } : { status: 'ignored', reason: 'state' };
+}
+
 export interface LiveScore {
     matchId: number;
-    state: MatchState;
+    state: MatchState | TrainingState;
+    /** True for a training match. The bot has player id 0 in the points and the stats. */
+    training: boolean;
     /** Null when no game is being played or no score has come in for it. */
     live: { game: number; points: [{ playerId: number; points: number }, { playerId: number; points: number }]; updatedAt: string } | null;
+    /** The live stats of the game being played. Null when there are none or the game is not shown. */
+    stats: GameStats | null;
 }
 
 /**
- * The live score of a match for the big screen. It is shown only while the match is called or
- * started and the game has no result yet. Returns null when the match does not exist.
+ * The live score of a match or a training match for the big screen. It is shown only while the
+ * match is called or started and the game has no result yet. Returns null when the id is unknown.
  */
 export async function getLiveScore(pool: Pool, matchId: number): Promise<LiveScore | null> {
-    const { rows } = await pool.query<LiveMatchRow & { game_number: number | null; points1: number | null; points2: number | null; updated_at: Date | null }>(
-        `SELECT m.state, m.player1_id, m.player2_id, ${GAME_STATE}, ls.game_number, ls.points1, ls.points2, ls.updated_at
+    const { rows } = await pool.query<LiveMatchRow & { game_number: number | null; points1: number | null; points2: number | null; updated_at: Date | null; stats: GameStats | null }>(
+        `SELECT m.state, m.player1_id, m.player2_id, ${GAME_STATE}, ls.game_number, ls.points1, ls.points2, ls.updated_at, ls.stats
          FROM matches m ${LAST_GAME} LEFT JOIN live_scores ls ON ls.match_id = m.id
          WHERE m.id = $1`,
         [matchId],
     );
     const row = rows[0];
-    if (!row) return null;
+    if (!row) return getTrainingLiveScore(pool, matchId);
     const showing = (row.state === 'called' || row.state === 'started') && row.game_number !== null && row.game_number >= row.next_game && row.player1_id !== null && row.player2_id !== null;
     return {
         matchId,
         state: row.state,
+        training: false,
         live: showing
             ? {
                   game: row.game_number!,
@@ -239,5 +271,23 @@ export async function getLiveScore(pool: Pool, matchId: number): Promise<LiveSco
                   updatedAt: row.updated_at!.toISOString(),
               }
             : null,
+        stats: showing ? row.stats : null,
+    };
+}
+
+async function getTrainingLiveScore(pool: Pool, id: number): Promise<LiveScore | null> {
+    const { rows } = await pool.query<{ state: TrainingState; live_game: number | null; live_points: [PlayerPoints, PlayerPoints] | null; live_stats: GameStats | null; live_updated_at: Date | null }>(
+        'SELECT state, live_game, live_points, live_stats, live_updated_at FROM training_matches WHERE id = $1',
+        [id],
+    );
+    const row = rows[0];
+    if (!row) return null;
+    const showing = row.state === 'started' && row.live_game !== null && row.live_points !== null && row.live_updated_at !== null;
+    return {
+        matchId: id,
+        state: row.state,
+        training: true,
+        live: showing ? { game: row.live_game!, points: row.live_points!, updatedAt: row.live_updated_at!.toISOString() } : null,
+        stats: showing ? row.live_stats : null,
     };
 }

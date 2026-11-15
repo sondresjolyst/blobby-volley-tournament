@@ -197,7 +197,17 @@ describe('parseLive', () => {
     });
 
     it('reads the score', () => {
-        expect(parseLive(live())).toEqual({ ok: true, value: { ...live(), stats: null } });
+        expect(parseLive(live())).toEqual({ ok: true, value: { ...live(), stats: null, training: false } });
+    });
+
+    it('reads a training score with the bot as player 0', () => {
+        const points = [
+            { playerId: 17, points: 4 },
+            { playerId: 0, points: 2 },
+        ];
+        expect(parseLive(live({ training: true, points }))).toEqual({ ok: true, value: { ...live({ points }), stats: null, training: true } });
+        expect(parseLive(live({ points }))).toEqual({ ok: false, field: 'points' });
+        expect(parseLive(live({ training: true }))).toEqual({ ok: false, field: 'points' });
     });
 
     it.each([

@@ -235,7 +235,8 @@ export async function reportTrainingGame(pool: Pool, report: TrainingReport): Pr
         const botPoints = report.points.find((p) => p.playerId === BOT_PLAYER_ID)!.points;
         if (report.status === 'abandoned') {
             await client.query(
-                `UPDATE training_matches SET state = 'cancelled', cancel_reason = 'left', cancelled_at = now(), report_id = $2, game_started_at = $3
+                `UPDATE training_matches SET state = 'cancelled', cancel_reason = 'left', cancelled_at = now(), report_id = $2, game_started_at = $3,
+                 live_game = NULL, live_points = NULL, live_stats = NULL, live_updated_at = NULL
                  WHERE id = $1`,
                 [match.id, report.reportId, report.startedAt],
             );
@@ -246,7 +247,8 @@ export async function reportTrainingGame(pool: Pool, report: TrainingReport): Pr
         if (!isWinningScore(won ? 1 : 2, playerPoints, botPoints, realScoreToWin(match.rule_file, match.score_to_win))) return { status: 'refused', reason: 'score' };
         await client.query(
             `UPDATE training_matches SET state = 'finished', finished_at = now(), started_at = coalesce(started_at, $3), report_id = $2,
-                 player_points = $4, bot_points = $5, won = $6, game_started_at = $3, game_ended_at = $7, stats = $8
+                 player_points = $4, bot_points = $5, won = $6, game_started_at = $3, game_ended_at = $7, stats = $8,
+                 live_game = NULL, live_points = NULL, live_stats = NULL, live_updated_at = NULL
              WHERE id = $1`,
             [match.id, report.reportId, report.startedAt, playerPoints, botPoints, won, report.endedAt, report.stats ? JSON.stringify(report.stats) : null],
         );

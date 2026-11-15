@@ -123,16 +123,19 @@ export interface LiveInputBody {
     game: number;
     points: PlayerPoints[];
     stats: GameStats | null;
+    /** True for a training match, where the bot has player id 0. */
+    training: boolean;
 }
 
-/** Body of POST /api/server/live. */
+/** Body of POST /api/server/live. A training match has `"training": true` and the bot as player 0. */
 export function parseLive(body: unknown): Parsed<LiveInputBody> {
     if (!isObject(body)) return { ok: false, field: 'body' };
     if (!isId(body.matchId)) return { ok: false, field: 'matchId' };
     if (!isId(body.game)) return { ok: false, field: 'game' };
-    const points = readPoints(body.points);
+    const training = isTrainingBody(body);
+    const points = training ? readTrainingPoints(body.points) : readPoints(body.points);
     if (!points) return { ok: false, field: 'points' };
-    return { ok: true, value: { matchId: body.matchId, game: body.game, points, stats: readStats(body.stats, points.map((p) => p.playerId)) } };
+    return { ok: true, value: { matchId: body.matchId, game: body.game, points, stats: readStats(body.stats, points.map((p) => p.playerId)), training } };
 }
 
 /** The player id the game server gives its bot in a training match. */

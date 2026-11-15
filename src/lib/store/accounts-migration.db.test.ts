@@ -138,8 +138,8 @@ async function untouched(): Promise<Record<string, unknown[]>> {
         match_games: await read('SELECT * FROM match_games ORDER BY match_id, number'),
         bets: await read('SELECT * FROM bets ORDER BY id'),
         foza_ledger: await read('SELECT * FROM foza_ledger ORDER BY id'),
-        // Without the stats column, which a later migration adds.
-        training_matches: await read(`SELECT ${(await columnsOf('training_matches')).filter((c) => c !== 'stats').join(', ')} FROM training_matches ORDER BY id`),
+        // Without the stats and live columns, which later migrations add.
+        training_matches: await read(`SELECT ${(await columnsOf('training_matches')).filter((c) => !['stats', 'live_game', 'live_points', 'live_stats', 'live_updated_at'].includes(c)).join(', ')} FROM training_matches ORDER BY id`),
         sessions: await read('SELECT token_hash, player_id, created_at, expires_at FROM player_sessions ORDER BY token_hash'),
     };
 }
