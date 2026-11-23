@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.1](https://github.com/sondresjolyst/blobby-volley-tournament/compare/v0.8.0...v0.8.1) (2026-11-22)
+
+
+### Dependencies
+
+* **npm:** update next from 16.4.5 to 16.4.6 ([6f1c156](https://github.com/sondresjolyst/blobby-volley-tournament/commit/6f1c15624203c7e5c2bb5d9823e0716e3c25c84d))
+* **pip:** update manifold3d from ==3.5.4 to ==3.5.5 ([4bb4180](https://github.com/sondresjolyst/blobby-volley-tournament/commit/4bb4180e7e95848b3c34a1742bc94a99e91db643))
+* **pip:** update trimesh from ==5.2.0 to ==5.2.1 ([4bb4180](https://github.com/sondresjolyst/blobby-volley-tournament/commit/4bb4180e7e95848b3c34a1742bc94a99e91db643))
+
 ## [0.8.0](https://github.com/sondresjolyst/blobby-volley-tournament/compare/v0.7.0...v0.8.0) (2026-11-15)
 
 
